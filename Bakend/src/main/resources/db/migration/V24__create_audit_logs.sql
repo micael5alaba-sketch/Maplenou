@@ -1,0 +1,13 @@
+CREATE TABLE audit_logs (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id    UUID        REFERENCES users(id),
+    action      VARCHAR(60) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id   UUID,
+    details     TEXT,
+    ip_address  VARCHAR(45),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_audit_logs_actor_id    ON audit_logs(actor_id);
+CREATE INDEX idx_audit_logs_entity_id   ON audit_logs(entity_id);
+CREATE INDEX idx_audit_logs_created_at  ON audit_logs(created_at DESC);

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/MaplenouApplication.java __TRACKED_VAR__/com/maplenou/backend/)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/auth/AuthService.java __TRACKED_VAR__/com/maplenou/backend/auth/)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/auth/AuthController.java __TRACKED_VAR__/com/maplenou/backend/auth/)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/auth/dto/LoginRequest.java __TRACKED_VAR__/com/maplenou/backend/auth/dto/)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/auth/dto/AuthResponse.java __TRACKED_VAR__/com/maplenou/backend/auth/dto/)",
+      "Bash(mkdir -p __TRACKED_VAR__/com/maplenou/backend)",
+      "Bash(cp __TRACKED_VAR__/Maplenou/MaplenouApplicationTests.java __TRACKED_VAR__/com/maplenou/backend/)",
+      "Bash(rm -rf __TRACKED_VAR__/Maplenou)",
+      "Bash(mvn compile:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('type:', d.get\\('type'\\)\\); print\\('project_id:', d.get\\('project_id'\\)\\); print\\('client_email:', d.get\\('client_email'\\)\\); print\\('private_key présente:', bool\\(d.get\\('private_key'\\) and 'BEGIN' in d.get\\('private_key',''\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('type:', d.get\\('type'\\)\\); print\\('project_id:', d.get\\('project_id'\\)\\); print\\('client_email:', d.get\\('client_email'\\)\\); print\\('private_key valide:', bool\\(d.get\\('private_key'\\) and 'BEGIN' in d.get\\('private_key',''\\) and 'VOTRE' not in d.get\\('private_key',''\\)\\)\\)\")",
+      "Bash(powershell:*)",
+      "Bash(./mvnw.cmd clean:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(PGPASSWORD='Micael2005@' \"C:/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -d maplenou_db -f create_admin.sql)",
+      "Bash(PGPASSWORD='Micael2005@' \"C:/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -d maplenou_db -c \"\\\\d users\")",
+      "Bash(curl -s http://localhost:8080/v3/api-docs)",
+      "Bash(curl -s http://localhost:8080/actuator/health)"
+    ]
+  }
+}
