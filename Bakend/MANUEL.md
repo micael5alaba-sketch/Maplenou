@@ -33,7 +33,55 @@ technique) dans `src/main/java/com/maplenou/backend/`.
 
 ---
 
-## 3. Prérequis pour lancer le projet en local
+## 3. Lancer avec Docker (recommandé)
+
+Docker évite d'installer Java, PostgreSQL et Redis un par un sur chaque machine : une seule
+commande démarre les trois ensemble, préconfigurés et identiques pour tout le monde (toi, ton
+boss, un nouveau développeur). C'est la méthode à privilégier pour tester rapidement sans se
+soucier des versions installées sur le poste.
+
+**Prérequis** : [Docker Desktop](https://www.docker.com/products/docker-desktop/) installé et
+lancé (Windows/Mac/Linux).
+
+**Étape obligatoire avant de lancer** : comme expliqué au §5, `firebase-service-account.json`
+n'est pas dans Git. Il doit être présent sur ta machine à
+`src/main/resources/firebase-service-account.json` **avant** de lancer Docker — `docker-compose.yml`
+monte ce fichier depuis ce chemin dans le conteneur, il ne le contient pas.
+
+```bash
+# Démarrer PostgreSQL + Redis + backend (construit l'image si besoin)
+docker compose up --build
+
+# Démarrer en arrière-plan (rendre la main au terminal)
+docker compose up --build -d
+
+# Voir les logs du backend en direct (utile en mode -d)
+docker compose logs -f backend
+
+# Tout arrêter
+docker compose down
+
+# Tout arrêter ET supprimer les données PostgreSQL (repartir d'une base vide)
+docker compose down -v
+```
+
+Une fois démarré, le serveur est accessible exactement comme en local :
+`http://localhost:8080/swagger-ui.html`. Flyway applique les migrations automatiquement au premier
+démarrage, comme en installation manuelle.
+
+**Ce que fait `docker-compose.yml`** : trois services — `postgres` (image officielle, port 5432),
+`redis` (image officielle, port 6379) et `backend` (construit depuis le `Dockerfile` du projet,
+port 8080) — connectés entre eux par leur nom de service, avec des vérifications de santé
+(`healthcheck`) qui font attendre le backend jusqu'à ce que la base et le cache soient réellement
+prêts. Les données PostgreSQL sont conservées dans un volume Docker nommé (`postgres_data`) entre
+deux redémarrages.
+
+Pour l'installation manuelle sans Docker (utile en développement actif avec rechargement à chaud),
+voir §4 et §6 ci-dessous.
+
+---
+
+## 4. Prérequis pour lancer le projet en local (sans Docker)
 
 1. **Java 21** installé
 2. **PostgreSQL 16+** démarré, avec une base `maplenou_db` (créée automatiquement si elle
@@ -49,7 +97,7 @@ technique) dans `src/main/java/com/maplenou/backend/`.
 
 ---
 
-## 4. Configuration (variables d'environnement)
+## 5. Configuration (variables d'environnement)
 
 Toutes les valeurs sensibles ont un **fallback de développement** codé dans
 `src/main/resources/application.properties` (fonctionne sans rien configurer en local), mais
@@ -65,15 +113,24 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL_ENABLED` | Connexion à une instance Redis managée (Upstash, Redis Cloud, AWS ElastiCache…) | `localhost:6379`, sans mot de passe, sans TLS |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | Nb de requêtes/min autorisées sur `/api/auth/**` par IP | `10` |
 | `CLOUDINARY_URL` | Format `cloudinary://<api_key>:<api_secret>@<cloud_name>` | placeholder non fonctionnel |
-| `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §8, non fonctionnelle tant que désactivée) | désactivé |
+| `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §9, non fonctionnelle tant que désactivée) | désactivé |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | Emplacement du fichier de clé Firebase (`classpath:...` = embarqué, `file:/chemin` = fichier externe monté, utilisé par Docker — voir §3) | `classpath:firebase-service-account.json` |
 
 Le compte de service Firebase doit être placé dans
 `src/main/resources/firebase-service-account.json` (fichier réel téléchargé depuis la console
 Firebase — actuellement présent mais à vérifier qu'il s'agit bien du vrai projet en production).
 
+> **⚠️ Ce fichier n'est PAS dans le dépôt Git** (ajouté au `.gitignore` car c'est un secret réel :
+> une clé privée qui donne un accès admin au projet Firebase). Toute personne qui clone le dépôt
+> pour la première fois (nouveau poste, autre développeur, testeur) doit se procurer ce fichier
+> séparément (transmission directe et sécurisée par le porteur du projet — jamais par email en
+> clair ni sur un canal public) et le copier dans `src/main/resources/firebase-service-account.json`
+> avant de démarrer le serveur. **Sans lui, le démarrage échoue** (Firebase ne s'initialise pas :
+> notifications push et le module `notification` indisponibles).
+
 ---
 
-## 5. Démarrer le serveur en local
+## 6. Démarrer le serveur en local
 
 ```bash
 # Windows (PowerShell ou Git Bash)
@@ -91,7 +148,7 @@ toutes les migrations manquantes (le schéma vit **uniquement** dans les fichier
 
 ---
 
-## 6. Compte super admin (pré-créé)
+## 7. Compte super admin (pré-créé)
 
 | Champ | Valeur |
 |---|---|
@@ -103,7 +160,7 @@ et accéder à tous les endpoints `/api/admin/**`.
 
 ---
 
-## 7. Rôles et modèle de compte
+## 8. Rôles et modèle de compte
 
 **Un seul compte par utilisateur, pas de compte séparé par rôle.** `User.role` (enum `ADMIN` /
 `DELIVERY_AGENT`) est nullable — la grande majorité des comptes n'ont pas de rôle explicite : ils
@@ -121,7 +178,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 
 ---
 
-## 8. Modules du backend
+## 9. Modules du backend
 
 | Package | Rôle |
 |---|---|
@@ -144,11 +201,11 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 | `messaging` | Messagerie client↔boutique et utilisateur↔support, filtre anti-coordonnées personnelles |
 | `content` | Pages de contenu statiques (CGU/CGV/FAQ) |
 | `newsletter` | Capture d'emails (pas d'envoi automatique) |
-| `shipping` | Scaffold transporteur tiers (Colissimo) — voir §10 |
+| `shipping` | Scaffold transporteur tiers (Colissimo) — voir §11 |
 
 ---
 
-## 9. Base de données
+## 10. Base de données
 
 - 32 migrations Flyway (`src/main/resources/db/migration/V1__...` à `V32__...`)
 - **Ne jamais modifier une migration déjà appliquée** — toujours en créer une nouvelle, numérotée
@@ -158,7 +215,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 
 ---
 
-## 10. Ce qui est fait / pas fait
+## 11. Ce qui est fait / pas fait
 
 **Fait et testé** : auth/2FA, catalogue, panier, commandes/paiement (webhook générique),
 livraison interne, retours, avis, codes promo, reversements, KPI admin, RGPD, audit,
@@ -182,7 +239,7 @@ notifications push, upload médias Cloudinary, messagerie, pages CMS, capture ne
 
 ---
 
-## 11. Lancer les tests
+## 12. Lancer les tests
 
 **Prérequis : PostgreSQL ET Redis démarrés localement** (ce projet n'utilise pas Testcontainers —
 les tests tournent contre les mêmes services réels que l'application).
@@ -204,11 +261,16 @@ les tests tournent contre les mêmes services réels que l'application).
 
 ---
 
-## 12. Déploiement / hébergement
+## 13. Déploiement / hébergement
+
+Le `Dockerfile` du projet (voir §3) produit une image autonome que la plupart des plateformes
+d'hébergement (Railway, Render, Fly.io…) savent construire et déployer directement depuis le dépôt
+GitHub — c'est le chemin le plus direct pour donner accès au projet à quelqu'un sans qu'il
+installe quoi que ce soit chez lui.
 
 1. Provisionner PostgreSQL et Redis managés (ex. Redis : Upstash, Redis Cloud, AWS ElastiCache —
    toute instance hors `localhost` nécessite `REDIS_SSL_ENABLED=true` si elle exige TLS)
-2. Définir toutes les variables d'environnement du §4 (ne jamais laisser les valeurs de dev en
+2. Définir toutes les variables d'environnement du §5 (ne jamais laisser les valeurs de dev en
    production, notamment `JWT_SECRET` et `DB_PASSWORD`)
 3. `SWAGGER_ENABLED=false` en production
 4. Fournir le vrai `firebase-service-account.json` du projet Firebase de production
@@ -216,7 +278,7 @@ les tests tournent contre les mêmes services réels que l'application).
 
 ---
 
-## 13. Dépannage courant
+## 14. Dépannage courant
 
 | Symptôme | Cause probable |
 |---|---|
