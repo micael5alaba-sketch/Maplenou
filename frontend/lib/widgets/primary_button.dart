@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 
 /// Full-width rounded call-to-action button.
 ///
-/// Defaults to the brand dark-green (e.g. "S'inscrire"), but accepts a
-/// custom [backgroundColor] (e.g. sage green for "Suivant"). Passing
-/// `onPressed: null` renders it disabled with a muted grey style.
+/// Defaults to the brand green, but accepts a custom [backgroundColor]
+/// (e.g. sage green for "Suivant", orange for "Acheter maintenant").
+/// Passing `onPressed: null` renders it disabled with a muted grey style.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   const PrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
-    this.backgroundColor = AppColors.primary,
+    this.backgroundColor,
   });
 
   @override
@@ -26,7 +26,7 @@ class PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
+          backgroundColor: backgroundColor ?? context.colors.primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: Colors.grey.shade300,
           disabledForegroundColor: Colors.grey.shade600,

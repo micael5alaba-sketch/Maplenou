@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 import 'app_logo.dart';
 
 /// Side menu shared by every screen with a hamburger icon in its header.
@@ -11,6 +11,8 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = context.colors.textDark;
+
     return Drawer(
       child: SafeArea(
         child: Column(
@@ -22,7 +24,7 @@ class AppDrawer extends StatelessWidget {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.receipt_long_outlined, color: AppColors.textDark),
+              leading: Icon(Icons.receipt_long_outlined, color: textColor),
               title: const Text('Mes commandes'),
               onTap: () {
                 Navigator.of(context).pop();
@@ -30,7 +32,7 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.settings_outlined, color: AppColors.textDark),
+              leading: Icon(Icons.settings_outlined, color: textColor),
               title: const Text('Paramètres'),
               onTap: () {
                 Navigator.of(context).pop();
@@ -38,7 +40,7 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppColors.textDark),
+              leading: Icon(Icons.logout_rounded, color: textColor),
               title: const Text('Déconnexion'),
               onTap: () {
                 Navigator.of(context).pop();

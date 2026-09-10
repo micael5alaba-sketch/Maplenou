@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/role_model.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 
 /// Immersive, tappable card representing one selectable [RoleModel]:
 /// background photo tinted with the role's own accent color, a colored
@@ -33,13 +33,13 @@ class RoleCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
+            color: isSelected ? context.colors.primary : Colors.transparent,
             width: 3,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.28)
+                  ? context.colors.primary.withValues(alpha: 0.28)
                   : Colors.black.withValues(alpha: 0.08),
               blurRadius: isSelected ? 18 : 8,
               offset: const Offset(0, 4),
@@ -134,7 +134,7 @@ class _SelectedBadge extends StatelessWidget {
     return Container(
       width: 28,
       height: 28,
-      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: context.colors.primary, shape: BoxShape.circle),
       child: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
     );
   }

@@ -5,14 +5,16 @@ import '../models/category_model.dart';
 import '../models/product_model.dart';
 import '../services/category_service.dart';
 import '../services/product_service.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_logo.dart';
-import '../widgets/category_widget.dart';
+import '../widgets/category_carousel.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
 import 'categories_screen.dart';
+import 'product_details_screen.dart';
+import 'profile_screen.dart';
 
 /// Marketplace home screen: header, search bar, promo banner, categories
 /// and the popular-products grid, plus the fixed bottom navigation.
@@ -68,6 +70,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _openProductDetails(ProductModel product) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(product: product, relatedCatalog: _products),
+      ),
+    );
+  }
+
   void _onTabSelected(HomeTab tab) {
     if (tab == _currentTab) return;
     switch (tab) {
@@ -80,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showComingSoon('Le panier');
         break;
       case HomeTab.profile:
-        _showComingSoon('Le profil');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
         break;
     }
   }
@@ -95,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.homeBackground,
+      backgroundColor: context.colors.homeBackground,
       drawer: AppDrawer(onComingSoon: _showComingSoon),
       body: SafeArea(
         child: Column(
@@ -119,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: context.colors.primary));
     }
     if (_error != null) {
       return Center(
@@ -128,9 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 42, color: AppColors.textMuted),
+              Icon(Icons.cloud_off_rounded, size: 42, color: context.colors.textMuted),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: context.colors.textMuted)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _loadData, child: const Text('Réessayer')),
             ],
@@ -164,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.textDark),
+            icon: Icon(Icons.menu_rounded, color: context.colors.textDark),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           const Expanded(
@@ -173,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.favorite_border_rounded, color: AppColors.textDark),
+            icon: Icon(Icons.favorite_border_rounded, color: context.colors.textDark),
             onPressed: () => _showComingSoon('Favoris'),
           ),
           _buildNotificationsIcon(),
@@ -187,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
       clipBehavior: Clip.none,
       children: [
         IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark),
+          icon: Icon(Icons.notifications_none_rounded, color: context.colors.textDark),
           onPressed: () => _showComingSoon('Notifications'),
         ),
         Positioned(
@@ -196,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Container(
             width: 9,
             height: 9,
-            decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: context.colors.error, shape: BoxShape.circle),
           ),
         ),
       ],
@@ -204,7 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ---------------------------------------------------------------------
-  // Promotional hero banner.
+  // Promotional hero banner. Overlaid on a photo, so its text/button stay
+  // white/black regardless of the app's light/dark theme.
   // ---------------------------------------------------------------------
   Widget _buildBanner() {
     return Padding(
@@ -218,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fit: StackFit.expand,
             children: [
               Image.asset('assets/images/banner_mode.jpg', fit: BoxFit.cover),
-              Container(color: AppColors.accentOrange.withValues(alpha: 0.55)),
+              Container(color: context.colors.accentOrange.withValues(alpha: 0.55)),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -263,28 +274,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Catégories',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.textDark),
           ),
         ),
         const SizedBox(height: 14),
         SizedBox(
           height: 100,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 22),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              return CategoryWidget(
-                category: category,
-                onTap: () => _showComingSoon('La catégorie ${category.name}'),
-              );
-            },
+          child: CategoryCarousel(
+            categories: _categories,
+            onCategoryTap: (category) => _showComingSoon('La catégorie ${category.name}'),
           ),
         ),
       ],
@@ -303,19 +305,19 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Produits populaires',
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.textDark),
                 ),
               ),
               TextButton(
                 onPressed: () => _showComingSoon('Le catalogue complet'),
                 style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                child: const Text(
+                child: Text(
                   'Voir tout',
-                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -338,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final product = _products[index];
               return ProductCard(
                 product: product,
-                onTap: () => _showComingSoon(product.name),
+                onTap: () => _openProductDetails(product),
                 onAddToCart: () => _showComingSoon('L\'ajout au panier'),
               );
             },

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 
 /// Rounded filter chip used in a horizontal filter row (e.g. "Tout voir",
 /// "Catégorie", "Prix" on the results screen). [isActive] renders it as a
@@ -22,14 +22,16 @@ class FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : Colors.white,
+          color: isActive ? colors.primary : colors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: isActive ? null : Border.all(color: AppColors.border),
+          border: isActive ? null : Border.all(color: colors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -37,7 +39,7 @@ class FilterPill extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: isActive ? Colors.white : AppColors.textDark,
+                color: isActive ? Colors.white : colors.textDark,
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
@@ -47,7 +49,7 @@ class FilterPill extends StatelessWidget {
               Icon(
                 Icons.keyboard_arrow_down_rounded,
                 size: 16,
-                color: isActive ? Colors.white : AppColors.textMuted,
+                color: isActive ? Colors.white : colors.textMuted,
               ),
             ],
           ],

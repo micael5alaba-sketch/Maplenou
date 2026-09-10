@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
 /// Product tile used in the "Produits populaires" grid: photo with a
@@ -40,7 +40,7 @@ class _ProductCardState extends State<ProductCard> {
       onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -67,10 +67,10 @@ class _ProductCardState extends State<ProductCard> {
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textDark,
+                      color: context.colors.textDark,
                       height: 1.2,
                     ),
                   ),
@@ -96,11 +96,11 @@ class _ProductCardState extends State<ProductCard> {
                 ? Image.network(
                     product.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+                    errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(context),
                     loadingBuilder: (context, child, progress) =>
-                        progress == null ? child : _buildImagePlaceholder(loading: true),
+                        progress == null ? child : _buildImagePlaceholder(context, loading: true),
                   )
-                : _buildImagePlaceholder(),
+                : _buildImagePlaceholder(context),
           ),
         ),
         if (product.badgeType != ProductBadgeType.none)
@@ -112,11 +112,11 @@ class _ProductCardState extends State<ProductCard> {
             onTap: _toggleFavorite,
             child: CircleAvatar(
               radius: 15,
-              backgroundColor: Colors.white,
+              backgroundColor: context.colors.surface,
               child: Icon(
                 _isFavorite ? Icons.favorite : Icons.favorite_border,
                 size: 15,
-                color: _isFavorite ? AppColors.error : AppColors.textMuted,
+                color: _isFavorite ? context.colors.error : context.colors.textMuted,
               ),
             ),
           ),
@@ -125,35 +125,35 @@ class _ProductCardState extends State<ProductCard> {
     );
   }
 
-  Widget _buildImagePlaceholder({bool loading = false}) {
+  Widget _buildImagePlaceholder(BuildContext context, {bool loading = false}) {
     return Container(
-      color: AppColors.inputFill,
+      color: context.colors.inputFill,
       alignment: Alignment.center,
       child: loading
-          ? const SizedBox(
+          ? SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.primary),
             )
-          : const Icon(Icons.image_not_supported_outlined, color: AppColors.textMuted),
+          : Icon(Icons.image_not_supported_outlined, color: context.colors.textMuted),
     );
   }
 
   Widget _buildRating(ProductModel product) {
     return Row(
       children: [
-        const Icon(Icons.star_rounded, size: 16, color: AppColors.accentOrange),
+        Icon(Icons.star_rounded, size: 16, color: context.colors.accentOrange),
         const SizedBox(width: 3),
         Text(
           product.rating!.toStringAsFixed(1),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.textDark),
         ),
         const SizedBox(width: 3),
         Flexible(
           child: Text(
             '(${product.reviewCount ?? 0})',
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12, color: context.colors.textMuted),
           ),
         ),
       ],
@@ -172,18 +172,18 @@ class _ProductCardState extends State<ProductCard> {
             children: [
               Text(
                 formatFcfa(product.price),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: context.colors.primary,
                 ),
               ),
               if (product.oldPrice != null)
                 Text(
                   formatFcfa(product.oldPrice!),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textMuted,
+                    color: context.colors.textMuted,
                     decoration: TextDecoration.lineThrough,
                   ),
                 ),
@@ -192,10 +192,10 @@ class _ProductCardState extends State<ProductCard> {
         ),
         GestureDetector(
           onTap: widget.onAddToCart,
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 16,
-            backgroundColor: AppColors.primary,
-            child: Icon(Icons.shopping_cart_rounded, size: 16, color: Colors.white),
+            backgroundColor: context.colors.primary,
+            child: const Icon(Icons.shopping_cart_rounded, size: 16, color: Colors.white),
           ),
         ),
       ],
@@ -213,7 +213,7 @@ class _ProductBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNew = product.badgeType == ProductBadgeType.isNew;
     final label = isNew ? 'Nouveau' : '-${product.discountPercent}%';
-    final color = isNew ? AppColors.primary : AppColors.accentOrange;
+    final color = isNew ? context.colors.primary : context.colors.accentOrange;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

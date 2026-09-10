@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/role_model.dart';
 import '../services/role_service.dart';
 import '../services/session_service.dart';
+import '../theme/app_color_scheme.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
@@ -55,7 +56,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
     final isRoleSelected = _selectedRoleId != null;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
+      backgroundColor: context.colors.lightBackground,
       body: Column(
         children: [
           _buildHeader(context),
@@ -65,22 +66,22 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Choisissez votre profil',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+                      color: context.colors.textDark,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
                       'Sélectionnez le rôle qui correspond le mieux à votre utilisation de Maplenou.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+                      style: TextStyle(fontSize: 12, color: context.colors.textMuted, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 24),

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 
 /// The four destinations reachable from [CustomBottomNavigation].
 enum HomeTab { home, categories, cart, profile }
 
 /// Fixed bottom navigation bar with 4 tabs (Home, Catégories, Panier,
-/// Profil). The active tab is shown in the brand dark-green, inactive
-/// ones in grey.
+/// Profil). The active tab is shown in the brand green, inactive ones in
+/// grey.
 class CustomBottomNavigation extends StatelessWidget {
   final HomeTab currentTab;
   final ValueChanged<HomeTab> onTabSelected;
@@ -29,7 +29,7 @@ class CustomBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -44,16 +44,16 @@ class CustomBottomNavigation extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [for (final item in _items) _buildItem(item)],
+            children: [for (final item in _items) _buildItem(context, item)],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildItem(({HomeTab tab, IconData icon, String label}) item) {
+  Widget _buildItem(BuildContext context, ({HomeTab tab, IconData icon, String label}) item) {
     final isActive = item.tab == currentTab;
-    final color = isActive ? AppColors.primary : AppColors.textMuted;
+    final color = isActive ? context.colors.primary : context.colors.textMuted;
 
     return GestureDetector(
       onTap: () => onTabSelected(item.tab),

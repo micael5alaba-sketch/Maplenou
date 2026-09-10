@@ -13,3 +13,15 @@ String formatFcfa(num amount) {
 
   return '${buffer.toString()} FCFA';
 }
+
+/// Formats a past date as a short relative label, e.g. "il y a 6 j".
+String formatRelativeDate(DateTime date) {
+  final diff = DateTime.now().difference(date);
+  if (diff.inDays >= 30) {
+    final months = (diff.inDays / 30).floor();
+    return 'il y a $months mois';
+  }
+  if (diff.inDays >= 1) return 'il y a ${diff.inDays} j';
+  if (diff.inHours >= 1) return 'il y a ${diff.inHours} h';
+  return "à l'instant";
+}

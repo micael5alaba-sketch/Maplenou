@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/category_model.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 
 /// Round category avatar with its name below, used in the horizontal
 /// "Catégories" list on the home screen.
@@ -31,20 +31,20 @@ class CategoryWidget extends StatelessWidget {
                   ? Image.network(
                       category.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+                      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(context),
                       loadingBuilder: (context, child, progress) =>
-                          progress == null ? child : _buildPlaceholder(),
+                          progress == null ? child : _buildPlaceholder(context),
                     )
-                  : _buildPlaceholder(),
+                  : _buildPlaceholder(context),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             category.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.textDark,
+              color: context.colors.textDark,
             ),
           ),
         ],
@@ -52,11 +52,11 @@ class CategoryWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
-      color: AppColors.inputFill,
+      color: context.colors.inputFill,
       alignment: Alignment.center,
-      child: const Icon(Icons.category_rounded, color: AppColors.primary, size: 26),
+      child: Icon(Icons.category_rounded, color: context.colors.primary, size: 26),
     );
   }
 }

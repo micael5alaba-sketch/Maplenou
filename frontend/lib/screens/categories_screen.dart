@@ -3,13 +3,15 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../models/product_model.dart';
 import '../services/product_service.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/filter_pill.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
+import 'product_details_screen.dart';
+import 'profile_screen.dart';
 
 /// "Catégories" tab: search + filters over a staggered results grid.
 ///
@@ -63,20 +65,32 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
+  void _openProductDetails(ProductModel product) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(product: product, relatedCatalog: _results),
+      ),
+    );
+  }
+
   void _onTabSelected(HomeTab tab) {
     if (tab == HomeTab.categories) return;
     if (tab == HomeTab.home) {
       Navigator.of(context).pop();
       return;
     }
-    _showComingSoon(tab == HomeTab.cart ? 'Le panier' : 'Le profil');
+    if (tab == HomeTab.profile) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+      return;
+    }
+    _showComingSoon('Le panier');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.homeBackground,
+      backgroundColor: context.colors.homeBackground,
       drawer: AppDrawer(onComingSoon: _showComingSoon),
       body: SafeArea(
         child: Column(
@@ -109,7 +123,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.textDark),
+            icon: Icon(Icons.menu_rounded, color: context.colors.textDark),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           const Expanded(
@@ -118,7 +132,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.favorite_border_rounded, color: AppColors.textDark),
+            icon: Icon(Icons.favorite_border_rounded, color: context.colors.textDark),
             onPressed: () => _showComingSoon('Favoris'),
           ),
         ],
@@ -151,6 +165,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Widget _buildResultsBar() {
+    final colors = context.colors;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -165,11 +181,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 children: [
                   TextSpan(
                     text: '${_results.length} ',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textDark),
                   ),
-                  const TextSpan(
+                  TextSpan(
                     text: 'Résultats',
-                    style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+                    style: TextStyle(fontSize: 14, color: colors.textMuted),
                   ),
                 ],
               ),
@@ -182,15 +198,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               onTap: () => _showComingSoon('Le tri des résultats'),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Flexible(
                     child: Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(text: 'Trier par: ', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                          TextSpan(text: 'Trier par: ', style: TextStyle(fontSize: 13, color: colors.textMuted)),
                           TextSpan(
                             text: 'Plus récent',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textDark),
                           ),
                         ],
                       ),
@@ -198,8 +214,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  SizedBox(width: 2),
-                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textMuted),
+                  const SizedBox(width: 2),
+                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: colors.textMuted),
                 ],
               ),
             ),
@@ -211,7 +227,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   Widget _buildResultsGrid() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: context.colors.primary));
     }
     if (_error != null) {
       return Center(
@@ -220,9 +236,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 42, color: AppColors.textMuted),
+              Icon(Icons.cloud_off_rounded, size: 42, color: context.colors.textMuted),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: context.colors.textMuted)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _loadResults, child: const Text('Réessayer')),
             ],
@@ -244,7 +260,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           final product = _results[index];
           return ProductCard(
             product: product,
-            onTap: () => _showComingSoon(product.name),
+            onTap: () => _openProductDetails(product),
             onAddToCart: () => _showComingSoon('L\'ajout au panier'),
           );
         },

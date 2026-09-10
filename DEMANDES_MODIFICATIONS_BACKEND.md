@@ -93,6 +93,75 @@ photo ronde par catégorie sur la home).
 - Règle d'affichage : si `imageUrl` est `null`, le frontend garde son icône générique en
   attendant — pas de valeur par défaut à générer côté serveur.
 
+## 8. Page détail produit — ce qui est mocké côté frontend
+
+J'ai construit une page détail produit générique (galerie, avis, spécifications, variantes,
+livraison, produits similaires). Elle tourne pour l'instant avec des données mockées à trois
+endroits ; le point commun n'est pas le même pour les trois, donc à traiter différemment :
+
+**Avis clients — rien à faire côté backend, déjà tout prêt.** `ReviewController` expose déjà
+`GET /api/products/{id}/reviews` et `GET /api/products/{id}/reviews/summary`. Ce n'est mocké
+que parce que la page a été construite avant d'être branchée. Il suffira d'appeler ces deux
+routes pour ce produit précis (pas de souci de N+1 ici vu qu'on est sur une seule fiche, pas
+une liste — contrairement au point 5 plus haut sur le catalogue).
+
+**Spécifications — vraiment absent, à ajouter.** Rien n'existe pour stocker des paires
+label/valeur (Marque, Matière, Origine, Pointure, Garantie...) sur un produit. Proposition :
+une colonne `specifications` en `JSONB` sur `Product` (liste ordonnée de `{label, value}`),
+exposée telle quelle dans `ProductDetailResponse`, acceptée en écriture (optionnelle) dans
+`CreateProductRequest`/`UpdateProductRequest`. Pas besoin d'une table à part ni de champs
+prédéfinis — le composant frontend (`ProductSpecification`) affiche n'importe quelle paire
+label/valeur, donc chaque vendeur peut mettre ce qui est pertinent pour son produit.
+
+**Livraison et retours — pas un nouveau champ produit, plutôt une question de branchement.**
+Le frontend affiche pour l'instant un délai/frais fixes identiques sur toutes les fiches, mais
+ça existe déjà autrement dans le backend : `GET /api/delivery-zones` donne déjà `delivery_fee`
+et `estimated_time_minutes` par zone (donc dépendant de l'adresse de l'acheteur, pas du
+produit), et la politique de retour à 30 jours est une règle plateforme déjà actée (§5 du
+`CLAUDE.md`), pas une donnée par produit. À se mettre d'accord : est-ce que la fiche produit
+doit afficher les zones de livraison existantes (avec leurs frais), et est-ce que le texte de
+politique de retour doit venir d'une page CMS (`ContentPageController`, déjà public via
+`/api/pages/**`) plutôt que d'être codé en dur côté app ? Pas de nouveau endpoint à écrire dans
+les deux cas, juste à choisir comment les brancher.
+
+## 9. Écran Profil — ce qui est mocké côté frontend
+
+Même logique que pour la fiche produit : certaines parties existent déjà côté backend et
+n'attendent qu'à être branchées, d'autres manquent vraiment.
+
+**Déjà existant, rien à ajouter — juste du branchement à faire plus tard :**
+- Identité (`GET /api/users/me`) : nom, téléphone, email. J'ai utilisé `phoneVerified` pour le
+  badge "Compte vérifié" — à confirmer avec lui que c'est la bonne notion (vérification du
+  numéro de téléphone), ou si "vérifié" doit vouloir dire autre chose (KYC, email confirmé...).
+- Adresses enregistrées (`AddressController`) déjà en place.
+- Mes Favoris (`FavoriteController`) déjà en place.
+- Mes Commandes (`GET /api/orders`) déjà en place — à vérifier qu'il est bien scopé à
+  l'utilisateur connecté automatiquement (pas de paramètre `userId` à fournir).
+- Déconnexion (`POST /api/auth/logout`) déjà géré (révocation des tokens access/refresh).
+
+**Vraiment manquant, à ajouter :**
+- **Mes Avis** — `ReviewController` ne liste que les avis *sur* un produit/une boutique donnée,
+  pas ceux *écrits par* l'utilisateur connecté. Il faudrait une route du style
+  `GET /api/users/me/reviews` (paginée), qui renvoie les `ReviewResponse` de l'utilisateur, tous
+  produits/boutiques confondus.
+- **Photo de profil** — `User` n'a pas de colonne `avatar_url`. Pour un vrai avatar (pas juste
+  l'initiale du nom affichée en attendant), il faut l'ajouter, avec le même flux d'upload signé
+  Cloudinary que pour les images produit/catégorie.
+- **Compteur "commandes en cours"** — `GET /api/orders` existe mais rien ne renvoie directement
+  "combien sont en cours". Soit calculable côté app à partir de la liste (en gérant la
+  pagination), soit un petit endpoint dédié type `GET /api/orders/summary` qui renvoie le
+  nombre par statut.
+
+**À clarifier ensemble, pas forcément du code à écrire :**
+- **Modes de paiement** — rien n'existe côté backend pour un "moyen de paiement enregistré" par
+  utilisateur, ce qui est cohérent avec FedaPay facturé à chaque transaction (pas de wallet ni
+  de carte enregistrée). Le texte "T-Money, Flooz, Carte" reste pour l'instant purement
+  informatif (les moyens disponibles sur la plateforme), pas une donnée par utilisateur. Si on
+  veut un vrai moyen de paiement préféré par défaut, ce sera un nouveau champ à ajouter — à
+  décider si c'est utile pour le lancement.
+- **Thème et Langue** — a priori une préférence locale à l'appareil (`shared_preferences`), pas
+  besoin de backend. À revoir seulement si on veut la synchroniser entre appareils.
+
 ---
 
 ## Remarques mineures / cohérence (pas bloquant)
