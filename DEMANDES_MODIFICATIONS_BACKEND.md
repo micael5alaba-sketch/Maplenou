@@ -48,17 +48,6 @@ UI, mais ce n'est pas une solution pérenne pour les autres devs qui cloneraient
 au profil `dev`, soit un jeu de requêtes Swagger documenté dans le `MANUEL.md` (créer un
 compte, l'approuver vendeur, créer une boutique, quelques produits).
 
-## 4. Bootstrap du tout premier compte ADMIN
-
-`POST /api/auth/register` crée toujours un compte sans rôle (acheteur standard) — c'est
-volontaire. Mais je ne trouve aucune route pour élever un compte en `ADMIN` qui ne demande
-pas déjà d'être authentifié en `ADMIN` (`UserService.changeRole`, protégé par rôle). Résultat :
-sur une base vide, personne ne peut devenir admin via l'API.
-
-**Question à trancher ensemble :** comment est censé être créé le tout premier admin en
-local/prod — migration Flyway avec un compte admin par défaut (mot de passe à changer au
-premier login), commande CLI, endpoint de bootstrap protégé par un secret d'environnement ?
-
 ## 5. Catalogue : note moyenne absente de la liste
 
 `GET /api/products` (`ProductSummaryResponse`) ne renvoie pas de note. Il faut appeler
