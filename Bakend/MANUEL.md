@@ -24,7 +24,7 @@ technique) dans `src/main/java/com/maplenou/backend/`.
 | Langage / build | Java 21, Maven |
 | Framework | Spring Boot 4.1 |
 | Sécurité | Spring Security + JWT (jjwt 0.12.6), stateless |
-| Base de données | PostgreSQL 16, migrations Flyway (32 fichiers à ce jour) |
+| Base de données | PostgreSQL 16, migrations Flyway (36 fichiers à ce jour) |
 | Cache / sessions courtes | Redis (blacklist JWT, rate limiting, verrouillage compte, cache catégories/zones) |
 | Documentation API | springdoc-openapi (Swagger UI) |
 | Médias | Cloudinary (upload signé côté client) |
@@ -146,6 +146,71 @@ toutes les migrations manquantes (le schéma vit **uniquement** dans les fichier
 
 **Documentation API interactive** une fois lancé : `http://localhost:8080/swagger-ui.html`
 
+### Jeu de données de démonstration (dev)
+
+Sur une base fraîche, aucune donnée n'existe : `GET /api/categories` et `GET /api/products`
+renvoient une liste vide (pas une erreur), tant que personne n'a créé de contenu. Voici une
+recette pour peupler rapidement une base locale — via `curl` (ou les mêmes appels dans Swagger UI,
+bouton "Try it out") :
+
+```bash
+BASE=http://localhost:8080
+
+# 1. Connexion admin (compte pré-créé, voir §7)
+ADMIN_TOKEN=$(curl -s -X POST $BASE/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"+22890000000","password":"Micael2005@"}' | jq -r .accessToken)
+
+# 2. Créer une catégorie (admin uniquement)
+curl -s -X POST $BASE/api/categories -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"name":"Mode","imageUrl":null}'
+CATEGORY_ID="<coller l'id renvoyé ci-dessus>"
+
+# 3. Inscrire un compte vendeur de test
+curl -s -X POST $BASE/api/auth/register -H "Content-Type: application/json" \
+  -d '{"fullName":"Vendeur Demo","phoneNumber":"+22891112222","password":"Demo1234"}'
+
+# 4. Se connecter avec ce compte
+SELLER_TOKEN=$(curl -s -X POST $BASE/api/auth/login -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"+22891112222","password":"Demo1234"}' | jq -r .accessToken)
+
+# 5. Activer le profil vendeur sur ce même compte
+curl -s -X POST $BASE/api/sellers/apply -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SELLER_TOKEN" -d '{"shopName":"Boutique Demo"}'
+SELLER_PROFILE_ID="<coller l'id renvoyé ci-dessus>"
+
+# 6. L'admin approuve le profil vendeur (donne ROLE_SELLER sur le compte)
+curl -s -X PATCH $BASE/api/sellers/admin/$SELLER_PROFILE_ID/status \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"status":"APPROVED"}'
+
+# 7. Le vendeur crée sa boutique
+curl -s -X POST $BASE/api/shops -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SELLER_TOKEN" \
+  -d '{"name":"Boutique Demo","description":"Boutique de test","city":"Lomé","district":"Centre"}'
+SHOP_ID="<coller l'id renvoyé ci-dessus>"
+
+# 8. L'admin approuve la boutique (nécessaire pour publier des produits)
+curl -s -X PATCH $BASE/api/admin/shops/$SHOP_ID/status \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"status":"APPROVED"}'
+
+# 9. Créer un produit (le sku est optionnel : généré automatiquement si omis)
+curl -s -X POST $BASE/api/shops/mine/products -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SELLER_TOKEN" \
+  -d '{"name":"T-shirt Demo","description":"Produit de test","basePrice":5000,"categoryId":"'"$CATEGORY_ID"'","variants":[{"label":"Taille M","stockQuantity":10}]}'
+PRODUCT_ID="<coller l'id renvoyé ci-dessus>"
+
+# 10. Activer le produit pour qu'il apparaisse dans le catalogue public
+curl -s -X PATCH $BASE/api/shops/mine/products/$PRODUCT_ID \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $SELLER_TOKEN" \
+  -d '{"status":"ACTIVE"}'
+```
+
+À ce stade, `GET /api/categories` et `GET /api/products` renvoient du contenu réel. Répéter les
+étapes 9-10 pour ajouter plusieurs produits/catégories selon les besoins de test du frontend.
+
 ---
 
 ## 7. Compte super admin (pré-créé)
@@ -207,7 +272,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 
 ## 10. Base de données
 
-- 32 migrations Flyway (`src/main/resources/db/migration/V1__...` à `V32__...`)
+- 36 migrations Flyway (`src/main/resources/db/migration/V1__...` à `V36__...`)
 - **Ne jamais modifier une migration déjà appliquée** — toujours en créer une nouvelle, numérotée
 - Montants en FCFA : toujours `BigDecimal`, jamais `double`/`float`
 - Anonymisation plutôt que suppression physique pour les comptes liés à des commandes (obligation

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,4 +46,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :since")
     long countCreatedSince(@Param("since") Instant since);
+
+    /** Nombre de commandes d'un acheteur par statut (pour GET /api/orders/summary). */
+    @Query("SELECT o.status, COUNT(o) FROM Order o WHERE o.buyer.id = :buyerId GROUP BY o.status")
+    List<Object[]> countByBuyerIdGroupByStatus(@Param("buyerId") UUID buyerId);
 }

@@ -11,6 +11,7 @@ public record CreateVariantRequest(
         @NotBlank @Size(max = 100) String label,
         BigDecimal priceOverride,
         @NotNull @Min(0) Integer stockQuantity,
-        @NotBlank @Size(max = 100) String sku
+        // Optionnel : genere automatiquement cote serveur si absent (voir ProductService).
+        @Size(max = 100) String sku
 ) {
 }

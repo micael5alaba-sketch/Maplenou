@@ -5,6 +5,8 @@ import com.maplenou.backend.common.CursorPage;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.media.CloudinaryUrlUtils;
 import com.maplenou.backend.media.MediaService;
+import com.maplenou.backend.review.ProductReviewRepository;
+import com.maplenou.backend.review.dto.RatingSummaryResponse;
 import com.maplenou.backend.user.User;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +26,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +39,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
     private final ProductImageRepository imageRepository;
+    private final ProductReviewRepository productReviewRepository;
     private final ShopService shopService;
     private final CategoryService categoryService;
     private final MediaService mediaService;
@@ -62,20 +68,20 @@ public class ProductService {
                 .slug(slug)
                 .description(request.description())
                 .basePrice(request.basePrice())
+                .oldPrice(request.oldPrice())
+                .specifications(request.specifications() != null ? request.specifications() : new ArrayList<>())
                 .status(ProductStatus.DRAFT)
                 .deleted(false)
                 .build();
 
         for (CreateVariantRequest vReq : request.variants()) {
-            if (variantRepository.existsBySku(vReq.sku())) {
-                throw new ApiException(HttpStatus.CONFLICT, "SKU déjà utilisé : " + vReq.sku());
-            }
+            String sku = resolveSku(vReq.sku(), slug);
             product.getVariants().add(ProductVariant.builder()
                     .product(product)
                     .label(vReq.label())
                     .priceOverride(vReq.priceOverride())
                     .stockQuantity(vReq.stockQuantity())
-                    .sku(vReq.sku())
+                    .sku(sku)
                     .build());
         }
 
@@ -88,8 +94,9 @@ public class ProductService {
     public Page<ProductSummaryResponse> listMine(User owner, Pageable pageable) {
         Shop shop = shopService.getMine(owner);
         // EntityGraph appliqué dans le repository → shop, category, images chargés
-        return productRepository.findByShopIdAndDeletedFalse(shop.getId(), pageable)
-                .map(ProductSummaryResponse::from);
+        Page<Product> page = productRepository.findByShopIdAndDeletedFalse(shop.getId(), pageable);
+        Map<UUID, RatingSummaryResponse> ratings = loadRatingStats(page.getContent());
+        return page.map(p -> toSummaryWithRating(p, ratings));
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +131,12 @@ public class ProductService {
         if (request.status() != null) {
             product.setStatus(request.status());
         }
+        if (request.oldPrice() != null) {
+            product.setOldPrice(request.oldPrice());
+        }
+        if (request.specifications() != null) {
+            product.setSpecifications(request.specifications());
+        }
 
         productRepository.save(product);
         return ProductDetailResponse.from(loadWithDetails(productId));
@@ -147,16 +160,14 @@ public class ProductService {
         Product product = getEntityById(productId);
         requireOwnership(shop, product);
 
-        if (variantRepository.existsBySku(request.sku())) {
-            throw new ApiException(HttpStatus.CONFLICT, "SKU déjà utilisé : " + request.sku());
-        }
+        String sku = resolveSku(request.sku(), product.getSlug());
 
         ProductVariant variant = ProductVariant.builder()
                 .product(product)
                 .label(request.label())
                 .priceOverride(request.priceOverride())
                 .stockQuantity(request.stockQuantity())
-                .sku(request.sku())
+                .sku(sku)
                 .build();
 
         return VariantResponse.from(variantRepository.save(variant));
@@ -180,6 +191,12 @@ public class ProductService {
         }
         if (request.stockQuantity() != null) {
             variant.setStockQuantity(request.stockQuantity());
+        }
+        if (request.sku() != null && !request.sku().isBlank() && !request.sku().equals(variant.getSku())) {
+            if (variantRepository.existsBySku(request.sku())) {
+                throw new ApiException(HttpStatus.CONFLICT, "SKU déjà utilisé : " + request.sku());
+            }
+            variant.setSku(request.sku());
         }
 
         return VariantResponse.from(variantRepository.save(variant));
@@ -263,8 +280,10 @@ public class ProductService {
             nextCursor = encodeCursor(last.getCreatedAt(), last.getId());
         }
 
+        Map<UUID, RatingSummaryResponse> ratings = loadRatingStats(page);
+
         return new CursorPage<>(
-                page.stream().map(ProductSummaryResponse::from).toList(),
+                page.stream().map(p -> toSummaryWithRating(p, ratings)).toList(),
                 nextCursor,
                 hasNext
         );
@@ -341,6 +360,46 @@ public class ProductService {
                 .trim();
         String slug = NON_ALPHANUMERIC.matcher(normalized).replaceAll("-");
         return slug.replaceAll("^-+|-+$", "");
+    }
+
+    /** SKU fourni tel quel (après vérification d'unicité) ou généré automatiquement si absent. */
+    private String resolveSku(String providedSku, String productSlug) {
+        if (providedSku != null && !providedSku.isBlank()) {
+            if (variantRepository.existsBySku(providedSku)) {
+                throw new ApiException(HttpStatus.CONFLICT, "SKU déjà utilisé : " + providedSku);
+            }
+            return providedSku;
+        }
+        return generateUniqueSku(productSlug);
+    }
+
+    private String generateUniqueSku(String base) {
+        String prefix = base.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "-");
+        String sku;
+        do {
+            sku = prefix + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+        } while (variantRepository.existsBySku(sku));
+        return sku;
+    }
+
+    /** Notes moyennes + nombre d'avis de plusieurs produits en une seule requête (évite le N+1). */
+    private Map<UUID, RatingSummaryResponse> loadRatingStats(List<Product> products) {
+        if (products.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> ids = products.stream().map(Product::getId).toList();
+        return productReviewRepository.findRatingStatsByProductIds(ids).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> new RatingSummaryResponse(
+                                ((Number) row[1]).doubleValue(),
+                                ((Number) row[2]).longValue())
+                ));
+    }
+
+    private ProductSummaryResponse toSummaryWithRating(Product p, Map<UUID, RatingSummaryResponse> ratings) {
+        RatingSummaryResponse stats = ratings.getOrDefault(p.getId(), new RatingSummaryResponse(0.0, 0L));
+        return ProductSummaryResponse.from(p, stats.averageRating(), stats.reviewCount());
     }
 
     private String encodeCursor(Instant createdAt, UUID id) {

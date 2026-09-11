@@ -2,6 +2,8 @@ package com.maplenou.backend.catalog;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,6 +44,16 @@ public class Product {
     // Montant en FCFA. Minimum 500 FCFA vérifié dans le service.
     @Column(name = "base_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal basePrice;
+
+    // Prix avant reduction. Null = pas de promo affichee (regle geree cote client).
+    @Column(name = "old_price", precision = 12, scale = 2)
+    private BigDecimal oldPrice;
+
+    // Specifications libres (Marque, Matiere, Origine...), affichees telles quelles.
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private List<ProductSpecification> specifications = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

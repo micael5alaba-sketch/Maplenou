@@ -10,6 +10,7 @@ import com.maplenou.backend.catalog.ProductVariant;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.order.dto.OrderResponse;
 import com.maplenou.backend.order.dto.OrderSummaryResponse;
+import com.maplenou.backend.order.dto.OrdersSummaryResponse;
 import com.maplenou.backend.order.dto.PlaceOrderRequest;
 import com.maplenou.backend.promo.PromoCodeService;
 import com.maplenou.backend.user.Address;
@@ -56,6 +57,23 @@ public class OrderService {
             throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé");
         }
         return OrderResponse.from(order);
+    }
+
+    private static final Set<OrderStatus> ONGOING_STATUSES = Set.of(OrderStatus.CREATED, OrderStatus.PAID);
+
+    /** Compteur de mes commandes par statut (ex: badge "commandes en cours" du profil). */
+    @Transactional(readOnly = true)
+    public OrdersSummaryResponse getMyOrdersSummary(User buyer) {
+        Map<OrderStatus, Long> byStatus = new EnumMap<>(OrderStatus.class);
+        long total = 0;
+        for (Object[] row : orderRepository.countByBuyerIdGroupByStatus(buyer.getId())) {
+            OrderStatus status = (OrderStatus) row[0];
+            long count = (Long) row[1];
+            byStatus.put(status, count);
+            total += count;
+        }
+        long ongoing = ONGOING_STATUSES.stream().mapToLong(s -> byStatus.getOrDefault(s, 0L)).sum();
+        return new OrdersSummaryResponse(total, ongoing, byStatus);
     }
 
     // ----- Passation de commande -----

@@ -2,6 +2,7 @@ package com.maplenou.backend.order;
 
 import com.maplenou.backend.order.dto.OrderResponse;
 import com.maplenou.backend.order.dto.OrderSummaryResponse;
+import com.maplenou.backend.order.dto.OrdersSummaryResponse;
 import com.maplenou.backend.order.dto.PlaceOrderRequest;
 import com.maplenou.backend.user.User;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -42,6 +43,12 @@ public class OrderController {
             @AuthenticationPrincipal User currentUser,
             @PageableDefault(size = 20) Pageable pageable) {
         return orderService.listMyOrders(currentUser, pageable);
+    }
+
+    /** Compteur de mes commandes par statut (ex: badge "commandes en cours" du profil). */
+    @GetMapping("/summary")
+    public OrdersSummaryResponse getMyOrdersSummary(@AuthenticationPrincipal User currentUser) {
+        return orderService.getMyOrdersSummary(currentUser);
     }
 
     /** Détail d'une commande (acheteur — vérifié en service). */

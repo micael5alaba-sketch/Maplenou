@@ -11,6 +11,7 @@ public record UserResponse(
         String fullName,
         String phoneNumber,
         String email,
+        String avatarUrl,
         Role role,
         boolean phoneVerified,
         SellerStatus sellerStatus
@@ -21,6 +22,7 @@ public record UserResponse(
                 user.getFullName(),
                 user.getPhoneNumber(),
                 user.getEmail(),
+                user.getAvatarUrl(),
                 user.getRole(),
                 user.isPhoneVerified(),
                 user.getSellerProfile() != null ? user.getSellerProfile().getStatus() : null

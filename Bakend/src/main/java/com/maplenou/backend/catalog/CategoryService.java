@@ -67,6 +67,7 @@ public class CategoryService {
                 .name(request.name())
                 .slug(slug)
                 .parent(parent)
+                .imageUrl(request.imageUrl())
                 .active(true)
                 .build();
 
@@ -89,6 +90,9 @@ public class CategoryService {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Une catégorie ne peut pas être son propre parent");
             }
             category.setParent(getById(request.parentId()));
+        }
+        if (request.imageUrl() != null) {
+            category.setImageUrl(request.imageUrl().isBlank() ? null : request.imageUrl());
         }
 
         return categoryRepository.save(category);

@@ -42,6 +42,10 @@ public class User implements UserDetails {
     @Column(name = "email")
     private String email;
 
+    // Photo de profil (URL Cloudinary). Null = le frontend affiche l'initiale du nom.
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
     @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;

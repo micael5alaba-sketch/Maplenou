@@ -8,8 +8,10 @@ qu'il ait besoin de redemander les décisions déjà prises. À placer à la rac
 ## 1. Le projet en une phrase
 
 Maplenou est une marketplace mobile trois couches pour l'Afrique de l'Ouest (Togo, Bénin), qui
-connecte acheteurs et vendeurs locaux, avec livraison interne et paiement Mobile Money (T-Money,
-Flooz via FedaPay) + carte bancaire (Stripe — **actuellement bloqué, voir §7**).
+connecte acheteurs et vendeurs locaux, avec livraison interne. Le paiement cible à terme est du
+Mobile Money (T-Money, Flooz) via un agrégateur comme FedaPay + carte bancaire (Stripe étant
+bloqué pour un compte marchand togolais) — **mais l'intégration réelle est reportée dans son
+ensemble pour l'instant, voir §7**.
 
 **Ce dépôt couvre le backend uniquement.** Il expose une API REST consommée par :
 - une app unique Flutter (web + mobile) pour Client / Vendeur / Livreur (bascule d'interface selon le profil du compte)
@@ -19,13 +21,17 @@ Flooz via FedaPay) + carte bancaire (Stripe — **actuellement bloqué, voir §7
 
 ## 2. Stack technique
 
-- Java 17, Spring Boot 3.3, Maven
-- Spring Security + JWT (jjwt) — auth stateless
+- Java 21, Spring Boot 4.1, Maven
+- Spring Security + JWT (jjwt 0.12.6) — auth stateless, 2FA TOTP disponible sur tous les comptes
 - Spring Data JPA + Hibernate + PostgreSQL 16
 - Flyway pour les migrations (⚠️ `ddl-auto: validate`, jamais `update` — le schéma vit uniquement dans les migrations SQL versionnées)
+- Redis (Lettuce) : blacklist JWT au logout, rate limiting sur `/api/auth/**`, verrouillage de
+  compte après 5 échecs, cache des catégories/zones de livraison — **indispensable au démarrage**,
+  pas une optimisation future (voir §10)
 - springdoc-openapi / Swagger UI
 - Lombok
-- Cloudinary (médias), Firebase Admin SDK (notifications FCM), FedaPay (paiement)
+- Cloudinary (médias, upload signé côté client), Firebase Admin SDK (notifications FCM)
+- **Paiement (FedaPay/Stripe) explicitement reporté** — voir §7, mis à jour
 
 ---
 
@@ -111,55 +117,55 @@ branches `CANCELLED`, `RETURN_REQUESTED`, `RETURNED`.
 
 ## 6. Ce qui est explicitement hors périmètre pour l'instant
 
-- **Transporteur tiers** (type Colissimo) — mis de côté, livraison 100 % interne pour le moment
-- **Messagerie client↔vendeur** avec filtrage anti-contournement — repoussée après stabilisation
-  du cœur transactionnel (catalogue → paiement → livraison)
+- **Transporteur tiers** (Colissimo) : scaffold posé (`shipping/`, interface
+  `CarrierShippingClient`) mais désactivé par défaut (`COLISSIMO_ENABLED=false`) — pas de vrai
+  contrat/webservice branché, pas un simple "pas commencé"
+- **Paiement réel FedaPay/Stripe** — voir §7, reporté explicitement par le porteur du projet
 - Cumul de rôles au-delà de Client/Vendeur (ex. un livreur qui serait aussi vendeur) — non prévu
+
+*(La messagerie client↔vendeur, initialement prévue ici comme repoussée, est en réalité déjà
+implémentée — voir §8.)*
 
 ---
 
-## 7. Point bloquant non résolu
+## 7. Paiement — état réel (mis à jour)
 
-**Stripe n'est pas disponible pour un compte marchand basé au Togo.** Le cahier des charges
-prévoit Stripe pour le paiement carte, mais ce n'est actuellement pas ouvrable depuis le Togo.
-Deux pistes possibles, à trancher avec le chef de projet : ouvrir l'entité légale ailleurs, ou
-remplacer Stripe par un agrégateur local supportant aussi le paiement carte (FedaPay le supporte
-peut-être déjà, à vérifier). **Ne pas commencer l'intégration carte tant que ce n'est pas tranché.**
+Le point bloquant Stripe (compte marchand indisponible au Togo) n'a pas été résolu — la décision
+prise a été de **reporter l'intégration de paiement dans son ensemble**, pas seulement Stripe.
+Concrètement aujourd'hui :
+
+- Aucun SDK FedaPay ni Stripe dans `pom.xml`, aucune initiation de paiement, aucun split
+  automatique vendeur.
+- `PaymentWebhookController`/`PaymentWebhookService` ne font que **réagir à un webhook générique
+  déjà confirmé** par une passerelle externe hypothétique (signature vérifiée via un secret
+  partagé, `MessageDigest.isEqual` pour éviter les attaques par timing) — il n'y a rien en amont
+  qui déclenche un vrai paiement.
+- **Ne pas commencer l'intégration réelle tant que le porteur du projet n'a pas retranché la
+  question Stripe vs agrégateur local (FedaPay ou autre) sur ce point précis.**
 
 ---
 
 ## 8. État actuel du code (déjà livré)
 
-**Étape 0 — Fondation : terminée.**
+Ce qui suit (§1-9 de la roadmap originale) est **déjà codé et testé**, pas une roadmap à venir —
+seul le paiement réel (§7) reste en dehors du périmètre actuel :
 
-- `User`, `Role` (ADMIN/DELIVERY_AGENT), `Address`
-- `SellerProfile` (profil vendeur optionnel, statuts `PENDING/APPROVED/SUSPENDED/REJECTED`)
-- Auth JWT complète : `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`
-- `/api/sellers/apply`, `/api/sellers/me`
-- `/api/users/me` (GET/PUT)
-- Module `Category` complet (CRUD admin + lecture publique, slugify, arborescence parent/enfant)
-- 4 migrations Flyway : `users`, `addresses`, `seller_profiles`, `categories`
-- Sécurité : `SecurityConfig` (JWT stateless, CORS, endpoints publics explicites),
-  `GlobalExceptionHandler`, Swagger avec bearer auth
+auth JWT + 2FA TOTP, profil/adresses, profil vendeur (`SellerProfile`), catalogue complet
+(`Shop`/`Category`/`Product`/`ProductVariant`/`ProductImage`), panier/favoris, commandes
+multi-vendeurs (`Order`/`SubOrder`/`SubOrderItem`) avec commission à 2 tranches, livraison interne
+(`DeliveryZone`/`Delivery`), retours (`ReturnRequest`), avis (`ProductReview`/`ShopReview`), codes
+promo (`PromoCode`), reversements vendeurs (`Payout`, cron hebdomadaire), notifications push
+Firebase, admin (KPI, RGPD, audit), messagerie client↔vendeur/support avec filtrage
+anti-coordonnées personnelles, pages CMS, capture newsletter, upload média Cloudinary.
 
-## 9. Roadmap — étapes suivantes (non commencées)
-
-| Étape | Contenu |
-|---|---|
-| 1 | Catalogue : `Shop`, `Product`, `ProductVariant`, `ProductImage` |
-| 2 | `Cart`, `CartItem`, `Favorite` |
-| 3 | `Order`, `SubOrder`, `SubOrderItem`, commission à 2 tranches, décrémentation atomique du stock |
-| 4 | Paiement FedaPay (+ alternative carte, voir §7), webhooks idempotents |
-| 5 | `DeliveryZone`, `Delivery`, affectation, statuts, preuve de livraison |
-| 6 | `ReturnRequest` |
-| 7 | `ProductReview`, `ShopReview` |
-| 8 | `PromoCode` |
-| 9 | Notifications (Firebase Admin SDK, centre persistant) |
-| 10 | Admin : modération, KPIs, RGPD, droits internes, 2FA |
+Pour la liste exacte des modules et de ce qui est fait/pas fait à une date donnée, se référer à
+`MANUEL.md` (§9 et §11) plutôt qu'à ce fichier — il est mis à jour à chaque changement de
+périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décisions structurantes**
+(pourquoi, pas l'état d'avancement).
 
 ---
 
-## 10. Contraintes de performance et scalabilité (à respecter dès la première ligne de code, pas en correctif)
+## 9. Contraintes de performance et scalabilité (à respecter dès la première ligne de code, pas en correctif)
 
 - **Aucun endpoint ne renvoie une liste sans pagination.** Jamais de `findAll()` brut exposé.
 - Catalogue public (potentiellement des dizaines de milliers de produits) : pagination par
@@ -169,13 +175,16 @@ peut-être déjà, à vérifier). **Ne pas commencer l'intégration carte tant q
   (ex. `(shop_id, status)` sur `Product`, déjà appliqué sur `categories` et `seller_profiles`).
 - **Recherche catalogue** : full-text PostgreSQL natif (`tsvector` + index GIN), pas de `LIKE
   '%...%'`. Pas besoin d'Elasticsearch pour le lancement.
-- **Cache** : décision actée — **pas de Redis pour l'instant**. On l'introduira seulement quand
-  le volume du catalogue le justifiera réellement, pas par anticipation.
-- **Rate limiting** : à ajouter sur `/api/auth/**` avant mise en production (pas encore fait).
-- Pool de connexions HikariCP à dimensionner explicitement avant la mise en charge, pas laissé aux
-  valeurs par défaut.
+- **Cache / Redis** : la décision initiale ("pas de Redis pour l'instant") a été révisée — Redis
+  est en réalité **déjà utilisé et indispensable au démarrage** (blacklist JWT, rate limiting,
+  verrouillage de compte, cache des catégories/zones). Sans lui en local, l'authentification
+  échoue en 403/500 silencieux (voir `MANUEL.md` §14, dépannage).
+- **Rate limiting** : fait — `/api/auth/**` limité (défaut 10/min/IP, configurable via
+  `AUTH_RATE_LIMIT_PER_MINUTE`).
+- Pool de connexions HikariCP : dimensionné dans `application.properties`
+  (`hikari.maximum-pool-size`/`minimum-idle`), à ajuster avant une vraie montée en charge.
 
-## 11. RGPD — contrainte de conception dès maintenant
+## 10. RGPD — contrainte de conception dès maintenant
 
 - **Jamais de `ON DELETE CASCADE` entre `User` et les entités liées à des commandes** (`Order`,
   `SubOrder`, factures, avis). Une suppression de compte doit être une **anonymisation
@@ -184,48 +193,28 @@ peut-être déjà, à vérifier). **Ne pas commencer l'intégration carte tant q
 - Prévoir dès la conception un endpoint d'export des données personnelles et un flux de demande
   de suppression/anonymisation (portés par l'Admin, §5.10 du cahier).
 
-## 12. Sécurité spécifique au back-office Admin
+## 11. Sécurité spécifique au back-office Admin
 
 - L'Admin est un **back-office séparé, sur un lien distinct**, jamais mélangé avec l'app
   Client/Vendeur/Livreur.
-- Authentification renforcée exigée par le cahier : **2FA à prévoir**, restriction IP/VPN à
-  évaluer — donc un flux d'auth différent (ou des contrôles additionnels) sur `/api/admin/**`,
-  pas le même filtre JWT nu que les autres rôles. Non implémenté à ce stade.
-- Droits internes différenciés entre comptes admin eux-mêmes à prévoir en étape 10 (ex. un admin
-  support ne doit pas pouvoir modifier les taux de commission) — pas un simple rôle `ADMIN`
-  unique pour tout.
-- Toute action admin sensible (modération, remboursement, changement de taux, changement de
-  rôle) doit être tracée dans un journal d'audit avec auteur et horodatage.
+- 2FA TOTP existe désormais **au niveau compte, pour tout utilisateur** (module `auth`,
+  setup/activate/verify-login/disable) — mais rien de spécifique à l'Admin par-dessus. Le cahier
+  des charges demande une authentification *renforcée spécifiquement* pour `/api/admin/**`
+  (restriction IP/VPN, flux différent) : **toujours non implémenté à ce stade**, distinct du 2FA
+  générique déjà en place.
+- Droits internes différenciés entre comptes admin eux-mêmes (ex. un admin support ne doit pas
+  pouvoir modifier les taux de commission) — pas encore fait, un seul rôle `ADMIN` pour tout.
+- Toute action admin sensible (modération, remboursement, changement de rôle, changement de statut
+  vendeur/boutique) est tracée dans `AuditLog` avec auteur et horodatage — **fait**
+  (`audit.AuditAction`, voir `MODELE_DONNEES.md`).
 
-## 13. Détail des entités prévues pour les étapes à venir
+## 12. Modèle de données détaillé
 
-Pour éviter d'improviser un schéma différent de ce qui a déjà été validé en diagramme ER, voici
-les champs prévus pour chaque entité pas encore codée :
+Le détail complet des entités (champs, types, relations, enums), à jour, vit dans
+`MODELE_DONNEES.md` à la racine du dépôt — ne pas le dupliquer ici. Ce fichier inclut aussi un
+diagramme de classes Mermaid exploitable directement.
 
-- **Shop** : `id`, `owner_id` (→ SellerProfile/User), `name`, `slug` (UK), `description`,
-  `logo_url`, `cover_url`, `status` (PENDING/APPROVED/SUSPENDED/REJECTED), `city`, `district`
-- **Product** : `id`, `shop_id`, `category_id`, `name`, `slug` (UK), `description`, `base_price`
-  (`BigDecimal`, min. 500 FCFA), `status` (DRAFT/ACTIVE/OUT_OF_STOCK/ARCHIVED), `is_deleted`
-  (soft delete — jamais de suppression physique d'un produit déjà commandé)
-- **ProductVariant** : `id`, `product_id`, `label`, `price_override`, `stock_quantity`, `sku` (UK)
-- **ProductImage** : `id`, `product_id`, `url`, `position`
-- **Cart / CartItem** : panier actif unique par utilisateur ; lignes potentiellement multi-boutiques
-- **Order** : `id`, `buyer_id`, `total_amount`, `status`, `created_at`
-- **SubOrder** : `id`, `order_id`, `shop_id`, `subtotal`, `commission_amount`, `net_amount`, `status`
-- **SubOrderItem** : `id`, `sub_order_id`, `product_variant_id`, `unit_price`, `quantity`
-- **CommissionTier** (remplace l'idée initiale de taux unique) : tranches de prix →
-  500–20 000 FCFA inclus = 25 %, > 20 000 FCFA = 22,5 %
-- **Payout** : `id`, `shop_id`, `period_start`, `period_end`, `amount`, `status` — déclenché sur
-  les `SubOrder` passées `DELIVERED` (voir §5)
-- **DeliveryZone** : `id`, `name`, `delivery_fee`, `estimated_time_minutes`, `is_active`
-- **Delivery** : `id`, `sub_order_id` (UK), `agent_id`, `status`, `proof_type`
-- **ReturnRequest** : voir détail au §5
-- **ProductReview** / **ShopReview** : `id`, `product_id`/`shop_id`, `user_id`, `rating`, `comment`
-  — liés à un achat vérifié (`SubOrder DELIVERED`)
-- **PromoCode** : `id`, `code` (UK), `scope_type` (PLATFORM/SHOP), `scope_id` (nullable),
-  `discount_percent`, `is_active`
-
-## 14. Conventions de code à respecter
+## 13. Conventions de code à respecter
 
 - Package racine : `com.maplenou.backend` — un sous-package par domaine métier
   (`auth`, `user`, `seller`, `catalog`, futur `order`, `delivery`, etc.), pas par couche technique.

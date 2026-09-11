@@ -11,6 +11,9 @@ public record CreateCategoryRequest(
         // slug optionnel : si absent, généré automatiquement à partir du nom
         @Size(max = 120) String slug,
 
-        UUID parentId
+        UUID parentId,
+
+        // Optionnel : URL Cloudinary (flux d'upload signé existant, comme les images produit)
+        @Size(max = 500) String imageUrl
 ) {
 }
