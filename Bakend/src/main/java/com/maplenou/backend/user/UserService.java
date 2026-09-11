@@ -39,6 +39,9 @@ public class UserService {
         if (request.email() != null && !request.email().isBlank()) {
             user.setEmail(request.email());
         }
+        if (request.avatarUrl() != null) {
+            user.setAvatarUrl(request.avatarUrl().isBlank() ? null : request.avatarUrl());
+        }
         return userRepository.save(user);
     }
 

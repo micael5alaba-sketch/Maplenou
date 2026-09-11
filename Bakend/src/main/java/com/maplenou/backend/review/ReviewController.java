@@ -3,6 +3,7 @@ package com.maplenou.backend.review;
 import com.maplenou.backend.review.dto.*;
 import com.maplenou.backend.user.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -72,5 +73,16 @@ public class ReviewController {
     @GetMapping("/shops/{shopId}/reviews/summary")
     public RatingSummaryResponse getShopRatingSummary(@PathVariable UUID shopId) {
         return reviewService.getShopRatingSummary(shopId);
+    }
+
+    // ── Mes avis ──────────────────────────────────────────────────────────────
+
+    @Operation(summary = "Mes avis (produits et boutiques confondus)")
+    @GetMapping("/users/me/reviews")
+    @SecurityRequirement(name = "bearerAuth")
+    public Page<MyReviewResponse> getMyReviews(
+            @AuthenticationPrincipal User currentUser,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return reviewService.getMyReviews(currentUser, pageable);
     }
 }

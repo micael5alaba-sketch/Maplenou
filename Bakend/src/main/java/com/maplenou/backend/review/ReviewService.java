@@ -182,4 +182,13 @@ public class ReviewService {
         long   count = shopReviewRepository.countByShopId(shopId);
         return new RatingSummaryResponse(avg, count);
     }
+
+    // ── Mes avis ──────────────────────────────────────────────────────────────
+
+    /** Avis écrits par l'utilisateur connecté, produits et boutiques confondus. */
+    @Transactional(readOnly = true)
+    public Page<MyReviewResponse> getMyReviews(User user, Pageable pageable) {
+        return productReviewRepository.findMyReviews(user.getId(), pageable)
+                .map(MyReviewResponse::from);
+    }
 }

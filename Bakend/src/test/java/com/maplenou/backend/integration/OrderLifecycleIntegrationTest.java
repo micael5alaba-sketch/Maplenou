@@ -129,19 +129,19 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         shopId = UUID.fromString(shop.get("id").asText());
         patch("/api/admin/shops/" + shopId + "/status", new UpdateShopStatusRequest(ShopStatus.APPROVED), adminToken, 200);
 
-        JsonNode category = post("/api/categories", new CreateCategoryRequest("Cat Order " + rand, null, null), adminToken, 201);
+        JsonNode category = post("/api/categories", new CreateCategoryRequest("Cat Order " + rand, null, null, null), adminToken, 201);
         categoryId = UUID.fromString(category.get("id").asText());
 
         JsonNode product = post("/api/shops/mine/products",
-                new CreateProductRequest("Produit Order " + rand, "desc", new BigDecimal("10000.00"), categoryId,
-                        List.of(new CreateVariantRequest("Standard", null, 10, "SKU-ORDER-" + rand))),
+                new CreateProductRequest("Produit Order " + rand, "desc", new BigDecimal("10000.00"), null, categoryId,
+                        List.of(new CreateVariantRequest("Standard", null, 10, "SKU-ORDER-" + rand)), null),
                 sellerToken, 201);
         productId = UUID.fromString(product.get("id").asText());
         productSlug = product.get("slug").asText();
         variantId = UUID.fromString(product.get("variants").get(0).get("id").asText());
 
         patch("/api/shops/mine/products/" + productId,
-                new UpdateProductRequest(null, null, null, null, ProductStatus.ACTIVE), sellerToken, 200);
+                new UpdateProductRequest(null, null, null, null, null, ProductStatus.ACTIVE, null), sellerToken, 200);
 
         JsonNode address = post("/api/users/me/addresses",
                 new CreateAddressRequest("Maison", "Lomé", "Bè", "detail", 6.13, 1.22, true), buyerToken, 201);

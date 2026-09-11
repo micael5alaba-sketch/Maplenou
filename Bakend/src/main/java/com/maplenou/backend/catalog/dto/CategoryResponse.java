@@ -9,6 +9,7 @@ public record CategoryResponse(
         String name,
         String slug,
         UUID parentId,
+        String imageUrl,   // null = le frontend garde son icône générique
         boolean active
 ) {
     public static CategoryResponse from(Category category) {
@@ -17,6 +18,7 @@ public record CategoryResponse(
                 category.getName(),
                 category.getSlug(),
                 category.getParent() != null ? category.getParent().getId() : null,
+                category.getImageUrl(),
                 category.isActive()
         );
     }

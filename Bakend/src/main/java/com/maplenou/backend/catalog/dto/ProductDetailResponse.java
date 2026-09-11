@@ -1,6 +1,7 @@
 package com.maplenou.backend.catalog.dto;
 
 import com.maplenou.backend.catalog.Product;
+import com.maplenou.backend.catalog.ProductSpecification;
 import com.maplenou.backend.catalog.ProductStatus;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ public record ProductDetailResponse(
         String slug,
         String description,
         BigDecimal basePrice,
+        BigDecimal oldPrice,   // null = pas de promo affichée
         ProductStatus status,
         UUID shopId,
         String shopName,
@@ -22,6 +24,7 @@ public record ProductDetailResponse(
         String categoryName,
         List<VariantResponse> variants,
         List<ImageResponse> images,
+        List<ProductSpecification> specifications,
         Instant createdAt
 ) {
     public static ProductDetailResponse from(Product p) {
@@ -31,6 +34,7 @@ public record ProductDetailResponse(
                 p.getSlug(),
                 p.getDescription(),
                 p.getBasePrice(),
+                p.getOldPrice(),
                 p.getStatus(),
                 p.getShop().getId(),
                 p.getShop().getName(),
@@ -38,6 +42,7 @@ public record ProductDetailResponse(
                 p.getCategory().getName(),
                 p.getVariants().stream().map(VariantResponse::from).toList(),
                 p.getImages().stream().map(ImageResponse::from).toList(),
+                p.getSpecifications() != null ? p.getSpecifications() : List.of(),
                 p.getCreatedAt()
         );
     }

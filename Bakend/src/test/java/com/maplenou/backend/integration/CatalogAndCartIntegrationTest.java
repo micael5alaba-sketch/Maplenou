@@ -74,11 +74,11 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
 
         // ----- Catégories (admin) -----
         JsonNode parentCat = post("/api/categories",
-                new CreateCategoryRequest("Électronique " + rand, null, null), adminToken, 201);
+                new CreateCategoryRequest("Électronique " + rand, null, null, null), adminToken, 201);
         parentCategoryId = UUID.fromString(parentCat.get("id").asText());
 
         JsonNode subCat = post("/api/categories",
-                new CreateCategoryRequest("Téléphones " + rand, null, parentCategoryId), adminToken, 201);
+                new CreateCategoryRequest("Téléphones " + rand, null, parentCategoryId, null), adminToken, 201);
         subCategoryId = UUID.fromString(subCat.get("id").asText());
 
         JsonNode roots = get("/api/categories", null, 200);
@@ -91,11 +91,11 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         assertEquals(subCategoryId.toString(), bySlug.get("id").asText());
 
         JsonNode updatedCat = patch("/api/categories/" + subCategoryId,
-                new UpdateCategoryRequest("Téléphones MAJ " + rand, true, parentCategoryId), adminToken, 200);
+                new UpdateCategoryRequest("Téléphones MAJ " + rand, true, parentCategoryId, null), adminToken, 200);
         assertEquals("Téléphones MAJ " + rand, updatedCat.get("name").asText());
 
         // Un non-admin ne peut pas créer de catégorie
-        post("/api/categories", new CreateCategoryRequest("Interdit", null, null), buyerToken, 403);
+        post("/api/categories", new CreateCategoryRequest("Interdit", null, null, null), buyerToken, 403);
 
         // ----- Boutique -----
         JsonNode shop = post("/api/shops",
@@ -126,8 +126,8 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         // ----- Produits -----
         JsonNode createdProduct = post("/api/shops/mine/products",
                 new CreateProductRequest("Téléphone Test " + rand, "Un bon téléphone",
-                        new BigDecimal("15000.00"), subCategoryId,
-                        List.of(new CreateVariantRequest("64Go", null, 10, "SKU-" + rand))),
+                        new BigDecimal("15000.00"), null, subCategoryId,
+                        List.of(new CreateVariantRequest("64Go", null, 10, "SKU-" + rand)), null),
                 sellerToken, 201);
         productId = UUID.fromString(createdProduct.get("id").asText());
         assertEquals("DRAFT", createdProduct.get("status").asText());
@@ -135,8 +135,8 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
 
         // Prix trop bas rejeté
         post("/api/shops/mine/products",
-                new CreateProductRequest("Trop pas cher", null, new BigDecimal("100.00"), subCategoryId,
-                        List.of(new CreateVariantRequest("v", null, 1, "SKU-LOW-" + rand))),
+                new CreateProductRequest("Trop pas cher", null, new BigDecimal("100.00"), null, subCategoryId,
+                        List.of(new CreateVariantRequest("v", null, 1, "SKU-LOW-" + rand)), null),
                 sellerToken, 400);
 
         JsonNode myProducts = get("/api/shops/mine/products", sellerToken, 200);
@@ -149,7 +149,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 400);
 
         JsonNode activated = patch("/api/shops/mine/products/" + productId,
-                new UpdateProductRequest(null, null, null, null, com.maplenou.backend.catalog.ProductStatus.ACTIVE),
+                new UpdateProductRequest(null, null, null, null, null, com.maplenou.backend.catalog.ProductStatus.ACTIVE, null),
                 sellerToken, 200);
         assertEquals("ACTIVE", activated.get("status").asText());
 
@@ -160,7 +160,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         UUID variant2Id = UUID.fromString(newVariant.get("id").asText());
 
         JsonNode updatedVariant = patch("/api/shops/mine/products/" + productId + "/variants/" + variant2Id,
-                new UpdateVariantRequest(null, null, 3), sellerToken, 200);
+                new UpdateVariantRequest(null, null, 3, null), sellerToken, 200);
         assertEquals(3, updatedVariant.get("stockQuantity").asInt());
         delete("/api/shops/mine/products/" + productId + "/variants/" + variant2Id, sellerToken, 204);
 

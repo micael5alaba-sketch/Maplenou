@@ -111,7 +111,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
         assertEquals(phone, me.get("phoneNumber").asText());
 
         JsonNode updated = put("/api/users/me",
-                new UpdateProfileRequest("Nouveau Nom", "user@example.com"), token, 200);
+                new UpdateProfileRequest("Nouveau Nom", "user@example.com", null), token, 200);
         assertEquals("Nouveau Nom", updated.get("fullName").asText());
 
         JsonNode address = post("/api/users/me/addresses",

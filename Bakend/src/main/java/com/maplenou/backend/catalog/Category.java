@@ -35,6 +35,10 @@ public class Category {
     @JoinColumn(name = "parent_id")
     private Category parent;
 
+    // Vignette Cloudinary. Null = le frontend garde son icone generique.
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;
