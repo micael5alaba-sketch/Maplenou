@@ -48,6 +48,7 @@ dependencies:
 
   # HTTP calls to the Spring Boot backend.
   http: ^1.2.2
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

@@ -9,6 +9,7 @@ import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/role_card.dart';
 import 'home_screen.dart';
+import 'seller_registration_screen.dart';
 
 /// Shown on first launch (right after the splash screen): lets the user
 /// pick which profile (Acheteur / Vendeur / Livreur) they want to use the
@@ -37,7 +38,6 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
     await SessionService().saveSelectedRoleId(roleId);
     if (!mounted) return;
 
-    // Only the "Acheteur" profile has its home screen built so far.
     if (roleId == 'buyer') {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -45,6 +45,14 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
       return;
     }
 
+    if (roleId == 'seller') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SellerRegistrationScreen()),
+      );
+      return;
+    }
+
+    // Only "Acheteur" and "Vendeur" have their screens built so far.
     final selectedRole = _roles.firstWhere((role) => role.id == roleId);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

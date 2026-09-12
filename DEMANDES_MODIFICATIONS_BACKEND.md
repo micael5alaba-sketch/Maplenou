@@ -151,6 +151,159 @@ n'attendent qu'à être branchées, d'autres manquent vraiment.
 - **Thème et Langue** — a priori une préférence locale à l'appareil (`shared_preferences`), pas
   besoin de backend. À revoir seulement si on veut la synchroniser entre appareils.
 
+## 10. Formulaire "Devenir Vendeur" — champs sans équivalent backend
+
+Nouvel écran (`SellerRegistrationScreen`, mocké pour l'instant). `POST /api/sellers/apply`
+existe déjà mais `ApplySellerRequest` n'accepte que `shopName`. Le formulaire demande trois
+champs de plus qui n'ont pour l'instant aucune colonne où atterrir :
+
+- **Numéro de téléphone de l'entreprise**
+- **Type de produits** (Mode, Beauté, Maison, Électronique, Alimentation, Bijoux, Chaussures,
+  Accessoires, ou "Toutes catégories acceptées")
+- **Adresse de la boutique**
+
+**Question à trancher ensemble avant d'écrire le code :** ces informations appartiennent-elles
+à la candidature (`SellerProfile`, remplie avant l'approbation admin) ou à la boutique
+elle-même (`Shop`, qui n'existe qu'après approbation et a déjà `city`/`district`) ? Vu que
+`Shop` a déjà une notion de localisation, l'adresse et le téléphone semblent plus à leur place
+là — mais ça veut dire soit les collecter dès la candidature et les reporter sur le `Shop` à la
+création, soit les redemander après approbation. Le "type de produits" ne correspond à rien
+dans le modèle actuel (les catégories sont par produit, pas par boutique, cf. `CLAUDE.md` §13)
+— si on veut le garder, c'est plutôt un champ informatif/libre pour aider l'admin à trier les
+candidatures, pas un vrai lien vers `Category`.
+
+## 11. Dashboard vendeur — le schéma suffit, il manque la couche requêtes/endpoint
+
+Nouvel écran (`SellerDashboardScreen`, mocké). **Aucune colonne ni table manquante** — tout ce
+qu'il affiche se calcule à partir de l'existant. Ce qui manque, c'est un contrôleur/service
+"dashboard vendeur" (rien d'équivalent aujourd'hui : le module `admin` a bien un KPI
+controller, mais il est global, réservé à l'admin, pas filtré par boutique) et les requêtes
+d'agrégation dessous, qui n'existent pas encore dans `SubOrderRepository`/`ProductRepository`.
+
+**Ce qui existe déjà et confirme que c'est faisable :**
+- `SubOrder` a déjà `subtotal`, `commissionAmount`, `netAmount` (= gain vendeur par
+  sous-commande) et `status` (`PENDING, PREPARING, READY_FOR_PICKUP, IN_DELIVERY, DELIVERED,
+  CANCELLED, RETURN_REQUESTED, RETURNED`).
+- `SubOrderRepository` a déjà une requête `findDeliveredUnpaidByShopIdAndPeriod` (utilisée par
+  le job de reversement) qui calcule exactement "livré mais pas encore payé" sur une période —
+  c'est la même logique que le "solde disponible", juste sans borne de période et sans endpoint
+  pour le vendeur.
+- `Payout` ne stocke que l'historique des reversements déjà effectués (`periodStart/End`,
+  `amount`, `status`) — pas un solde courant, il faut le calculer.
+- `ProductImage`, `Product.category` existent déjà pour retrouver la vignette et la catégorie
+  d'un produit vendu.
+
+**Ce qu'il faut ajouter (uniquement du code, pas de migration) :**
+1. **CA hebdo + variation** : une requête `SUM(netAmount)` groupée par semaine, filtrée par
+   `shop_id` et statut ≠ `CANCELLED`, sur `created_at`. N'existe pas encore.
+2. **Commandes en cours / prêtes à expédier** : un `countByShopIdAndStatusIn(...)` sur
+   `SubOrderRepository` (à définir ensemble : quels statuts comptent comme "en cours"). N'existe
+   pas encore — `SubOrderController` n'expose que liste/détail/changement de statut.
+3. **Solde disponible** : généraliser `findDeliveredUnpaidByShopIdAndPeriod` en version "sans
+   borne de date" (tout ce qui est `DELIVERED` et pas encore rattaché à un `Payout`), exposé au
+   vendeur — `PayoutController` n'a aujourd'hui que `GET /api/seller/payouts` (historique paginé).
+4. **Courbe des ventes** : même donnée que le point 1, mais groupée par jour plutôt que par
+   semaine, sur 7/14/28 jours. Aucune requête de ce type n'existe.
+5. **Catégories les plus vendues** : jointure `SubOrderItem → ProductVariant → Product →
+   Category`, somme des quantités par catégorie, filtrée par boutique. Rien de tel n'existe —
+   c'est la partie la plus lourde à écrire des cinq.
+6. **Produit le plus vendu** : même jointure que le point 5, mais groupée par produit avec
+   `LIMIT 1` au lieu de par catégorie.
+
+**Proposition concrète** : un `SellerDashboardController`/`Service` (dans `seller` ou `order`),
+avec ces nouvelles requêtes dans `SubOrderRepository`, plutôt que de faire calculer ça côté
+app à partir de dizaines d'appels — sur un catalogue qui grossit, ce serait beaucoup trop lent
+et fragile côté client.
+
+## 12. Gestion des Commandes (vendeur) — presque tout existe déjà, quelques trous précis
+
+Nouvel écran (`OrdersManagementScreen`, mocké). Contrairement au dashboard, l'essentiel existe
+déjà : `GET /api/sub-orders` liste et pagine déjà les sous-commandes du vendeur connecté, et
+`PATCH /api/sub-orders/{id}/status` lui permet déjà de changer le statut. Trois trous précis :
+
+1. **Pas de filtre par statut sur la liste.** `listMySubOrders` ne prend qu'un `Pageable` — pas
+   de paramètre `status`. L'écran a des filtres ("À préparer", "En livraison"...) qui
+   supposent un `GET /api/sub-orders?status=PREPARING&page=...` côté serveur plutôt que de tout
+   récupérer et filtrer côté app.
+2. **Pas de nom client sur `SubOrderResponse`.** Ni `SubOrder` ni `OrderResponse` n'exposent le
+   nom de l'acheteur — seulement l'adresse de livraison. Il faut soit l'ajouter à
+   `SubOrderResponse` (ex. `buyerName`, dérivé de `Order.buyer`), soit exposer un endpoint qui le
+   joint.
+3. **Pas de référence commande courte.** `SubOrderResponse.id` est un UUID brut — l'écran
+   attend un numéro type `#CMD-8492`. À décider : tronquer l'UUID côté app (ex. les 6 premiers
+   caractères), ou générer une vraie référence lisible côté serveur à la création de la commande.
+
+**Question à trancher :** quel montant afficher sur la carte — `subtotal` (ce que le client a
+payé pour les articles de cette boutique) ou `netAmount` (ce qui revient au vendeur après
+commission) ? Les deux existent déjà sur `SubOrderResponse`, c'est juste à choisir.
+
+Petite remarque en passant sur `PATCH /api/sub-orders/{id}/status` : le commentaire dans
+`SubOrderController` dit "passe au statut CONFIRMED ou SHIPPED", des valeurs qui ne
+correspondent à aucune entrée de l'enum `SubOrderStatus` actuel (`PENDING, PREPARING,
+READY_FOR_PICKUP, IN_DELIVERY, DELIVERED, CANCELLED, RETURN_REQUESTED, RETURNED`) — commentaire
+sans doute obsolète, à vérifier que les transitions réellement autorisées correspondent bien au
+parcours `PREPARING → READY_FOR_PICKUP → IN_DELIVERY → DELIVERED` que l'écran suppose.
+
+## 13. Catalogue vendeur — la notion de "stock" ne correspond pas au modèle actuel
+
+Nouvel écran (`VendorCatalogScreen`, mocké). Ici le décalage est plus structurel que sur les
+écrans précédents :
+
+- **Le stock est par variante, pas par produit.** `ProductVariant.stockQuantity` existe, mais
+  rien n'agrège un stock total au niveau `Product` — un produit avec plusieurs variantes n'a pas
+  "un" chiffre de stock. L'écran affiche pourtant une seule quantité et un seul badge par
+  produit. À décider ensemble : on agrège côté serveur (somme des variantes, ou stock de la
+  variante par défaut ?), ou l'app va chercher le détail (`ProductDetailResponse.variants`) et
+  fait la somme elle-même.
+- **"Stock faible" n'existe pas.** `ProductStatus` n'a que `DRAFT/ACTIVE/OUT_OF_STOCK/ARCHIVED`
+  — pas d'état intermédiaire. Soit on calcule ça côté app à partir d'un seuil sur le stock agrégé
+  (ce que j'ai fait pour le mock : ≤ 5 = stock faible), soit le seuil doit être configurable côté
+  vendeur/admin et calculé côté serveur.
+- **Pas de recherche sur la liste du vendeur.** `GET /api/shops/mine/products` ne prend qu'un
+  `Pageable`, pas de paramètre de recherche — alors que le catalogue public a déjà une recherche
+  plein texte (`tsvector`, cf. `CLAUDE.md` §10). Faudrait la même chose ici, filtrée par boutique.
+- **`ProductSummaryResponse` n'a pas de description.** La carte vendeur affiche une description
+  courte, qui n'existe aujourd'hui que dans `ProductDetailResponse` (vue détail, plus lourde). À
+  voir si on l'ajoute au résumé ou si l'app va chercher le détail pour chaque carte (pas idéal
+  sur une liste).
+
+**Ce qui existe déjà, pour le reste :** modifier (`PATCH .../products/{id}`) et supprimer
+(`DELETE .../products/{id}`, soft delete) sont déjà là. Il n'y a en revanche aucun endpoint de
+duplication — à ajouter si on veut vraiment ce raccourci, ou sinon le laisser être une création
+manuelle pré-remplie côté app à partir des données déjà en main.
+
+## 14. Ajout produit — bonne nouvelle sur les attributs, deux vrais trous ailleurs
+
+Nouvel écran (`AddProductScreen`, mocké) : formulaire "intelligent" qui affiche des
+caractéristiques différentes selon la catégorie (Pointure/Couleur/Matière pour des chaussures,
+Volume/Famille olfactive pour un parfum, Marque/Stockage/RAM pour un téléphone, etc.), plus
+variantes, prix, livraison, visibilité.
+
+**Les attributs par catégorie ne demandent en fait rien de nouveau.** Le champ `specifications`
+en JSONB proposé au point 8 (pour la fiche produit) suffit très bien ici : peu importe qui décide
+des labels ("Pointure", "Volume"...), le backend n'a qu'à stocker des paires label/valeur. Le
+"formulaire intelligent" (savoir que Téléphone → Marque/Stockage/RAM) vit entièrement côté app,
+dans une table de correspondance catégorie → attributs — pas besoin d'un schéma d'attributs par
+catégorie côté serveur pour l'instant. Un seul champ à ajouter, déjà demandé, pas deux.
+
+**Ce qui colle déjà bien tel quel :** `ProductStatus` a déjà `DRAFT`/`ACTIVE` — exactement
+Brouillon/Publier immédiatement, rien à changer. Les images passent par le flux Cloudinary
+existant (`upload-signature` + `POST .../products/{id}/images`).
+
+**Deux vrais trous :**
+1. **Variantes multi-axes.** `ProductVariant.label` est un simple `String` — une variante, un
+   label. L'écran permet d'ajouter plusieurs axes en même temps (Taille ET Couleur), ce qui en
+   toute rigueur donne un produit cartésien (S+Noir, S+Blanc, M+Noir...), pas juste une liste de
+   labels. À trancher : soit l'app concatène en un seul label par combinaison ("S / Noir") pour
+   rester compatible avec le modèle actuel, soit `ProductVariant` a besoin d'une vraie structure
+   d'attributs (une table `variant_attribute_values` ou un JSONB) pour représenter ça proprement.
+2. **Rien au niveau produit pour la livraison.** Ni poids de colis, ni délai estimé, ni
+   disponibilité de livraison n'existent sur `Product`/`ProductVariant` — seul `DeliveryZone`
+   existe, et c'est une notion de zone géographique, pas de produit. Si ces trois champs sont
+   vraiment voulus par produit (plutôt que gérés globalement par zone), il faut les ajouter à
+   `Product` : `package_weight_kg` (nullable), `estimated_delivery_delay` (texte libre ou
+   nullable), `delivery_available` (boolean, défaut `true`).
+
 ---
 
 ## Remarques mineures / cohérence (pas bloquant)

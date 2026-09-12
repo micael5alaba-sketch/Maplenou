@@ -25,3 +25,17 @@ String formatRelativeDate(DateTime date) {
   if (diff.inHours >= 1) return 'il y a ${diff.inHours} h';
   return "à l'instant";
 }
+
+const _monthAbbreviations = [
+  'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+  'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc',
+];
+
+/// Formats an order timestamp, e.g. "24 Oct 2023 • 14:30".
+String formatOrderDateTime(DateTime dateTime) {
+  final day = dateTime.day.toString().padLeft(2, '0');
+  final month = _monthAbbreviations[dateTime.month - 1];
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  return '$day $month ${dateTime.year} • $hour:$minute';
+}
