@@ -13,6 +13,7 @@ import '../widgets/profile_header.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/support_section.dart';
 import 'addresses_screen.dart';
+import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'favorites_screen.dart';
 import 'my_orders_screen.dart';
@@ -67,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
         break;
       case HomeTab.cart:
-        _showComingSoon('Le panier');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
         break;
       case HomeTab.profile:
         break;

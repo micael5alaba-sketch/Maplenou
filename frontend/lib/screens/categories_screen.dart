@@ -12,6 +12,7 @@ import '../widgets/filter_pill.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
 import 'cart_screen.dart';
+import 'favorites_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
 
@@ -153,7 +154,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
           IconButton(
             icon: Icon(Icons.favorite_border_rounded, color: context.colors.textDark),
-            onPressed: () => _showComingSoon('Favoris'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FavoritesScreen())),
           ),
         ],
       ),

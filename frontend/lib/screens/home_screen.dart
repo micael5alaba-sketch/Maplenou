@@ -15,6 +15,7 @@ import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
+import 'favorites_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
 
@@ -204,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: Icon(Icons.favorite_border_rounded, color: context.colors.textDark),
-            onPressed: () => _showComingSoon('Favoris'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FavoritesScreen())),
           ),
           _buildNotificationsIcon(),
         ],
@@ -333,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () => _showComingSoon('Le catalogue complet'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen())),
                 style: TextButton.styleFrom(padding: EdgeInsets.zero),
                 child: Text(
                   'Voir tout',
