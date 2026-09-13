@@ -13,6 +13,7 @@ import '../widgets/profile_header.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/support_section.dart';
 import 'categories_screen.dart';
+import 'my_orders_screen.dart';
 
 /// "Profil" tab: user identity, quick activity shortcuts, account settings
 /// and support links, plus the fixed bottom navigation.
@@ -35,6 +36,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  void _handleActivityTap(String label) {
+    if (label == 'Mes Commandes') {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
+      return;
+    }
+    _showComingSoon(label);
   }
 
   void _onTabSelected(HomeTab tab) {
@@ -128,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ProfileHeader(profile: _profile),
                     const SizedBox(height: 24),
-                    ActivitySection(profile: _profile, onItemTap: _showComingSoon),
+                    ActivitySection(profile: _profile, onItemTap: _handleActivityTap),
                     const SizedBox(height: 16),
                     _buildAccountSettingsCard(),
                     const SizedBox(height: 16),

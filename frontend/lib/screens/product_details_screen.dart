@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
+import '../services/cart_service.dart';
 import '../services/product_detail_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -16,6 +17,8 @@ import '../widgets/quantity_selector.dart';
 import '../widgets/rating_summary.dart';
 import '../widgets/related_products_carousel.dart';
 import '../widgets/variant_option_selector.dart';
+import 'cart_screen.dart';
+import 'checkout_screen.dart';
 
 /// Generic product detail page — one single layout reused for every
 /// product type in the marketplace (mode, électronique, beauté, maison,
@@ -67,6 +70,37 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  String? get _selectedVariantLabel {
+    if (_selectedOptions.isEmpty) return null;
+    return _selectedOptions.values.join(' / ');
+  }
+
+  void _addToCart({bool showConfirmation = true}) {
+    CartService().addItem(
+      productId: widget.product.id,
+      productName: widget.product.name,
+      variantLabel: _selectedVariantLabel,
+      imageUrl: widget.product.imageUrl,
+      unitPrice: _detail.price,
+      quantity: _quantity,
+    );
+    if (!showConfirmation) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('"${widget.product.name}" ajouté au panier.'),
+        action: SnackBarAction(
+          label: 'Voir',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+        ),
+      ));
+  }
+
+  void _buyNow() {
+    _addToCart(showConfirmation: false);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 
   void _openProduct(ProductModel product) {
@@ -273,7 +307,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               child: SizedBox(
                 height: 54,
                 child: OutlinedButton.icon(
-                  onPressed: () => _showComingSoon('L\'ajout au panier'),
+                  onPressed: _addToCart,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colors.primary,
                     side: BorderSide(color: colors.primary, width: 1.4),
@@ -289,7 +323,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               child: PrimaryButton(
                 label: 'Acheter maintenant',
                 backgroundColor: colors.accentOrange,
-                onPressed: () => _showComingSoon('L\'achat immédiat'),
+                onPressed: _buyNow,
               ),
             ),
           ],

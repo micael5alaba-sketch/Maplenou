@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../models/category_model.dart';
 import '../models/product_model.dart';
+import '../services/cart_service.dart';
 import '../services/category_service.dart';
 import '../services/product_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -12,6 +13,7 @@ import '../widgets/category_carousel.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
+import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
@@ -87,12 +89,30 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
         break;
       case HomeTab.cart:
-        _showComingSoon('Le panier');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
         break;
       case HomeTab.profile:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
         break;
     }
+  }
+
+  void _addToCart(ProductModel product) {
+    CartService().addItem(
+      productId: product.id,
+      productName: product.name,
+      imageUrl: product.imageUrl,
+      unitPrice: product.price,
+    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('"${product.name}" ajouté au panier.'),
+        action: SnackBarAction(
+          label: 'Voir',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+        ),
+      ));
   }
 
   void _showComingSoon(String feature) {
@@ -341,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return ProductCard(
                 product: product,
                 onTap: () => _openProductDetails(product),
-                onAddToCart: () => _showComingSoon('L\'ajout au panier'),
+                onAddToCart: () => _addToCart(product),
               );
             },
           ),
