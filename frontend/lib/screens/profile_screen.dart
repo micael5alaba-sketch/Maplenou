@@ -16,6 +16,7 @@ import 'addresses_screen.dart';
 import 'categories_screen.dart';
 import 'favorites_screen.dart';
 import 'my_orders_screen.dart';
+import 'my_reviews_screen.dart';
 
 /// "Profil" tab: user identity, quick activity shortcuts, account settings
 /// and support links, plus the fixed bottom navigation.
@@ -47,6 +48,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (label == 'Mes Favoris') {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
+      return;
+    }
+    if (label == 'Mes Avis') {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyReviewsScreen()));
       return;
     }
     _showComingSoon(label);
