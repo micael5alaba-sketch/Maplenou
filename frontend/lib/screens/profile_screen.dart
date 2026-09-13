@@ -12,7 +12,9 @@ import '../widgets/logout_button.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/support_section.dart';
+import 'addresses_screen.dart';
 import 'categories_screen.dart';
+import 'favorites_screen.dart';
 import 'my_orders_screen.dart';
 
 /// "Profil" tab: user identity, quick activity shortcuts, account settings
@@ -41,6 +43,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _handleActivityTap(String label) {
     if (label == 'Mes Commandes') {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
+      return;
+    }
+    if (label == 'Mes Favoris') {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
       return;
     }
     _showComingSoon(label);
@@ -193,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.location_on_outlined,
           title: 'Adresses enregistrées',
           subtitle: _profile.primaryAddressSummary,
-          onTap: () => _showComingSoon('Adresses enregistrées'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddressesScreen())),
         ),
         ProfileMenuRow(
           icon: Icons.credit_card_outlined,

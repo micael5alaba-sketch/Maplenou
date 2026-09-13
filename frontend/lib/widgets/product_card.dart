@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
+import '../services/favorites_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
@@ -28,9 +29,9 @@ class ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<ProductCard> {
-  bool _isFavorite = false;
+  late bool _isFavorite = FavoritesService().isFavorite(widget.product.id);
 
-  void _toggleFavorite() => setState(() => _isFavorite = !_isFavorite);
+  void _toggleFavorite() => setState(() => _isFavorite = FavoritesService().toggle(widget.product));
 
   @override
   Widget build(BuildContext context) {

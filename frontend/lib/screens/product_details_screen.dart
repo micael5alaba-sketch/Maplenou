@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
 import '../services/cart_service.dart';
+import '../services/favorites_service.dart';
 import '../services/product_detail_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -49,7 +50,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   final Map<String, String> _selectedOptions = {};
   int _quantity = 1;
-  bool _isFavorite = false;
+  late bool _isFavorite = FavoritesService().isFavorite(widget.product.id);
   bool _allReviewsVisible = false;
 
   @override
@@ -136,7 +137,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
               color: _isFavorite ? colors.error : colors.textDark,
             ),
-            onPressed: () => setState(() => _isFavorite = !_isFavorite),
+            onPressed: () => setState(() => _isFavorite = FavoritesService().toggle(widget.product)),
           ),
           const SizedBox(width: 4),
         ],
