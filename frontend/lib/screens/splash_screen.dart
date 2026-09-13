@@ -6,8 +6,10 @@ import 'package:flutter/services.dart';
 import '../services/session_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
+import 'courier_dashboard_screen.dart';
 import 'home_screen.dart';
 import 'profile_selection_screen.dart';
+import 'seller_dashboard_screen.dart';
 
 /// App entry screen: minimalist full-screen brand splash.
 /// Deep forest green background with the Maplenou logo centered,
@@ -47,12 +49,16 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  /// Only the "Acheteur" profile has its home screen built so far; any
-  /// other saved role (or none at all) falls back to profile selection.
+  /// A returning user skips straight to their profile's own home screen;
+  /// no saved role (first launch) falls back to profile selection.
   Widget _screenForRole(String? roleId) {
     switch (roleId) {
       case 'buyer':
         return const HomeScreen();
+      case 'seller':
+        return const SellerDashboardScreen();
+      case 'courier':
+        return const CourierDashboardScreen();
       default:
         return const ProfileSelectionScreen();
     }

@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/role_card.dart';
+import 'courier_dashboard_screen.dart';
 import 'home_screen.dart';
 import 'seller_registration_screen.dart';
 
@@ -52,11 +53,14 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
       return;
     }
 
-    // Only "Acheteur" and "Vendeur" have their screens built so far.
-    final selectedRole = _roles.firstWhere((role) => role.id == roleId);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Espace "${selectedRole.title}" bientôt disponible.')));
+    if (roleId == 'courier') {
+      // Pas d'inscription en libre-service pour un livreur : le rôle
+      // DELIVERY_AGENT n'est attribué que par un admin (voir CLAUDE.md §3).
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const CourierDashboardScreen()),
+      );
+      return;
+    }
   }
 
   @override

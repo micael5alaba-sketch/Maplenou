@@ -1,7 +1,9 @@
-/// Matches the backend's `ConversationType` (see `MODELE_DONNEES.md`):
-/// a seller only ever sees conversations with buyers or with support —
-/// never with other sellers.
-enum ConversationKind { client, support }
+/// `client`/`support` match the backend's `ConversationType`
+/// (`BUYER_SELLER`/`SUPPORT`, see `MODELE_DONNEES.md`). `vendor` is
+/// Livreur-only (a courier messaging a shop about a pickup) and has no
+/// backend equivalent yet — flagged as a gap alongside the courier's
+/// missing earnings/documents/tickets models.
+enum ConversationKind { client, vendor, support }
 
 /// One row in [SellerMessagesScreen]'s conversation list.
 class ConversationPreviewModel {
