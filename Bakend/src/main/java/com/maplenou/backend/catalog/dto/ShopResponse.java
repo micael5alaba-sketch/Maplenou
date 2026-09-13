@@ -17,6 +17,7 @@ public record ShopResponse(
         ShopStatus status,
         String city,
         String district,
+        String taxId,
         Instant createdAt
 ) {
     public static ShopResponse from(Shop shop) {
@@ -31,6 +32,7 @@ public record ShopResponse(
                 shop.getStatus(),
                 shop.getCity(),
                 shop.getDistrict(),
+                shop.getTaxId(),
                 shop.getCreatedAt()
         );
     }

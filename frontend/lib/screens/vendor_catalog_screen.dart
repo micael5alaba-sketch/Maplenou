@@ -8,7 +8,9 @@ import '../widgets/filter_chips.dart';
 import '../widgets/search_field.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import '../widgets/vendor_product_card.dart';
+import 'add_product_screen.dart';
 import 'orders_management_screen.dart';
+import 'seller_profile_screen.dart';
 
 /// Seller's product catalog: search, filter by stock status, and manage
 /// each product (edit/view/duplicate/delete) from a 3-dot menu.
@@ -102,7 +104,7 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
       case SellerTab.products:
         break;
       case SellerTab.profile:
-        _showComingSoon('Le profil vendeur');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }
@@ -119,7 +121,11 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: colors.primary,
         foregroundColor: Colors.white,
-        onPressed: () => _showComingSoon('Ajouter un produit'),
+        onPressed: () async {
+          final published = await Navigator.of(context)
+              .push<bool>(MaterialPageRoute(builder: (_) => const AddProductScreen()));
+          if (published == true) _showComingSoon('Le rafraîchissement du catalogue');
+        },
         child: const Icon(Icons.add_rounded),
       ),
       body: SafeArea(
@@ -133,7 +139,7 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
                   _buildTitleSection(),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: SearchField(hintText: 'Rechercher un produit...'),
+                    child: SearchField(hintText: 'Rechercher un produit...', controller: _searchController),
                   ),
                   const SizedBox(height: 14),
                   _buildFilterChips(),

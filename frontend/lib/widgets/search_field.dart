@@ -7,7 +7,12 @@ import '../theme/app_color_scheme.dart';
 class SearchField extends StatelessWidget {
   final String hintText;
 
-  const SearchField({super.key, required this.hintText});
+  /// Optional: pass one to actually read/react to what's typed (see
+  /// [VendorCatalogScreen], [SalesHistoryScreen]). Purely decorative when
+  /// omitted, e.g. on the buyer home screen where no filtering happens yet.
+  final TextEditingController? controller;
+
+  const SearchField({super.key, required this.hintText, this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +31,7 @@ class SearchField extends StatelessWidget {
         ],
       ),
       child: TextField(
+        controller: controller,
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),

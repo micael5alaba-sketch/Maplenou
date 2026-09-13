@@ -13,7 +13,9 @@ import '../widgets/sales_chart_widget.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import '../widgets/top_categories_widget.dart';
 import 'orders_management_screen.dart';
+import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
+import 'wallet_screen.dart';
 
 /// Seller's main dashboard, shown after they log in to their seller space:
 /// KPIs (revenue, orders, balance), a sales chart, top categories and the
@@ -53,7 +55,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
         break;
       case SellerTab.profile:
-        _showComingSoon('Le profil vendeur');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }
@@ -89,12 +91,14 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                     OrdersCard(
                       ongoingOrdersCount: dashboard.ongoingOrdersCount,
                       readyToShipCount: dashboard.readyToShipCount,
-                      onTap: () => _showComingSoon('Le détail des commandes'),
+                      onTap: () => Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (_) => const OrdersManagementScreen())),
                     ),
                     const SizedBox(height: 16),
                     BalanceCard(
                       availableBalance: dashboard.availableBalance,
-                      onWithdraw: () => _showComingSoon('Le retrait de solde'),
+                      onWithdraw: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
                     ),
                     const SizedBox(height: 24),
                     SalesChartWidget(salesByRange: dashboard.salesByRange),

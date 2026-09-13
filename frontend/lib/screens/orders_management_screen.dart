@@ -9,6 +9,7 @@ import '../widgets/empty_orders_widget.dart';
 import '../widgets/order_card.dart';
 import '../widgets/orders_filter_bar.dart';
 import '../widgets/seller_bottom_navigation.dart';
+import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
 
 /// Seller's order list: filter by status, scroll through pages of orders,
@@ -144,7 +145,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
         break;
       case SellerTab.profile:
-        _showComingSoon('Le profil vendeur');
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }

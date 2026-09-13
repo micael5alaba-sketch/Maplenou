@@ -99,7 +99,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
 
         // ----- Boutique -----
         JsonNode shop = post("/api/shops",
-                new CreateShopRequest("Boutique Catalogue " + rand, "desc", "Lomé", "Centre"), sellerToken, 201);
+                new CreateShopRequest("Boutique Catalogue " + rand, "desc", "Lomé", "Centre", null), sellerToken, 201);
         shopId = UUID.fromString(shop.get("id").asText());
         assertEquals("PENDING", shop.get("status").asText());
 
@@ -107,7 +107,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         assertEquals(shopId.toString(), mine.get("id").asText());
 
         JsonNode updatedShop = patch("/api/shops/mine",
-                new UpdateShopRequest("Boutique Catalogue MAJ " + rand, null, null, null, null, null),
+                new UpdateShopRequest("Boutique Catalogue MAJ " + rand, null, null, null, null, null, null),
                 sellerToken, 200);
         assertEquals("Boutique Catalogue MAJ " + rand, updatedShop.get("name").asText());
 

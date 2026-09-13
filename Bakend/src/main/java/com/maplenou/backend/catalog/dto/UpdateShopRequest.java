@@ -9,6 +9,7 @@ public record UpdateShopRequest(
         @Size(max = 500) String logoUrl,
         @Size(max = 500) String coverUrl,
         @Size(max = 100) String city,
-        @Size(max = 100) String district
+        @Size(max = 100) String district,
+        @Size(max = 50) String taxId
 ) {
 }

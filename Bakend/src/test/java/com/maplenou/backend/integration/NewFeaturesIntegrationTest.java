@@ -91,7 +91,7 @@ class NewFeaturesIntegrationTest extends AbstractIntegrationTest {
         String sellerToken = login(sellerPhone, "Passw0rd!");
 
         JsonNode shop = post("/api/shops",
-                new CreateShopRequest("Boutique JUnit " + rand, "desc", "Lomé", "Centre"), sellerToken, 201);
+                new CreateShopRequest("Boutique JUnit " + rand, "desc", "Lomé", "Centre", null), sellerToken, 201);
         shopId = UUID.fromString(shop.get("id").asText());
 
         // ----- Newsletter -----

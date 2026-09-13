@@ -41,6 +41,10 @@ public class Shop {
     @Column(name = "cover_url", length = 500)
     private String coverUrl;
 
+    // NINEA au Senegal, TIN/TVA ailleurs. Optionnel.
+    @Column(name = "tax_id", length = 50)
+    private String taxId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

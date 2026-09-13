@@ -45,6 +45,7 @@ public class ShopService {
                 .description(request.description())
                 .city(request.city())
                 .district(request.district())
+                .taxId(request.taxId())
                 .status(ShopStatus.PENDING)
                 .build();
 
@@ -77,6 +78,9 @@ public class ShopService {
         }
         if (request.district() != null) {
             shop.setDistrict(request.district());
+        }
+        if (request.taxId() != null) {
+            shop.setTaxId(request.taxId().isBlank() ? null : request.taxId());
         }
 
         return shopRepository.save(shop);
