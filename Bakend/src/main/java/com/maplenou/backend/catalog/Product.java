@@ -55,6 +55,18 @@ public class Product {
     @Builder.Default
     private List<ProductSpecification> specifications = new ArrayList<>();
 
+    // Champs livraison par produit (optionnels) -- distincts des zones de livraison
+    // geographiques (DeliveryZone), qui restent la source de verite pour frais/delais par defaut.
+    @Column(name = "package_weight_kg", precision = 8, scale = 3)
+    private BigDecimal packageWeightKg;
+
+    @Column(name = "estimated_delivery_delay", length = 100)
+    private String estimatedDeliveryDelay;
+
+    @Column(name = "delivery_available", nullable = false)
+    @Builder.Default
+    private boolean deliveryAvailable = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

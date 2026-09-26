@@ -62,13 +62,6 @@ class VendorProductCard extends StatelessWidget {
                     _buildMenu(context),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  product.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.35),
-                ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -117,7 +110,7 @@ class VendorProductCard extends StatelessWidget {
         Positioned(
           top: 10,
           left: 10,
-          child: ProductStatusBadge(status: product.status),
+          child: ProductStatusBadge(status: product.stockStatus),
         ),
       ],
     );

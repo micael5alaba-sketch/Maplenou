@@ -22,22 +22,8 @@ extension SalesChartRangeLabel on SalesChartRange {
   }
 }
 
-/// One row of "Catégories les plus vendues".
-class TopCategoryModel {
-  final String name;
-  final int productCount;
-
-  /// 0-100.
-  final double percent;
-
-  const TopCategoryModel({
-    required this.name,
-    required this.productCount,
-    required this.percent,
-  });
-}
-
-/// The "Produit le plus vendu" card.
+/// The "Produit le plus vendu" card. `null` tant qu'aucune vente n'a encore
+/// été enregistrée pour la boutique.
 class BestSellingProductModel {
   final String name;
   final String? imageUrl;
@@ -50,32 +36,32 @@ class BestSellingProductModel {
   });
 }
 
-/// Everything shown on [SellerDashboardScreen].
+/// Everything shown on [SellerDashboardScreen]. Miroir de `SellerKpiResponse`
+/// (`seller/dto/SellerKpiResponse.java`).
 class SellerDashboardModel {
   final String sellerName;
 
   final num weeklyRevenue;
 
-  /// e.g. 8.4 meaning "+8.4%"; negative for a decline.
-  final double revenueChangePercent;
+  /// e.g. 8.4 meaning "+8.4%"; négatif pour une baisse ; `null` si aucune
+  /// vente sur la période de référence (pas de variation calculable).
+  final double? revenueChangePercent;
 
   final int ongoingOrdersCount;
   final int readyToShipCount;
   final num availableBalance;
 
   final Map<SalesChartRange, List<SalesPoint>> salesByRange;
-  final List<TopCategoryModel> topCategories;
-  final BestSellingProductModel bestSellingProduct;
+  final BestSellingProductModel? bestSellingProduct;
 
   const SellerDashboardModel({
     required this.sellerName,
     required this.weeklyRevenue,
-    required this.revenueChangePercent,
+    this.revenueChangePercent,
     required this.ongoingOrdersCount,
     required this.readyToShipCount,
     required this.availableBalance,
     required this.salesByRange,
-    required this.topCategories,
-    required this.bestSellingProduct,
+    this.bestSellingProduct,
   });
 }

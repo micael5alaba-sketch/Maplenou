@@ -56,7 +56,7 @@ class MyOrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${order.itemCount} article${order.itemCount > 1 ? 's' : ''} • ${formatOrderDateTime(order.dateTime)}',
+                    '${order.shopCount} boutique${order.shopCount > 1 ? 's' : ''} • ${formatOrderDateTime(order.dateTime)}',
                     style: TextStyle(fontSize: 12, color: colors.textMuted),
                   ),
                 ],

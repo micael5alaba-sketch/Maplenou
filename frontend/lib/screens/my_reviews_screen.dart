@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 
 import '../models/my_review_model.dart';
+import '../services/api_client.dart';
 import '../services/my_reviews_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
 /// "Mes Avis" — reviews the buyer has written, on products or shops.
 ///
-/// Backed by [MyReviewsService] mocked data for now — maps directly onto
-/// the real, already working `GET /api/users/me/reviews` once auth is
-/// wired up.
-class MyReviewsScreen extends StatelessWidget {
+/// Backed by [MyReviewsService] (`GET /api/users/me/reviews`).
+class MyReviewsScreen extends StatefulWidget {
   const MyReviewsScreen({super.key});
+
+  @override
+  State<MyReviewsScreen> createState() => _MyReviewsScreenState();
+}
+
+class _MyReviewsScreenState extends State<MyReviewsScreen> {
+  final _service = MyReviewsService();
+  late Future<List<MyReviewModel>> _reviewsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewsFuture = _service.getMyReviews();
+  }
+
+  void _reload() {
+    setState(() => _reviewsFuture = _service.getMyReviews());
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final reviews = MyReviewsService().getMyReviews();
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
@@ -25,14 +41,25 @@ class MyReviewsScreen extends StatelessWidget {
           children: [
             _buildHeader(context, colors),
             Expanded(
-              child: reviews.isEmpty
-                  ? _buildEmptyState(colors)
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: reviews.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _buildReviewCard(colors, reviews[index]),
-                    ),
+              child: FutureBuilder<List<MyReviewModel>>(
+                future: _reviewsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final reviews = snapshot.data ?? const [];
+                  if (reviews.isEmpty) return _buildEmptyState(colors);
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: reviews.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) => _buildReviewCard(colors, reviews[index]),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -92,6 +119,28 @@ class MyReviewsScreen extends StatelessWidget {
             Icon(Icons.rate_review_outlined, size: 48, color: colors.textMuted),
             const SizedBox(height: 12),
             Text("Vous n'avez pas encore laissé d'avis.", style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger vos avis.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
           ],
         ),
       ),

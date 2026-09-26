@@ -20,6 +20,23 @@ class ProductService {
     return _fetchCatalog(categoryId: categoryId, size: size);
   }
 
+  /// Fiche complète d'un produit (`GET /api/products/{slug}`) : variantes
+  /// réelles, images, description, spécifications — voir
+  /// `ProductDetailResponse` côté backend. Renvoyé en JSON brut ; c'est
+  /// [ProductDetailService] qui l'assemble avec le reste (avis, livraison).
+  Future<Map<String, dynamic>> getProductDetail(String slug) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/products/$slug');
+    final response = await http.get(uri).timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => throw Exception('Le serveur ne répond pas (délai dépassé)'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Échec du chargement du produit (${response.statusCode})');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<List<ProductModel>> _fetchCatalog({String? categoryId, int size = 20}) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/products').replace(
       queryParameters: {

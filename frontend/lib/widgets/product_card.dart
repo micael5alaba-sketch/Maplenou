@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
+import '../services/api_client.dart';
 import '../services/favorites_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -9,9 +10,6 @@ import '../utils/formatters.dart';
 /// promo/new badge and a favorite toggle, rating, name, price (with the
 /// old price struck through when discounted) and a circular add-to-cart
 /// button.
-///
-/// The favorite state is local UI state only (mocked) — wire it to a
-/// cart/wishlist service once one exists.
 class ProductCard extends StatefulWidget {
   final ProductModel product;
   final VoidCallback? onTap;
@@ -29,9 +27,26 @@ class ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<ProductCard> {
-  late bool _isFavorite = FavoritesService().isFavorite(widget.product.id);
+  bool? _isFavorite;
 
-  void _toggleFavorite() => setState(() => _isFavorite = FavoritesService().toggle(widget.product));
+  @override
+  void initState() {
+    super.initState();
+    FavoritesService().isFavorite(widget.product.id).then((value) {
+      if (mounted) setState(() => _isFavorite = value);
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    final previous = _isFavorite ?? false;
+    setState(() => _isFavorite = !previous);
+    try {
+      final result = await FavoritesService().toggle(widget.product.id);
+      if (mounted) setState(() => _isFavorite = result);
+    } on ApiException catch (_) {
+      if (mounted) setState(() => _isFavorite = previous);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,9 +130,9 @@ class _ProductCardState extends State<ProductCard> {
               radius: 15,
               backgroundColor: context.colors.surface,
               child: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
+                _isFavorite == true ? Icons.favorite : Icons.favorite_border,
                 size: 15,
-                color: _isFavorite ? context.colors.error : context.colors.textMuted,
+                color: _isFavorite == true ? context.colors.error : context.colors.textMuted,
               ),
             ),
           ),

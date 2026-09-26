@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/vendor_product_model.dart';
+import '../services/api_client.dart';
 import '../services/vendor_catalog_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -19,9 +20,7 @@ import 'seller_profile_screen.dart';
 /// shadowed white input) and [SellerBottomNavigation] rather than
 /// building near-duplicates of either.
 ///
-/// Backed by [VendorCatalogService] mocked data for now — no network call
-/// yet. Swapping it for a real `GET /api/shops/mine/products` later only
-/// touches that service, not this screen or its widgets.
+/// Backed by [VendorCatalogService] (`GET/DELETE /api/shops/mine/products`).
 class VendorCatalogScreen extends StatefulWidget {
   const VendorCatalogScreen({super.key});
 
@@ -32,15 +31,16 @@ class VendorCatalogScreen extends StatefulWidget {
 class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _searchController = TextEditingController();
+  final _service = VendorCatalogService();
 
-  late List<VendorProductModel> _products;
+  late Future<List<VendorProductModel>> _productsFuture;
   ProductStockStatus? _selectedStatus;
   String _query = '';
 
   @override
   void initState() {
     super.initState();
-    _products = VendorCatalogService().getProducts();
+    _productsFuture = _service.getProducts();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text.trim().toLowerCase());
     });
@@ -52,9 +52,13 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
     super.dispose();
   }
 
-  List<VendorProductModel> get _filteredProducts {
-    return _products.where((product) {
-      final matchesStatus = _selectedStatus == null || product.status == _selectedStatus;
+  void _reload() {
+    setState(() => _productsFuture = _service.getProducts());
+  }
+
+  List<VendorProductModel> _filter(List<VendorProductModel> products) {
+    return products.where((product) {
+      final matchesStatus = _selectedStatus == null || product.stockStatus == _selectedStatus;
       final matchesQuery = _query.isEmpty || product.name.toLowerCase().contains(_query);
       return matchesStatus && matchesQuery;
     }).toList();
@@ -86,10 +90,19 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
     );
 
     if (confirmed != true || !mounted) return;
-    setState(() => _products.removeWhere((p) => p.id == product.id));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('"${product.name}" supprimé.')));
+    try {
+      await _service.deleteProduct(product.id);
+      _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('"${product.name}" supprimé.')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _onTabSelected(SellerTab tab) {
@@ -112,7 +125,6 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final filtered = _filteredProducts;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -124,7 +136,7 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
         onPressed: () async {
           final published = await Navigator.of(context)
               .push<bool>(MaterialPageRoute(builder: (_) => const AddProductScreen()));
-          if (published == true) _showComingSoon('Le rafraîchissement du catalogue');
+          if (published == true) _reload();
         },
         child: const Icon(Icons.add_rounded),
       ),
@@ -133,38 +145,51 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 90),
-                children: [
-                  _buildTitleSection(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: SearchField(hintText: 'Rechercher un produit...', controller: _searchController),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildFilterChips(),
-                  const SizedBox(height: 16),
-                  if (filtered.isEmpty)
-                    _buildEmptyState()
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          for (final product in filtered) ...[
-                            VendorProductCard(
-                              product: product,
-                              onEdit: () => _showComingSoon('La modification de "${product.name}"'),
-                              onView: () => _showComingSoon('La fiche de "${product.name}"'),
-                              onDuplicate: () => _showComingSoon('La duplication de "${product.name}"'),
-                              onDelete: () => _confirmDelete(product),
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-                        ],
+              child: FutureBuilder<List<VendorProductModel>>(
+                future: _productsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final products = snapshot.data ?? const [];
+                  final filtered = _filter(products);
+                  return ListView(
+                    padding: const EdgeInsets.only(bottom: 90),
+                    children: [
+                      _buildTitleSection(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: SearchField(hintText: 'Rechercher un produit...', controller: _searchController),
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 14),
+                      _buildFilterChips(products),
+                      const SizedBox(height: 16),
+                      if (filtered.isEmpty)
+                        _buildEmptyState()
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: [
+                              for (final product in filtered) ...[
+                                VendorProductCard(
+                                  product: product,
+                                  onEdit: () => _showComingSoon('La modification de "${product.name}"'),
+                                  onView: () => _showComingSoon('La fiche de "${product.name}"'),
+                                  onDuplicate: () => _showComingSoon('La duplication de "${product.name}"'),
+                                  onDelete: () => _confirmDelete(product),
+                                ),
+                                const SizedBox(height: 14),
+                              ],
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -173,6 +198,28 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
       bottomNavigationBar: SellerBottomNavigation(
         currentTab: SellerTab.products,
         onTabSelected: _onTabSelected,
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le catalogue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
+          ],
+        ),
       ),
     );
   }
@@ -235,9 +282,9 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
     );
   }
 
-  Widget _buildFilterChips() {
+  Widget _buildFilterChips(List<VendorProductModel> products) {
     int countFor(ProductStockStatus? status) =>
-        status == null ? _products.length : _products.where((p) => p.status == status).length;
+        status == null ? products.length : products.where((p) => p.stockStatus == status).length;
 
     return FilterChips<ProductStockStatus?>(
       selected: _selectedStatus,

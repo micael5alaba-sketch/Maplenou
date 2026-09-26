@@ -4,50 +4,86 @@ import '../models/delivery_info_model.dart';
 import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
 import '../models/product_spec_entry.dart';
+import '../models/product_variant_model.dart';
 import '../models/review_model.dart';
-import '../models/variant_group_model.dart';
+import 'delivery_zone_service.dart';
+import 'product_service.dart';
+import 'review_service.dart';
 
-/// Builds the extra data a product detail page needs (galerie, avis,
-/// spécifications, livraison, produits similaires...) around a real
-/// [ProductModel] coming from the catalog.
-///
-/// Entirely mocked for now — the backend doesn't expose most of this yet
-/// (voir DEMANDES_MODIFICATIONS_BACKEND.md). Kept isolated in this one
-/// service so swapping it for real endpoints later only touches this file,
-/// not [ProductDetailsScreen] or its widgets.
+/// Assemble la fiche produit affichée par [ProductDetailsScreen] : variantes,
+/// images, description et spécifications viennent du vrai backend
+/// (`GET /api/products/{slug}`, `ProductService.getProductDetail`) ; avis
+/// réels aussi (`ReviewService`). Le frais de livraison vient de la zone la
+/// moins chère active (`GET /api/delivery-zones`) — aucune adresse n'est
+/// encore choisie à ce stade du parcours. Seuls les délais textuels, la
+/// politique de retour et les badges (`Bio`/`Artisanal`/...) restent
+/// décoratifs — le backend n'a pas de champ équivalent et ce n'est pas
+/// bloquant pour l'achat.
 class ProductDetailService {
-  ProductDetailModel buildMockDetail(ProductModel product, {List<ProductModel> catalog = const []}) {
-    final images = [
-      if (product.imageUrl != null) product.imageUrl!,
-      ...List.generate(3, (i) => 'https://picsum.photos/seed/${product.slug}-$i/800/800'),
-    ];
+  final _productService = ProductService();
+  final _reviewService = ReviewService();
+  final _deliveryZoneService = DeliveryZoneService();
+
+  // Utilisé uniquement si /api/delivery-zones est injoignable.
+  static const num _fallbackDeliveryFee = 1500;
+
+  Future<ProductDetailModel> buildDetail(
+    ProductModel product, {
+    List<ProductModel> catalog = const [],
+  }) async {
+    final detailJson = await _productService.getProductDetail(product.slug);
+
+    final images = (detailJson['images'] as List<dynamic>? ?? [])
+        .map((json) => (json as Map<String, dynamic>)['url'] as String)
+        .toList();
+    final variants = (detailJson['variants'] as List<dynamic>? ?? [])
+        .map((json) => ProductVariantModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+    final specifications = (detailJson['specifications'] as List<dynamic>? ?? [])
+        .map((json) => ProductSpecEntry(
+              label: (json as Map<String, dynamic>)['label'] as String,
+              value: json['value'] as String,
+            ))
+        .toList();
+
+    List<ReviewModel> reviews;
+    try {
+      reviews = await _reviewService.getProductReviews(product.id);
+    } catch (_) {
+      // La fiche produit doit s'afficher même si les avis échouent à charger.
+      reviews = const [];
+    }
 
     final related = catalog.where((p) => p.id != product.id).take(6).toList();
 
+    num deliveryFee = _fallbackDeliveryFee;
+    try {
+      final zone = await _deliveryZoneService.resolveZone();
+      if (zone != null) deliveryFee = zone.deliveryFee;
+    } catch (_) {
+      // Zones de livraison injoignables : on garde le repli plutôt que de
+      // bloquer l'affichage de la fiche produit.
+    }
+
     return ProductDetailModel(
-      id: product.id,
-      name: product.name,
-      images: images,
+      id: detailJson['id'] as String,
+      name: detailJson['name'] as String,
+      images: images.isEmpty && product.imageUrl != null ? [product.imageUrl!] : images,
       badges: _mockBadges(product),
-      price: product.price,
-      oldPrice: product.oldPrice,
-      rating: product.rating ?? 4.6,
-      reviewCount: product.reviewCount ?? 32,
-      variantGroups: _mockVariantGroups(product),
-      description:
-          "Ce produit est fabriqué avec soin par des artisans locaux. Idéal pour un usage "
-          "quotidien, il allie qualité, durabilité et style. Chaque pièce est unique et "
-          "reflète le savoir-faire traditionnel togolais, avec une attention particulière "
-          "portée aux finitions et aux matériaux utilisés tout au long du processus de "
-          "fabrication. Un produit pensé pour durer, à la fois fonctionnel et élégant.",
-      specifications: _mockSpecifications(),
-      delivery: const DeliveryInfoModel(
+      price: (detailJson['basePrice'] as num),
+      oldPrice: detailJson['oldPrice'] as num?,
+      rating: product.rating,
+      reviewCount: product.reviewCount,
+      variants: variants,
+      description: detailJson['description'] as String? ?? '',
+      specifications: specifications,
+      delivery: DeliveryInfoModel(
         standardDelay: '3 à 5 jours ouvrés',
         expressDelay: '24h (Grand Lomé uniquement)',
-        deliveryFee: 1500,
+        deliveryFee: deliveryFee,
         returnPolicy: 'Retour gratuit sous 30 jours après livraison',
       ),
-      reviews: _mockReviews(),
+      reviews: reviews,
       relatedProducts: related,
     );
   }
@@ -60,58 +96,5 @@ class ProductDetailService {
     final rnd = Random(product.id.hashCode);
     final count = 1 + rnd.nextInt(2);
     return (pool..shuffle(rnd)).take(count).toList();
-  }
-
-  /// Picks a plausible variant group from the product name — purely
-  /// cosmetic, so the generic detail page still feels adapted to the
-  /// product type even without a real backend signal for it.
-  List<VariantGroupModel> _mockVariantGroups(ProductModel product) {
-    final name = product.name.toLowerCase();
-    if (name.contains('sandale') || name.contains('sac') || name.contains('vêtement')) {
-      return const [
-        VariantGroupModel(label: 'Taille', options: ['S', 'M', 'L', 'XL']),
-      ];
-    }
-    if (name.contains('huile') || name.contains('parfum')) {
-      return const [
-        VariantGroupModel(label: 'Format', options: ['10 ml', '30 ml', '50 ml']),
-      ];
-    }
-    return const [
-      VariantGroupModel(label: 'Couleur', options: ['Noir', 'Blanc', 'Bleu']),
-    ];
-  }
-
-  List<ProductSpecEntry> _mockSpecifications() {
-    return const [
-      ProductSpecEntry(label: 'Marque', value: 'Maplenou Artisanat'),
-      ProductSpecEntry(label: 'Matière', value: 'Naturelle'),
-      ProductSpecEntry(label: 'Origine', value: 'Togo'),
-      ProductSpecEntry(label: 'Utilisation', value: 'Usage quotidien'),
-      ProductSpecEntry(label: 'Garantie', value: 'Satisfait ou remboursé 30 jours'),
-    ];
-  }
-
-  List<ReviewModel> _mockReviews() {
-    return [
-      ReviewModel(
-        customerName: 'Akofa M.',
-        rating: 5,
-        comment: 'Très bonne qualité, exactement comme sur les photos. Livraison rapide !',
-        date: DateTime.now().subtract(const Duration(days: 6)),
-      ),
-      ReviewModel(
-        customerName: 'Kodjo A.',
-        rating: 4,
-        comment: 'Beau produit, artisanat local vraiment soigné. Je recommande.',
-        date: DateTime.now().subtract(const Duration(days: 21)),
-      ),
-      ReviewModel(
-        customerName: 'Sena D.',
-        rating: 5,
-        comment: "Conforme à la description, vendeur réactif. J'en recommande d'autres.",
-        date: DateTime.now().subtract(const Duration(days: 40)),
-      ),
-    ];
   }
 }

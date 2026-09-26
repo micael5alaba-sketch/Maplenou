@@ -75,6 +75,31 @@ public class ReviewController {
         return reviewService.getShopRatingSummary(shopId);
     }
 
+    // ── Avis livreurs ─────────────────────────────────────────────────────────
+
+    @Operation(summary = "Noter le livreur d'une livraison terminée")
+    @PostMapping("/reviews/couriers")
+    public ResponseEntity<ReviewResponse> createCourierReview(
+            @AuthenticationPrincipal User buyer,
+            @Valid @RequestBody CreateCourierReviewRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(reviewService.createCourierReview(buyer, request));
+    }
+
+    @Operation(summary = "Liste des avis publics d'un livreur")
+    @GetMapping("/delivery-agents/{agentId}/reviews")
+    public Page<ReviewResponse> getCourierReviews(
+            @PathVariable UUID agentId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return reviewService.getCourierReviews(agentId, pageable);
+    }
+
+    @Operation(summary = "Note moyenne et nombre d'avis d'un livreur")
+    @GetMapping("/delivery-agents/{agentId}/reviews/summary")
+    public RatingSummaryResponse getCourierRatingSummary(@PathVariable UUID agentId) {
+        return reviewService.getCourierRatingSummary(agentId);
+    }
+
     // ── Mes avis ──────────────────────────────────────────────────────────────
 
     @Operation(summary = "Mes avis (produits et boutiques confondus)")

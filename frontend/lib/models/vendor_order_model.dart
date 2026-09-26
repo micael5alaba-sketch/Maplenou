@@ -1,5 +1,22 @@
-/// Status of an order from the seller's point of view.
+/// Status of an order from the seller's point of view — regroupe le cycle
+/// fin de `SubOrderStatus` (`order/SubOrderStatus.java`) en 4 catégories
+/// pour l'affichage/filtrage.
 enum VendorOrderStatus { toPrepare, shipping, delivered, cancelled }
+
+VendorOrderStatus _bucketForRawStatus(String rawStatus) {
+  switch (rawStatus) {
+    case 'PENDING':
+    case 'PREPARING':
+      return VendorOrderStatus.toPrepare;
+    case 'READY_FOR_PICKUP':
+    case 'IN_DELIVERY':
+      return VendorOrderStatus.shipping;
+    case 'DELIVERED':
+      return VendorOrderStatus.delivered;
+    default: // CANCELLED, RETURN_REQUESTED, RETURNED
+      return VendorOrderStatus.cancelled;
+  }
+}
 
 extension VendorOrderStatusLabels on VendorOrderStatus {
   /// Shown on the order card's status badge.
@@ -33,13 +50,14 @@ extension VendorOrderStatusLabels on VendorOrderStatus {
 }
 
 /// One order received by the seller, as shown on [OrdersManagementScreen].
+/// Miroir de `SubOrderResponse` (`order/dto/SubOrderResponse.java`).
 class VendorOrderModel {
   final String id;
   final String orderNumber;
   final DateTime dateTime;
   final String customerName;
   final List<String> productNames;
-  final VendorOrderStatus status;
+  final String rawStatus;
   final num amount;
 
   const VendorOrderModel({
@@ -48,9 +66,22 @@ class VendorOrderModel {
     required this.dateTime,
     required this.customerName,
     required this.productNames,
-    required this.status,
+    required this.rawStatus,
     required this.amount,
   });
+
+  VendorOrderStatus get status => _bucketForRawStatus(rawStatus);
+
+  /// Le vendeur ne peut faire avancer une sous-commande que
+  /// PENDING → PREPARING → READY_FOR_PICKUP (voir `SubOrderService`) —
+  /// au-delà, c'est le livreur qui prend le relais.
+  bool get canAdvance => rawStatus == 'PENDING' || rawStatus == 'PREPARING';
+
+  String? get nextRawStatus {
+    if (rawStatus == 'PENDING') return 'PREPARING';
+    if (rawStatus == 'PREPARING') return 'READY_FOR_PICKUP';
+    return null;
+  }
 
   /// e.g. "Sac en cuir" for a single item, "Tissu Wax + 2 autres" for
   /// several — always names the first product rather than just a count,
@@ -60,5 +91,18 @@ class VendorOrderModel {
     if (productNames.length == 1) return productNames.first;
     final extra = productNames.length - 1;
     return '${productNames.first} + $extra autre${extra > 1 ? 's' : ''}';
+  }
+
+  factory VendorOrderModel.fromJson(Map<String, dynamic> json) {
+    final items = json['items'] as List<dynamic>? ?? [];
+    return VendorOrderModel(
+      id: json['id'] as String,
+      orderNumber: json['orderNumber'] as String,
+      dateTime: DateTime.parse(json['createdAt'] as String),
+      customerName: json['buyerName'] as String,
+      productNames: items.map((i) => (i as Map<String, dynamic>)['productName'] as String).toList(),
+      rawStatus: json['status'] as String,
+      amount: json['subtotal'] as num,
+    );
   }
 }

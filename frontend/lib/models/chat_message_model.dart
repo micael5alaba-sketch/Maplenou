@@ -1,7 +1,6 @@
-/// One message bubble in [SellerConversationScreen]. Maps directly onto
-/// the backend's `Message` entity (`content`, `createdAt`, `readAt`);
-/// [isMine] is derived client-side by comparing `sender.id` to the
-/// logged-in user once auth is wired up.
+/// One message bubble in [SellerConversationScreen]. Miroir de
+/// `MessageResponse` (`messaging/dto/MessageResponse.java`) ; [isMine] est
+/// dérivé côté client en comparant `senderId` au compte connecté.
 class ChatMessageModel {
   final String id;
   final String content;
@@ -14,4 +13,13 @@ class ChatMessageModel {
     required this.sentAt,
     required this.isMine,
   });
+
+  factory ChatMessageModel.fromJson(Map<String, dynamic> json, {required String currentUserId}) {
+    return ChatMessageModel(
+      id: json['id'] as String,
+      content: json['content'] as String,
+      sentAt: DateTime.parse(json['createdAt'] as String),
+      isMine: json['senderId'] == currentUserId,
+    );
+  }
 }

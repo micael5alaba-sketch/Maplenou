@@ -7,6 +7,8 @@ class UserProfileModel {
   final int ongoingOrdersCount;
   final String primaryAddressSummary;
   final String paymentMethodsSummary;
+  final bool isApprovedSeller;
+  final bool hasPendingSellerApplication;
 
   const UserProfileModel({
     required this.fullName,
@@ -16,5 +18,7 @@ class UserProfileModel {
     this.ongoingOrdersCount = 0,
     required this.primaryAddressSummary,
     required this.paymentMethodsSummary,
+    this.isApprovedSeller = false,
+    this.hasPendingSellerApplication = false,
   });
 }

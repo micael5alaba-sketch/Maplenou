@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Maplenou utilise votre position pour géolocaliser votre adresse de livraison et guider le livreur.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Maplenou utilise l'appareil photo pour capturer une preuve de livraison.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

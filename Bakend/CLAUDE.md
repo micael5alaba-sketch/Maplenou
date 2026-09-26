@@ -200,8 +200,10 @@ périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décision
 - 2FA TOTP existe désormais **au niveau compte, pour tout utilisateur** (module `auth`,
   setup/activate/verify-login/disable) — mais rien de spécifique à l'Admin par-dessus. Le cahier
   des charges demande une authentification *renforcée spécifiquement* pour `/api/admin/**`
-  (restriction IP/VPN, flux différent) : **toujours non implémenté à ce stade**, distinct du 2FA
-  générique déjà en place.
+  (restriction IP/VPN, flux différent) : **fait** — `security.AdminIpFilter`, liste blanche
+  IP/CIDR (IPv4) configurable via `ADMIN_ALLOWED_IPS`, désactivée par défaut en développement
+  (vide = pas de restriction, à définir explicitement avant la mise en production). Distinct du
+  2FA générique déjà en place, qui reste actif en plus.
 - Droits internes différenciés entre comptes admin eux-mêmes (ex. un admin support ne doit pas
   pouvoir modifier les taux de commission) — pas encore fait, un seul rôle `ADMIN` pour tout.
 - Toute action admin sensible (modération, remboursement, changement de rôle, changement de statut

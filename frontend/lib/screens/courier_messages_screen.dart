@@ -11,12 +11,9 @@ import 'courier_conversation_screen.dart';
 import 'courier_deliveries_screen.dart';
 import 'courier_profile_screen.dart';
 
-/// Courier's conversation list, split into "Clients", "Vendeurs" and
-/// "Support" — three tabs, unlike the seller's two (see [ConversationKind]
-/// for why "Vendeurs" has no backend type yet).
-///
-/// Backed by [CourierMessagingService] mocked data for now — no network
-/// call yet.
+/// Courier's conversation list, split into "Clients" (BUYER_COURIER),
+/// "Vendeurs" (SELLER_COURIER) and "Support" — backed by
+/// [CourierMessagingService], toutes réelles.
 class CourierMessagesScreen extends StatefulWidget {
   const CourierMessagesScreen({super.key});
 
@@ -27,7 +24,21 @@ class CourierMessagesScreen extends StatefulWidget {
 class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = CourierMessagingService();
-  ConversationKind _selectedKind = ConversationKind.client;
+  ConversationKind _selectedKind = ConversationKind.courierClient;
+  late Future<List<ConversationPreviewModel>> _conversationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversationsFuture = _service.getConversations(kind: _selectedKind);
+  }
+
+  void _selectKind(ConversationKind kind) {
+    setState(() {
+      _selectedKind = kind;
+      _conversationsFuture = _service.getConversations(kind: kind);
+    });
+  }
 
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
@@ -36,15 +47,17 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
   }
 
   void _openConversation(ConversationPreviewModel conversation) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CourierConversationScreen(
-          conversationId: conversation.id,
-          participantName: conversation.participantName,
-          participantAvatarUrl: conversation.participantAvatarUrl,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => CourierConversationScreen(
+              conversationId: conversation.id,
+              participantName: conversation.participantName,
+              participantAvatarUrl: conversation.participantAvatarUrl,
+            ),
+          ),
+        )
+        .then((_) => setState(() => _conversationsFuture = _service.getConversations(kind: _selectedKind)));
   }
 
   void _onTabSelected(CourierTab tab) {
@@ -67,7 +80,6 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final conversations = _service.getConversations(kind: _selectedKind);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -96,17 +108,27 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
             _buildQuickReplies(colors),
             const SizedBox(height: 12),
             Expanded(
-              child: conversations.isEmpty
-                  ? Center(child: Text('Aucune conversation.', style: TextStyle(color: colors.textMuted)))
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: conversations.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final conversation = conversations[index];
-                        return ConversationListTile(conversation: conversation, onTap: () => _openConversation(conversation));
-                      },
-                    ),
+              child: FutureBuilder<List<ConversationPreviewModel>>(
+                future: _conversationsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final conversations = snapshot.data ?? const [];
+                  if (conversations.isEmpty) {
+                    return Center(child: Text('Aucune conversation.', style: TextStyle(color: colors.textMuted)));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: conversations.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final conversation = conversations[index];
+                      return ConversationListTile(conversation: conversation, onTap: () => _openConversation(conversation));
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -143,8 +165,8 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
         decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
         child: Row(
           children: [
-            _buildTab(colors, 'Clients', ConversationKind.client),
-            _buildTab(colors, 'Vendeurs', ConversationKind.vendor),
+            _buildTab(colors, 'Clients', ConversationKind.courierClient),
+            _buildTab(colors, 'Vendeurs', ConversationKind.courierShop),
             _buildTab(colors, 'Support', ConversationKind.support),
           ],
         ),
@@ -157,7 +179,7 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedKind = kind),
+        onTap: () => _selectKind(kind),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(color: isActive ? colors.surface : Colors.transparent, borderRadius: BorderRadius.circular(10)),

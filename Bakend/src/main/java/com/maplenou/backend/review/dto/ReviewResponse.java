@@ -1,5 +1,6 @@
 package com.maplenou.backend.review.dto;
 
+import com.maplenou.backend.review.CourierReview;
 import com.maplenou.backend.review.ProductReview;
 import com.maplenou.backend.review.ShopReview;
 
@@ -27,6 +28,16 @@ public record ReviewResponse(
     }
 
     public static ReviewResponse from(ShopReview r) {
+        return new ReviewResponse(
+                r.getId(),
+                new AuthorSummary(r.getAuthor().getId(), r.getAuthor().getFullName()),
+                r.getRating(),
+                r.getComment(),
+                r.getCreatedAt()
+        );
+    }
+
+    public static ReviewResponse from(CourierReview r) {
         return new ReviewResponse(
                 r.getId(),
                 new AuthorSummary(r.getAuthor().getId(), r.getAuthor().getFullName()),

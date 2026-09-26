@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+import '../services/locale_controller.dart';
 import '../services/theme_controller.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/logout_button.dart';
+import 'courier_pin_settings_screen.dart';
+import 'login_screen.dart';
 
 /// "Paramètres" — delivery preferences, appearance, notifications,
-/// language and PIN. Mocked for now: only the theme toggle is real
-/// (shared [themeController]), the rest are local UI state / placeholders.
+/// language and PIN. Le thème, la langue et le code PIN sont réels
+/// (préférences locales à l'appareil — voir `ThemeController`,
+/// `LocaleController`, `CourierPinService`) ; zone de livraison et
+/// notifications restent des espaces réservés.
 class CourierSettingsScreen extends StatefulWidget {
   const CourierSettingsScreen({super.key});
 
@@ -21,6 +27,60 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  Future<void> _pickLanguage() async {
+    final colors = context.colors;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Langue', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              const SizedBox(height: 8),
+              for (final language in AppLanguage.values)
+                ValueListenableBuilder<AppLanguage>(
+                  valueListenable: localeController,
+                  builder: (context, current, _) {
+                    return ListTile(
+                      title: Text(language.label, style: TextStyle(color: colors.textDark)),
+                      subtitle: language.isAvailable ? null : Text('Pas encore disponible', style: TextStyle(color: colors.textMuted, fontSize: 12)),
+                      trailing: current == language ? Icon(Icons.check_rounded, color: colors.primary) : null,
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        if (!language.isAvailable) {
+                          _showComingSoon('Le passage en ${language.label}');
+                          return;
+                        }
+                        await localeController.setLanguage(language);
+                      },
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openPinSettings() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierPinSettingsScreen()));
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -70,13 +130,18 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
                     onChanged: (v) => setState(() => _notificationsEnabled = v),
                   ),
                   const SizedBox(height: 10),
-                  _buildRow(colors, Icons.language_rounded, 'Langue', subtitle: 'Français', onTap: () => _showComingSoon('Le changement de langue')),
+                  ValueListenableBuilder<AppLanguage>(
+                    valueListenable: localeController,
+                    builder: (context, language, _) {
+                      return _buildRow(colors, Icons.language_rounded, 'Langue', subtitle: language.label, onTap: _pickLanguage);
+                    },
+                  ),
                   const SizedBox(height: 20),
                   _buildSectionLabel(colors, 'SÉCURITÉ'),
                   const SizedBox(height: 8),
-                  _buildRow(colors, Icons.dialpad_rounded, 'Changer le code PIN', subtitle: 'Sécurité de connexion', onTap: () => _showComingSoon('Le changement de code PIN')),
+                  _buildRow(colors, Icons.dialpad_rounded, 'Changer le code PIN', subtitle: 'Sécurité de connexion', onTap: _openPinSettings),
                   const SizedBox(height: 28),
-                  LogoutButton(onPressed: () => _showComingSoon('La déconnexion')),
+                  LogoutButton(onPressed: _handleLogout),
                 ],
               ),
             ),

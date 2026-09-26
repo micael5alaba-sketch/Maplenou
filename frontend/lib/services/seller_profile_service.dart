@@ -1,19 +1,30 @@
 import '../models/seller_profile_model.dart';
+import 'shop_service.dart';
+import 'user_service.dart';
 
-/// Provides the shop identity and settings shown on [SellerProfileScreen].
-///
-/// Mocked for now — no network call. Replace [getProfile] with a real
-/// `GET /api/shops/mine` call once wired up; the return shape maps
-/// directly onto `ShopResponse` (`taxId` included).
+/// `GET /api/shops/mine` (`catalog/ShopController.java`), plus l'email du
+/// compte (`GET /api/users/me`) — `Shop` n'a pas de champ email de contact
+/// dédié, on affiche celui du compte vendeur.
 class SellerProfileService {
-  SellerProfileModel getProfile() {
-    return const SellerProfileModel(
-      shopName: 'Atelier Terre & Racine',
-      isCertified: true,
-      location: 'Dakar, Sénégal',
-      memberSinceYear: 2023,
-      contactEmail: 'contact@terreracine.sn',
-      taxId: null,
+  final _shopService = ShopService();
+  final _userService = UserService();
+
+  Future<SellerProfileModel> getProfile() async {
+    final shop = await _shopService.getMine();
+    final user = await _userService.getCurrentUser();
+
+    if (shop == null) {
+      throw StateError('Profil vendeur consulté sans boutique créée — ne devrait pas arriver ici.');
+    }
+
+    return SellerProfileModel(
+      shopName: shop.name,
+      logoUrl: shop.logoUrl,
+      isCertified: shop.isApproved,
+      location: shop.location,
+      memberSinceYear: shop.createdAt.year,
+      contactEmail: user.email ?? user.phoneNumber,
+      taxId: shop.taxId,
     );
   }
 }

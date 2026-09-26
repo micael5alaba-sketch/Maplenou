@@ -167,8 +167,10 @@ public class OrderService {
         }
 
         // 6. Créer la commande parent
+        String orderNumber = "CMD-" + String.format("%06d", orderRepository.nextOrderNumberSequenceValue());
         Order order = Order.builder()
                 .buyer(buyer)
+                .orderNumber(orderNumber)
                 .deliveryAddress(snapshot)
                 .totalAmount(totalAmount)
                 .status(OrderStatus.CREATED)

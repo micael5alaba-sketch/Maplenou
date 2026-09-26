@@ -24,17 +24,12 @@ class ProductModel {
 
   final num price;
 
-  /// Prix barré avant réduction, si le produit est en promo.
-  ///
-  /// Correspond à un champ `oldPrice` que le backend n'expose pas encore
-  /// sur `ProductSummaryResponse`/`ProductDetailResponse` (à ajouter côté
-  /// `Product` : un `BigDecimal` nullable, prix affiché barré au-dessus du
-  /// prix courant quand il est renseigné et supérieur à `basePrice`). Reste
-  /// `null` tant que ce n'est pas fait — pas de promo affichée par défaut.
+  /// Prix barré avant réduction, si le produit est en promo — vient de
+  /// `ProductSummaryResponse.oldPrice`, `null` si pas de promo.
   final num? oldPrice;
 
-  /// From `GET /api/products/{id}/reviews/summary` — null until that call
-  /// has been made for this product (not fetched in bulk for a list yet).
+  /// Note moyenne et nombre d'avis, déjà agrégés côté backend sur
+  /// `ProductSummaryResponse` (`averageRating`/`reviewCount`).
   final double? rating;
   final int? reviewCount;
 
@@ -62,6 +57,7 @@ class ProductModel {
       discountPercent != null ? ProductBadgeType.discount : ProductBadgeType.none;
 
   factory ProductModel.fromSummaryJson(Map<String, dynamic> json) {
+    final reviewCount = json['reviewCount'] as num?;
     return ProductModel(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -69,6 +65,8 @@ class ProductModel {
       imageUrl: json['thumbnailUrl'] as String?,
       price: json['basePrice'] as num,
       oldPrice: json['oldPrice'] as num?,
+      rating: (json['averageRating'] as num?)?.toDouble(),
+      reviewCount: reviewCount?.toInt(),
     );
   }
 }

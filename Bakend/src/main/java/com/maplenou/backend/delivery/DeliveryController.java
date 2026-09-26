@@ -61,6 +61,21 @@ public class DeliveryController {
         return deliveryService.getById(id);
     }
 
+    // ----- Acheteur -----
+
+    /**
+     * Acheteur : statut de livraison d'une de mes sous-commandes (suivi de
+     * commande). Vérification de propriété faite en service, pas de
+     * restriction de rôle ici — tout compte authentifié peut consulter ses
+     * propres sous-commandes.
+     */
+    @GetMapping("/sub-orders/{subOrderId}")
+    public DeliveryResponse getForMySubOrder(
+            @AuthenticationPrincipal User currentUser,
+            @PathVariable UUID subOrderId) {
+        return deliveryService.getForBuyer(currentUser, subOrderId);
+    }
+
     // ----- Livreur -----
 
     /** Livreur : mes livraisons assignées. */

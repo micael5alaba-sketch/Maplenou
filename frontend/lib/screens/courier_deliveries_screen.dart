@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/available_delivery_model.dart';
+import '../services/api_client.dart';
 import '../services/available_deliveries_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -11,10 +12,11 @@ import 'courier_delivery_detail_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_profile_screen.dart';
 
-/// "Courses" tab: feed of delivery requests the courier can accept.
+/// "Courses" tab: deliveries assigned to this courier by an admin, not yet
+/// started (`ASSIGNED`) — voir `CLAUDE.md` §3 : un admin affecte le
+/// livreur, ce n'est pas une file de courses à accepter soi-même.
 ///
-/// Backed by [AvailableDeliveriesService] mocked data for now — no network
-/// call, no live/polling feed either (see that service's doc comment).
+/// Backed by [AvailableDeliveriesService] (`GET /api/deliveries/my`).
 class CourierDeliveriesScreen extends StatefulWidget {
   const CourierDeliveriesScreen({super.key});
 
@@ -25,12 +27,16 @@ class CourierDeliveriesScreen extends StatefulWidget {
 class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = AvailableDeliveriesService();
-  late List<AvailableDeliveryModel> _deliveries;
+  late Future<List<AvailableDeliveryModel>> _deliveriesFuture;
 
   @override
   void initState() {
     super.initState();
-    _deliveries = _service.getAvailableDeliveries();
+    _deliveriesFuture = _service.getAvailableDeliveries();
+  }
+
+  void _reload() {
+    setState(() => _deliveriesFuture = _service.getAvailableDeliveries());
   }
 
   void _showComingSoon(String feature) {
@@ -39,9 +45,10 @@ class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
-  void _acceptDelivery(AvailableDeliveryModel delivery) {
-    setState(() => _deliveries.removeWhere((d) => d.id == delivery.id));
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveryDetailScreen()));
+  void _openDelivery(AvailableDeliveryModel delivery) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => CourierDeliveryDetailScreen(deliveryId: delivery.id)))
+        .then((_) => _reload());
   }
 
   void _onTabSelected(CourierTab tab) {
@@ -74,33 +81,31 @@ class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: _deliveries.isEmpty
-                  ? _buildEmptyState(colors)
-                  : ListView.separated(
+              child: FutureBuilder<List<AvailableDeliveryModel>>(
+                future: _deliveriesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final deliveries = snapshot.data ?? const [];
+                  if (deliveries.isEmpty) return _buildEmptyState(colors);
+                  return RefreshIndicator(
+                    onRefresh: () async => _reload(),
+                    child: ListView.separated(
                       padding: const EdgeInsets.all(16),
-                      itemCount: _deliveries.length + 1,
+                      itemCount: deliveries.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
-                        if (index == _deliveries.length) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: colors.textMuted),
-                                ),
-                                const SizedBox(height: 8),
-                                Text('Actualisation en direct...', style: TextStyle(fontSize: 12, color: colors.textMuted)),
-                              ],
-                            ),
-                          );
-                        }
-                        final delivery = _deliveries[index];
-                        return AvailableDeliveryCard(delivery: delivery, onAccept: () => _acceptDelivery(delivery));
+                        final delivery = deliveries[index];
+                        return AvailableDeliveryCard(delivery: delivery, onOpen: () => _openDelivery(delivery));
                       },
                     ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -138,7 +143,29 @@ class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
           children: [
             Icon(Icons.local_shipping_outlined, size: 48, color: colors.textMuted),
             const SizedBox(height: 12),
-            Text('Aucune course disponible pour le moment.', style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500)),
+            Text('Aucune livraison assignée pour le moment.', style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger les livraisons.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
           ],
         ),
       ),

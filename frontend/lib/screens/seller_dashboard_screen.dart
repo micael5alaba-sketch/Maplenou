@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/seller_dashboard_model.dart';
+import '../services/api_client.dart';
 import '../services/seller_dashboard_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -11,19 +12,16 @@ import '../widgets/orders_card.dart';
 import '../widgets/revenue_card.dart';
 import '../widgets/sales_chart_widget.dart';
 import '../widgets/seller_bottom_navigation.dart';
-import '../widgets/top_categories_widget.dart';
 import 'orders_management_screen.dart';
 import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
 import 'wallet_screen.dart';
 
 /// Seller's main dashboard, shown after they log in to their seller space:
-/// KPIs (revenue, orders, balance), a sales chart, top categories and the
-/// best-selling product, plus the seller-specific bottom navigation.
+/// KPIs (revenue, orders, balance), a sales chart, and the best-selling
+/// product, plus the seller-specific bottom navigation.
 ///
-/// Backed by [SellerDashboardService] mocked data for now — no network
-/// call yet. Swapping it for real Spring Boot endpoints later only
-/// touches that service, not this screen or its widgets.
+/// Backed by [SellerDashboardService] (`GET /api/sellers/me/kpis`).
 class SellerDashboardScreen extends StatefulWidget {
   const SellerDashboardScreen({super.key});
 
@@ -33,9 +31,15 @@ class SellerDashboardScreen extends StatefulWidget {
 
 class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _dashboard = SellerDashboardService().getDashboard();
+  late Future<SellerDashboardModel> _dashboardFuture;
 
   final SellerTab _currentTab = SellerTab.dashboard;
+
+  @override
+  void initState() {
+    super.initState();
+    _dashboardFuture = SellerDashboardService().getDashboard();
+  }
 
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
@@ -62,8 +66,6 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dashboard = _dashboard;
-
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: context.colors.homeBackground,
@@ -76,38 +78,17 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
               onNotificationTap: () => _showComingSoon('Notifications'),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildGreeting(dashboard),
-                    const SizedBox(height: 24),
-                    RevenueCard(
-                      weeklyRevenue: dashboard.weeklyRevenue,
-                      changePercent: dashboard.revenueChangePercent,
-                    ),
-                    const SizedBox(height: 16),
-                    OrdersCard(
-                      ongoingOrdersCount: dashboard.ongoingOrdersCount,
-                      readyToShipCount: dashboard.readyToShipCount,
-                      onTap: () => Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (_) => const OrdersManagementScreen())),
-                    ),
-                    const SizedBox(height: 16),
-                    BalanceCard(
-                      availableBalance: dashboard.availableBalance,
-                      onWithdraw: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
-                    ),
-                    const SizedBox(height: 24),
-                    SalesChartWidget(salesByRange: dashboard.salesByRange),
-                    const SizedBox(height: 24),
-                    TopCategoriesWidget(categories: dashboard.topCategories),
-                    const SizedBox(height: 24),
-                    BestSellingProductWidget(product: dashboard.bestSellingProduct),
-                  ],
-                ),
+              child: FutureBuilder<SellerDashboardModel>(
+                future: _dashboardFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(snapshot.error);
+                  }
+                  return _buildContent(snapshot.data!);
+                },
               ),
             ),
           ],
@@ -116,6 +97,68 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
       bottomNavigationBar: SellerBottomNavigation(
         currentTab: _currentTab,
         onTabSelected: _onTabSelected,
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object? error) {
+    final colors = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le dashboard.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _dashboardFuture = SellerDashboardService().getDashboard()),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(SellerDashboardModel dashboard) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildGreeting(dashboard),
+          const SizedBox(height: 24),
+          RevenueCard(
+            weeklyRevenue: dashboard.weeklyRevenue,
+            changePercent: dashboard.revenueChangePercent ?? 0,
+          ),
+          const SizedBox(height: 16),
+          OrdersCard(
+            ongoingOrdersCount: dashboard.ongoingOrdersCount,
+            readyToShipCount: dashboard.readyToShipCount,
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const OrdersManagementScreen())),
+          ),
+          const SizedBox(height: 16),
+          BalanceCard(
+            availableBalance: dashboard.availableBalance,
+            onWithdraw: () =>
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
+          ),
+          const SizedBox(height: 24),
+          SalesChartWidget(salesByRange: dashboard.salesByRange),
+          if (dashboard.bestSellingProduct != null) ...[
+            const SizedBox(height: 24),
+            BestSellingProductWidget(product: dashboard.bestSellingProduct!),
+          ],
+        ],
       ),
     );
   }

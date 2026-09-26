@@ -39,3 +39,10 @@ String formatOrderDateTime(DateTime dateTime) {
   final minute = dateTime.minute.toString().padLeft(2, '0');
   return '$day $month ${dateTime.year} • $hour:$minute';
 }
+
+/// Formats a date without time, e.g. "12 Oct 2028".
+String formatShortDate(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = _monthAbbreviations[date.month - 1];
+  return '$day $month ${date.year}';
+}

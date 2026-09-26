@@ -1,48 +1,41 @@
 import '../models/address_model.dart';
+import 'api_client.dart';
 
-/// In-memory saved addresses shared across the app session (same pattern
-/// as [CartService]/[FavoritesService]).
-///
-/// Mocked for now — no network call, no persistence across app restarts.
-/// Maps onto the real, already working `AddressController`
-/// (`GET/POST/PATCH/DELETE /api/users/me/addresses`) once auth is wired up.
+/// `GET/POST/PUT/PATCH/DELETE /api/users/me/addresses`
+/// (`user/AddressController.java`).
 class AddressService {
-  AddressService._internal();
-  static final AddressService _instance = AddressService._internal();
-  factory AddressService() => _instance;
+  final _client = ApiClient();
 
-  final List<AddressModel> _addresses = [
-    const AddressModel(
-      id: 'a1',
-      label: 'Maison',
-      city: 'Lomé',
-      district: 'Adidogomé',
-      details: 'Rue des Étoiles, portail vert',
-      isDefault: true,
-    ),
-  ];
-
-  List<AddressModel> get addresses => List.unmodifiable(_addresses);
-
-  void add({required String label, required String city, String? district, String? details}) {
-    final isFirst = _addresses.isEmpty;
-    _addresses.add(AddressModel(
-      id: 'a${_addresses.length + 1}_${DateTime.now().millisecondsSinceEpoch}',
-      label: label,
-      city: city,
-      district: district,
-      details: details,
-      isDefault: isFirst,
-    ));
+  Future<List<AddressModel>> getAddresses() async {
+    final data = await _client.get('/api/users/me/addresses') as List<dynamic>;
+    return data.map((json) => AddressModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 
-  void remove(String id) {
-    _addresses.removeWhere((a) => a.id == id);
+  Future<AddressModel> add({
+    required String label,
+    required String city,
+    String? district,
+    String? details,
+    double? latitude,
+    double? longitude,
+    bool isDefault = false,
+  }) async {
+    final data = await _client.post(
+      '/api/users/me/addresses',
+      body: {
+        'label': label,
+        'city': city,
+        'district': district,
+        'details': details,
+        'latitude': latitude,
+        'longitude': longitude,
+        'isDefault': isDefault,
+      },
+    ) as Map<String, dynamic>;
+    return AddressModel.fromJson(data);
   }
 
-  void setDefault(String id) {
-    for (var i = 0; i < _addresses.length; i++) {
-      _addresses[i] = _addresses[i].copyWith(isDefault: _addresses[i].id == id);
-    }
-  }
+  Future<void> remove(String id) => _client.delete('/api/users/me/addresses/$id');
+
+  Future<void> setDefault(String id) => _client.patch('/api/users/me/addresses/$id/default');
 }

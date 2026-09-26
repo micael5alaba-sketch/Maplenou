@@ -25,6 +25,9 @@ public record ProductDetailResponse(
         List<VariantResponse> variants,
         List<ImageResponse> images,
         List<ProductSpecification> specifications,
+        BigDecimal packageWeightKg,
+        String estimatedDeliveryDelay,
+        boolean deliveryAvailable,
         Instant createdAt
 ) {
     public static ProductDetailResponse from(Product p) {
@@ -43,6 +46,9 @@ public record ProductDetailResponse(
                 p.getVariants().stream().map(VariantResponse::from).toList(),
                 p.getImages().stream().map(ImageResponse::from).toList(),
                 p.getSpecifications() != null ? p.getSpecifications() : List.of(),
+                p.getPackageWeightKg(),
+                p.getEstimatedDeliveryDelay(),
+                p.isDeliveryAvailable(),
                 p.getCreatedAt()
         );
     }

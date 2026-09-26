@@ -1,29 +1,93 @@
 import '../models/order_tracking_model.dart';
+import 'delivery_status_service.dart';
+import 'order_service.dart';
 
-/// Provides the data shown on [OrderTrackingScreen].
+/// Construit le suivi d'une commande à partir du vrai `Order`
+/// (`OrderService.getOrder`) et, si elle existe déjà, de la vraie
+/// `Delivery` de sa première sous-commande (`DeliveryStatusService`).
 ///
-/// Mocked for now — no network call, and no live GPS position feed either
-/// (the backend's `Delivery` only has a final status, not a live position —
-/// flagged as a gap alongside the courier dashboard's equivalent one).
-/// The status timeline itself maps directly onto real `SubOrderStatus`
-/// transitions (`PENDING`→`PREPARING`→`READY_FOR_PICKUP`→`IN_DELIVERY`→
-/// `DELIVERED`, see `MODELE_DONNEES.md`) once wired up.
+/// Simplification assumée : une commande multi-boutiques a une timeline par
+/// sous-commande côté backend, mais cet écran n'affiche qu'un seul
+/// parcours — celui de la première sous-commande, cas très majoritaire
+/// (une seule boutique par commande) pour cette version.
 class OrderTrackingService {
-  OrderTrackingModel getTracking(String orderNumber) {
+  final _orderService = OrderService();
+  final _deliveryStatusService = DeliveryStatusService();
+
+  static const _statusOrder = ['PENDING', 'PREPARING', 'READY_FOR_PICKUP', 'IN_DELIVERY', 'DELIVERED'];
+  static const _statusLabels = {
+    'PENDING': 'Commande reçue',
+    'PREPARING': 'En préparation',
+    'READY_FOR_PICKUP': 'Prête pour le retrait',
+    'IN_DELIVERY': 'En livraison',
+    'DELIVERED': 'Livrée',
+  };
+
+  Future<OrderTrackingModel> getTracking(String orderId) async {
+    final order = await _orderService.getOrder(orderId);
+
+    final deliveryAddress = order.deliveryAddress?.summary ?? 'Adresse de livraison de la commande';
+    final addressNote = order.deliveryAddress?.details;
+
+    if (order.subOrders.isEmpty) {
+      return OrderTrackingModel(
+        orderNumber: order.orderNumber,
+        deliveryAddress: deliveryAddress,
+        addressNote: addressNote,
+        steps: const [OrderTrackingStep(label: 'Commande reçue', timeLabel: '', isDone: true, isCurrent: true)],
+      );
+    }
+
+    final subOrder = order.subOrders.first;
+    final currentStatus = subOrder.status;
+
+    if (currentStatus == 'CANCELLED' || currentStatus == 'RETURN_REQUESTED' || currentStatus == 'RETURNED') {
+      return OrderTrackingModel(
+        orderNumber: order.orderNumber,
+        deliveryAddress: deliveryAddress,
+        addressNote: addressNote,
+        steps: [OrderTrackingStep(label: _cancelledLabel(currentStatus), timeLabel: '', isDone: true, isCurrent: true)],
+      );
+    }
+
+    final currentIndex = _statusOrder.indexOf(currentStatus);
+    final steps = [
+      for (var i = 0; i < _statusOrder.length; i++)
+        OrderTrackingStep(
+          label: _statusLabels[_statusOrder[i]]!,
+          timeLabel: '',
+          isDone: currentIndex >= 0 && i < currentIndex,
+          isCurrent: i == currentIndex,
+        ),
+    ];
+
+    String? courierName;
+    String? deliveryId;
+    if (currentStatus == 'IN_DELIVERY' || currentStatus == 'DELIVERED') {
+      final delivery = await _deliveryStatusService.getForSubOrder(subOrder.id);
+      courierName = delivery?.agentName;
+      deliveryId = delivery?.id;
+    }
+
     return OrderTrackingModel(
-      orderNumber: orderNumber,
-      etaLabel: "Aujourd'hui, 14:30 - 15:00",
-      courierName: 'Koffi Mensah',
-      courierRating: 4.9,
-      courierDeliveryCount: 120,
-      deliveryAddress: 'Résidence Les Cocotiers, Apt 4B, Cocody Danga, Abidjan',
-      addressNote: "Appeler en arrivant au portail.",
-      steps: const [
-        OrderTrackingStep(label: 'Commande confirmée', timeLabel: '13:45 - Payé avec succès', isDone: true),
-        OrderTrackingStep(label: 'En préparation', timeLabel: '14:00 - Le vendeur prépare votre colis', isDone: true),
-        OrderTrackingStep(label: 'Remis au livreur', timeLabel: '14:15 - En route vers votre adresse', isCurrent: true),
-        OrderTrackingStep(label: 'Livré', timeLabel: ''),
-      ],
+      orderNumber: order.orderNumber,
+      deliveryId: deliveryId,
+      courierName: courierName,
+      deliveryAddress: deliveryAddress,
+      addressNote: addressNote,
+      steps: steps,
+      isDelivered: currentStatus == 'DELIVERED',
     );
+  }
+
+  String _cancelledLabel(String status) {
+    switch (status) {
+      case 'RETURN_REQUESTED':
+        return 'Retour demandé';
+      case 'RETURNED':
+        return 'Retournée';
+      default:
+        return 'Commande annulée';
+    }
   }
 }

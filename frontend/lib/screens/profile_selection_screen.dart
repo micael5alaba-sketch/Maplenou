@@ -1,33 +1,42 @@
 import 'package:flutter/material.dart';
 
 import '../models/role_model.dart';
+import '../models/user_model.dart';
 import '../services/role_service.dart';
 import '../services/session_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
+import '../services/app_router.dart';
 import '../widgets/role_card.dart';
-import 'courier_dashboard_screen.dart';
 import 'home_screen.dart';
 import 'seller_registration_screen.dart';
 
-/// Shown on first launch (right after the splash screen): lets the user
-/// pick which profile (Acheteur / Vendeur / Livreur) they want to use the
-/// app as. The choice is persisted via [SessionService] so the next time
-/// the app opens, [SplashScreen] can skip straight to that profile's home
-/// screen instead of showing this screen again.
+/// Affichée juste après la connexion quand le compte a plusieurs interfaces
+/// possibles (Acheteur + Vendeur approuvé) : l'utilisateur choisit celle
+/// qu'il veut ouvrir maintenant, et ce choix est mémorisé par
+/// [SessionService] pour les prochaines ouvertures de l'app (voir
+/// [AppRouter]).
+///
+/// Le rôle Livreur n'apparaît jamais ici : c'est un compte dédié
+/// (`role = DELIVERY_AGENT`, attribué par un admin), jamais une bascule sur
+/// un compte acheteur/vendeur (voir `CLAUDE.md` §3).
 class ProfileSelectionScreen extends StatefulWidget {
-  const ProfileSelectionScreen({super.key});
+  final UserModel user;
+
+  const ProfileSelectionScreen({super.key, required this.user});
 
   @override
   State<ProfileSelectionScreen> createState() => _ProfileSelectionScreenState();
 }
 
 class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
-  final List<RoleModel> _roles = RoleService().getRoles();
+  late final List<RoleModel> _roles = RoleService()
+      .getRoles()
+      .where((role) => role.id == 'buyer' || (role.id == 'seller' && widget.user.isApprovedSeller))
+      .toList();
 
-  // Id of the currently selected role, or null if none was picked yet.
   String? _selectedRoleId;
 
   void _selectRole(String roleId) {
@@ -39,28 +48,10 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
     await SessionService().saveSelectedRoleId(roleId);
     if (!mounted) return;
 
-    if (roleId == 'buyer') {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-      return;
-    }
+    final target = roleId == 'seller' ? await AppRouter.resolveSellerEntryScreen() : const HomeScreen();
+    if (!mounted) return;
 
-    if (roleId == 'seller') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SellerRegistrationScreen()),
-      );
-      return;
-    }
-
-    if (roleId == 'courier') {
-      // Pas d'inscription en libre-service pour un livreur : le rôle
-      // DELIVERY_AGENT n'est attribué que par un admin (voir CLAUDE.md §3).
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const CourierDashboardScreen()),
-      );
-      return;
-    }
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => target));
   }
 
   @override
@@ -91,7 +82,8 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      'Sélectionnez le rôle qui correspond le mieux à votre utilisation de Maplenou.',
+                      'Votre compte peut utiliser Maplenou en Acheteur ou en Vendeur — choisissez '
+                      'par lequel commencer, vous pourrez changer plus tard.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: context.colors.textMuted, height: 1.4),
                     ),
@@ -112,6 +104,16 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       },
                     ),
                   ),
+                  if (!widget.user.isApprovedSeller && !widget.user.hasPendingSellerApplication)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SellerRegistrationScreen()),
+                        ),
+                        child: const Text('Devenir vendeur'),
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
                     child: PrimaryButton(

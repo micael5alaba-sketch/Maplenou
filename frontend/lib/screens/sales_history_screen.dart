@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/sales_history_model.dart';
+import '../services/api_client.dart';
 import '../services/sales_history_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -14,9 +15,8 @@ import '../widgets/search_field.dart';
 /// Reached from [SellerProfileScreen] rather than the bottom navigation —
 /// pushed on top, so it gets a back arrow instead of the hamburger menu.
 ///
-/// Backed by [SalesHistoryService] mocked data for now — no network call
-/// yet. Swapping it for a real `GET /api/sub-orders?status=DELIVERED` later
-/// only touches that service, not this screen or its widgets.
+/// Backed by [SalesHistoryService] (`GET /api/sub-orders`, filtré côté
+/// client sur les statuts terminés).
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
 
@@ -27,7 +27,7 @@ class SalesHistoryScreen extends StatefulWidget {
 enum _HistoryFilter { all, completed, cancelled }
 
 class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
-  final _history = SalesHistoryService().getHistory();
+  late Future<SalesHistoryModel> _historyFuture;
   final _searchController = TextEditingController();
 
   _HistoryFilter _filter = _HistoryFilter.all;
@@ -36,6 +36,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _historyFuture = SalesHistoryService().getHistory();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text.trim().toLowerCase());
     });
@@ -47,8 +48,8 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     super.dispose();
   }
 
-  List<SaleTransactionModel> get _filteredTransactions {
-    return _history.transactions.where((t) {
+  List<SaleTransactionModel> _filterTransactions(List<SaleTransactionModel> transactions) {
+    return transactions.where((t) {
       final matchesFilter = switch (_filter) {
         _HistoryFilter.all => true,
         _HistoryFilter.completed => t.status == SaleStatus.completed,
@@ -70,7 +71,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final transactions = _filteredTransactions;
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
@@ -79,40 +79,67 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           children: [
             _buildHeader(context),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  _buildTotalCard(colors, 'TOTAL DES VENTES', formatFcfa(_history.totalSales), Icons.savings_outlined),
-                  const SizedBox(height: 12),
-                  _buildTotalCard(colors, 'COMMANDES TRAITÉES', '${_history.ordersProcessed}', Icons.shopping_bag_outlined),
-                  const SizedBox(height: 16),
-                  SearchField(
-                    hintText: 'Rechercher une commande (#CMD, client...)',
-                    controller: _searchController,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildFilters(),
-                  const SizedBox(height: 16),
-                  if (transactions.isEmpty)
-                    _buildEmptyState(colors)
-                  else
-                    for (final t in transactions) ...[
-                      SaleTransactionCard(transaction: t),
+              child: FutureBuilder<SalesHistoryModel>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final history = snapshot.data!;
+                  final transactions = _filterTransactions(history.transactions);
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    children: [
+                      _buildTotalCard(colors, 'TOTAL DES VENTES', formatFcfa(history.totalSales), Icons.savings_outlined),
                       const SizedBox(height: 12),
+                      _buildTotalCard(colors, 'COMMANDES TRAITÉES', '${history.ordersProcessed}', Icons.shopping_bag_outlined),
+                      const SizedBox(height: 16),
+                      SearchField(
+                        hintText: 'Rechercher une commande (#CMD, client...)',
+                        controller: _searchController,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildFilters(),
+                      const SizedBox(height: 16),
+                      if (transactions.isEmpty)
+                        _buildEmptyState(colors)
+                      else
+                        for (final t in transactions) ...[
+                          SaleTransactionCard(transaction: t),
+                          const SizedBox(height: 12),
+                        ],
                     ],
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => _showComingSoon('Le chargement de transactions supplémentaires'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.textDark,
-                      side: BorderSide(color: colors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Text('Charger plus de transactions', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                ],
+                  );
+                },
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : "Impossible de charger l'historique.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _historyFuture = SalesHistoryService().getHistory()),
+              child: const Text('Réessayer'),
             ),
           ],
         ),

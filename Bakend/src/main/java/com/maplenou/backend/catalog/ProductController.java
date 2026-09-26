@@ -39,9 +39,18 @@ public class ProductController {
     @GetMapping("/api/shops/mine/products")
     @PreAuthorize("hasRole('SELLER')")
     @SecurityRequirement(name = "bearerAuth")
-    public Page<ProductSummaryResponse> listMine(@AuthenticationPrincipal User currentUser,
-                                                  @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-        return productService.listMine(currentUser, pageable);
+    public Page<SellerProductSummaryResponse> listMine(@AuthenticationPrincipal User currentUser,
+                                                        @RequestParam(required = false) String search,
+                                                        @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return productService.listMine(currentUser, search, pageable);
+    }
+
+    @PostMapping("/api/shops/mine/products/{id}/duplicate")
+    @PreAuthorize("hasRole('SELLER')")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ProductDetailResponse> duplicate(@AuthenticationPrincipal User currentUser,
+                                                            @PathVariable UUID id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(productService.duplicate(currentUser, id));
     }
 
     @GetMapping("/api/shops/mine/products/{id}")

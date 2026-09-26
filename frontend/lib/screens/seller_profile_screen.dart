@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../models/seller_profile_model.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../services/seller_profile_service.dart';
+import '../services/shop_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/account_section_card.dart';
 import '../widgets/app_drawer.dart';
@@ -9,6 +13,7 @@ import '../widgets/logout_button.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import '../widgets/seller_profile_header.dart';
+import 'login_screen.dart';
 import 'orders_management_screen.dart';
 import 'sales_history_screen.dart';
 import 'seller_dashboard_screen.dart';
@@ -19,9 +24,9 @@ import 'wallet_screen.dart';
 /// "Profil" tab of the seller space: shop identity, wallet shortcut,
 /// editable shop settings, help and logout.
 ///
-/// Backed by [SellerProfileService] mocked data for now — no network call
-/// yet. Swapping it for a real `GET/PATCH /api/shops/mine` call later only
-/// touches that service and [_handleSave] below.
+/// Backed by [SellerProfileService] (`GET /api/shops/mine`), sauvegarde via
+/// `PATCH /api/shops/mine` (nom + numéro fiscal — l'email de contact n'a
+/// pas d'équivalent sur `Shop`, affiché en lecture seule).
 class SellerProfileScreen extends StatefulWidget {
   const SellerProfileScreen({super.key});
 
@@ -31,19 +36,34 @@ class SellerProfileScreen extends StatefulWidget {
 
 class _SellerProfileScreenState extends State<SellerProfileScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _profile = SellerProfileService().getProfile();
+  final _shopService = ShopService();
+  late Future<SellerProfileModel> _profileFuture;
 
-  late final _shopNameController = TextEditingController(text: _profile.shopName);
-  late final _emailController = TextEditingController(text: _profile.contactEmail);
-  late final _taxIdController = TextEditingController(text: _profile.taxId ?? '');
+  final _shopNameController = TextEditingController();
+  final _taxIdController = TextEditingController();
+  String _contactEmail = '';
 
   bool _settingsExpanded = true;
   bool _helpExpanded = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = _loadProfile();
+  }
+
+  Future<SellerProfileModel> _loadProfile() async {
+    final profile = await SellerProfileService().getProfile();
+    _shopNameController.text = profile.shopName;
+    _taxIdController.text = profile.taxId ?? '';
+    _contactEmail = profile.contactEmail;
+    return profile;
+  }
 
   @override
   void dispose() {
     _shopNameController.dispose();
-    _emailController.dispose();
     _taxIdController.dispose();
     super.dispose();
   }
@@ -54,12 +74,35 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
-  void _handleSave() {
-    // Mocké pour l'instant — PATCH /api/shops/mine (avec taxId, désormais
-    // supporté côté backend) une fois l'authentification branchée.
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Modifications enregistrées.')));
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _handleSave() async {
+    setState(() => _isSaving = true);
+    try {
+      await _shopService.updateMine(
+        name: _shopNameController.text.trim(),
+        taxId: _taxIdController.text.trim(),
+      );
+      _showMessage('Modifications enregistrées.');
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   void _onTabSelected(SellerTab tab) {
@@ -92,40 +135,17 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  SellerProfileHeader(
-                    profile: _profile,
-                    onViewSalesHistory: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const SalesHistoryScreen())),
-                  ),
-                  const SizedBox(height: 16),
-                  AccountSectionCard(
-                    title: 'Boutique',
-                    children: [
-                      ProfileMenuRow(
-                        icon: Icons.account_balance_wallet_outlined,
-                        title: 'Gestion du Portefeuille & Solde',
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
-                      ),
-                      ProfileMenuRow(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        title: 'Messagerie',
-                        subtitle: 'Discuter avec vos clients',
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSettingsSection(colors),
-                  const SizedBox(height: 16),
-                  _buildHelpSection(colors),
-                  const SizedBox(height: 28),
-                  LogoutButton(onPressed: () => _showComingSoon('La déconnexion')),
-                ],
+              child: FutureBuilder<SellerProfileModel>(
+                future: _profileFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  return _buildContent(colors, snapshot.data!);
+                },
               ),
             ),
           ],
@@ -135,6 +155,68 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
         currentTab: SellerTab.profile,
         onTabSelected: _onTabSelected,
       ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le profil vendeur.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _profileFuture = _loadProfile()),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(AppColorScheme colors, SellerProfileModel profile) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        SellerProfileHeader(
+          profile: profile,
+          onViewSalesHistory: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SalesHistoryScreen())),
+        ),
+        const SizedBox(height: 16),
+        AccountSectionCard(
+          title: 'Boutique',
+          children: [
+            ProfileMenuRow(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Gestion du Portefeuille & Solde',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
+            ),
+            ProfileMenuRow(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'Messagerie',
+              subtitle: 'Discuter avec vos clients',
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSettingsSection(colors),
+        const SizedBox(height: 16),
+        _buildHelpSection(colors),
+        const SizedBox(height: 28),
+        LogoutButton(onPressed: _handleLogout),
+      ],
     );
   }
 
@@ -207,39 +289,23 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
             const SizedBox(height: 16),
             _buildLabel(colors, 'Email de Contact'),
             const SizedBox(height: 8),
-            _buildTextField(colors, _emailController, keyboardType: TextInputType.emailAddress),
+            _buildTextField(colors, TextEditingController(text: _contactEmail), enabled: false),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                "Lié à votre compte, modifiable depuis Informations personnelles.",
+                style: TextStyle(fontSize: 11, color: colors.textMuted),
+              ),
+            ),
             const SizedBox(height: 16),
             _buildLabel(colors, "Numéro d'Identification Fiscale (NINEA/TVA)"),
             const SizedBox(height: 8),
             _buildTextField(colors, _taxIdController, hint: 'Entrez votre numéro fiscal'),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Thème de l'application", style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Actuellement verrouillé sur le mode clair pour une lisibilité optimale.',
-                          style: TextStyle(fontSize: 12, color: colors.textMuted, height: 1.3),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(value: false, onChanged: null),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _handleSave,
+                onPressed: _isSaving ? null : _handleSave,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
@@ -247,7 +313,13 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text('Enregistrer les modifications', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Enregistrer les modifications', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -315,6 +387,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     TextEditingController controller, {
     String? hint,
     TextInputType? keyboardType,
+    bool enabled = true,
   }) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
@@ -324,11 +397,12 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      enabled: enabled,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),
         filled: true,
-        fillColor: colors.inputFill,
+        fillColor: enabled ? colors.inputFill : colors.inputFill.withValues(alpha: 0.5),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: border,
         enabledBorder: border,

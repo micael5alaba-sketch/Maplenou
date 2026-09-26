@@ -11,8 +11,10 @@ import java.util.UUID;
 public record SubOrderResponse(
         UUID id,
         UUID orderId,
+        String orderNumber,
         UUID shopId,
         String shopName,
+        String buyerName,
         SubOrderStatus status,
         BigDecimal subtotal,
         BigDecimal commissionRate,
@@ -26,8 +28,10 @@ public record SubOrderResponse(
         return new SubOrderResponse(
                 so.getId(),
                 so.getOrder().getId(),
+                so.getOrder().getOrderNumber(),
                 so.getShop().getId(),
                 so.getShop().getName(),
+                so.getOrder().getBuyer().getFullName(),
                 so.getStatus(),
                 so.getSubtotal(),
                 so.getCommissionRate(),

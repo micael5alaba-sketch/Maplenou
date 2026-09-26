@@ -33,6 +33,17 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     Optional<Delivery> findByIdWithDetails(@Param("id") UUID id);
 
+    @Query("""
+            SELECT d FROM Delivery d
+            LEFT JOIN FETCH d.subOrder so
+            LEFT JOIN FETCH so.shop
+            LEFT JOIN FETCH so.order o
+            LEFT JOIN FETCH o.buyer
+            LEFT JOIN FETCH d.agent
+            WHERE so.id = :subOrderId
+            """)
+    Optional<Delivery> findBySubOrderIdWithDetails(@Param("subOrderId") UUID subOrderId);
+
     // ----- KPI queries -----
 
     long countByStatus(DeliveryStatus status);

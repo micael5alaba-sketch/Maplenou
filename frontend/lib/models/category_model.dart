@@ -6,12 +6,8 @@ class CategoryModel {
   final String? parentId;
   final bool active;
 
-  /// Category photo (Cloudinary URL), or null if none is set yet.
-  ///
-  /// Corresponds to an `imageUrl` field the backend doesn't expose yet on
-  /// `CategoryResponse` (see `DEMANDES_MODIFICATIONS_BACKEND.md`). Stays
-  /// `null` until it's added — [CategoryWidget] falls back to a generic
-  /// icon avatar in that case.
+  /// Category photo (Cloudinary URL), from `CategoryResponse.imageUrl` —
+  /// `null` falls back to a generic icon avatar ([CategoryWidget]).
   final String? imageUrl;
 
   const CategoryModel({

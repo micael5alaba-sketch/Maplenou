@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
+import '../services/api_client.dart';
 import '../services/cart_service.dart';
 import '../services/favorites_service.dart';
 import '../services/product_detail_service.dart';
@@ -23,10 +24,10 @@ import 'checkout_screen.dart';
 
 /// Generic product detail page — one single layout reused for every
 /// product type in the marketplace (mode, électronique, beauté, maison,
-/// alimentaire...). Takes a real [ProductModel] from the catalog; anything
-/// the backend doesn't expose yet (galerie étendue, avis, spécifications,
-/// livraison, produits similaires) is filled in by [ProductDetailService]
-/// with mock data — see that file's doc comment.
+/// alimentaire...). Takes a real [ProductModel] from the catalog; variantes,
+/// images, description et avis viennent du vrai backend
+/// ([ProductDetailService]) — seules la fiche "Livraison et retours" et les
+/// badges restent décoratifs (voir ce service).
 class ProductDetailsScreen extends StatefulWidget {
   final ProductModel product;
 
@@ -46,25 +47,30 @@ class ProductDetailsScreen extends StatefulWidget {
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
-  late final ProductDetailModel _detail;
+  late Future<ProductDetailModel> _detailFuture;
 
   final Map<String, String> _selectedOptions = {};
   int _quantity = 1;
-  late bool _isFavorite = FavoritesService().isFavorite(widget.product.id);
+  bool? _isFavorite;
+  bool _isAddingToCart = false;
   bool _allReviewsVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _detail = ProductDetailService().buildMockDetail(
-      widget.product,
-      catalog: widget.relatedCatalog,
-    );
-    for (final group in _detail.variantGroups) {
-      if (group.options.isNotEmpty) {
-        _selectedOptions[group.label] = group.options.first;
+    _detailFuture = ProductDetailService()
+        .buildDetail(widget.product, catalog: widget.relatedCatalog)
+        .then((detail) {
+      for (final group in detail.variantGroups) {
+        if (group.options.isNotEmpty) {
+          _selectedOptions[group.label] = group.options.first;
+        }
       }
-    }
+      return detail;
+    });
+    FavoritesService().isFavorite(widget.product.id).then((value) {
+      if (mounted) setState(() => _isFavorite = value);
+    });
   }
 
   void _showComingSoon(String feature) {
@@ -73,34 +79,65 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
-  String? get _selectedVariantLabel {
-    if (_selectedOptions.isEmpty) return null;
-    return _selectedOptions.values.join(' / ');
-  }
-
-  void _addToCart({bool showConfirmation = true}) {
-    CartService().addItem(
-      productId: widget.product.id,
-      productName: widget.product.name,
-      variantLabel: _selectedVariantLabel,
-      imageUrl: widget.product.imageUrl,
-      unitPrice: _detail.price,
-      quantity: _quantity,
-    );
-    if (!showConfirmation) return;
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('"${widget.product.name}" ajouté au panier.'),
-        action: SnackBarAction(
-          label: 'Voir',
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
-        ),
-      ));
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _buyNow() {
-    _addToCart(showConfirmation: false);
+  Future<void> _toggleFavorite() async {
+    final previous = _isFavorite ?? false;
+    setState(() => _isFavorite = !previous);
+    try {
+      final result = await FavoritesService().toggle(widget.product.id);
+      if (mounted) setState(() => _isFavorite = result);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _isFavorite = previous);
+      _showMessage(e.message);
+    }
+  }
+
+  /// Résout la variante réelle correspondant à la sélection courante — sans
+  /// groupe de choix (un seul modèle), c'est simplement l'unique variante.
+  String? _resolveSelectedVariantId(ProductDetailModel detail) {
+    if (!detail.hasVariants) return null;
+    if (detail.variants.length == 1) return detail.variants.first.id;
+    final selectedLabel = _selectedOptions['Choix'];
+    if (selectedLabel == null) return null;
+    return detail.variantByLabel(selectedLabel)?.id;
+  }
+
+  Future<void> _addToCart(ProductDetailModel detail, {bool showConfirmation = true}) async {
+    final variantId = _resolveSelectedVariantId(detail);
+    if (variantId == null) {
+      _showMessage('Ce produit n\'est plus disponible à la vente.');
+      return;
+    }
+
+    setState(() => _isAddingToCart = true);
+    try {
+      await CartService().addItem(productVariantId: variantId, quantity: _quantity);
+      if (!showConfirmation || !mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('"${widget.product.name}" ajouté au panier.'),
+          action: SnackBarAction(
+            label: 'Voir',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+          ),
+        ));
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isAddingToCart = false);
+    }
+  }
+
+  Future<void> _buyNow(ProductDetailModel detail) async {
+    await _addToCart(detail, showConfirmation: false);
+    if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 
@@ -117,7 +154,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final detail = _detail;
     final colors = context.colors;
 
     return Scaffold(
@@ -134,86 +170,135 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           ),
           IconButton(
             icon: Icon(
-              _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              color: _isFavorite ? colors.error : colors.textDark,
+              _isFavorite == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              color: _isFavorite == true ? colors.error : colors.textDark,
             ),
-            onPressed: () => setState(() => _isFavorite = FavoritesService().toggle(widget.product)),
+            onPressed: _isFavorite == null ? null : _toggleFavorite,
           ),
           const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ProductImageGallery(images: detail.images),
-              const SizedBox(height: 16),
-              if (detail.badges.isNotEmpty) ...[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: detail.badges.map((label) => BadgeChip(label: label)).toList(),
-                ),
-                const SizedBox(height: 14),
-              ],
-              Text(
-                detail.name,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark),
-              ),
-              const SizedBox(height: 8),
-              RatingSummary(rating: detail.rating ?? 0, reviewCount: detail.reviewCount ?? 0),
-              const SizedBox(height: 12),
-              _buildPriceRow(detail),
-              const SizedBox(height: 22),
-              for (final group in detail.variantGroups) ...[
-                VariantOptionSelector(
-                  group: group,
-                  selectedOption: _selectedOptions[group.label],
-                  onSelected: (option) => setState(() => _selectedOptions[group.label] = option),
-                ),
-                const SizedBox(height: 20),
-              ],
-              _buildSectionTitle('Quantité'),
-              const SizedBox(height: 10),
-              QuantitySelector(
-                quantity: _quantity,
-                onChanged: (value) => setState(() => _quantity = value),
-              ),
-              const SizedBox(height: 26),
-              _buildSectionTitle('Description'),
-              const SizedBox(height: 10),
-              ExpandableText(text: detail.description),
-              const SizedBox(height: 26),
-              _buildSectionTitle('Spécifications'),
-              const SizedBox(height: 6),
-              Column(
-                children: detail.specifications
-                    .map((entry) => ProductSpecification(entry: entry))
-                    .toList(),
-              ),
-              const SizedBox(height: 26),
-              _buildSectionTitle('Livraison et retours'),
-              const SizedBox(height: 6),
-              DeliveryInfoSection(info: detail.delivery),
-              const SizedBox(height: 26),
-              _buildReviewsSection(detail),
-              const SizedBox(height: 26),
-              if (detail.relatedProducts.isNotEmpty) ...[
-                _buildSectionTitle('Vous pourriez aussi aimer'),
-                const SizedBox(height: 12),
-                RelatedProductsCarousel(
-                  products: detail.relatedProducts,
-                  onProductTap: _openProduct,
-                ),
-              ],
-            ],
-          ),
+        child: FutureBuilder<ProductDetailModel>(
+          future: _detailFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError || !snapshot.hasData) {
+              return _buildErrorState(colors, snapshot.error);
+            }
+            return _buildContent(colors, snapshot.data!);
+          },
         ),
       ),
-      bottomNavigationBar: _buildBottomActionBar(),
+      bottomNavigationBar: FutureBuilder<ProductDetailModel>(
+        future: _detailFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
+          return _buildBottomActionBar(snapshot.data!);
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger ce produit.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() {
+                _detailFuture = ProductDetailService()
+                    .buildDetail(widget.product, catalog: widget.relatedCatalog);
+              }),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(AppColorScheme colors, ProductDetailModel detail) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProductImageGallery(images: detail.images),
+          const SizedBox(height: 16),
+          if (detail.badges.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: detail.badges.map((label) => BadgeChip(label: label)).toList(),
+            ),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            detail.name,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark),
+          ),
+          const SizedBox(height: 8),
+          RatingSummary(rating: detail.rating ?? 0, reviewCount: detail.reviewCount ?? 0),
+          const SizedBox(height: 12),
+          _buildPriceRow(detail),
+          const SizedBox(height: 22),
+          for (final group in detail.variantGroups) ...[
+            VariantOptionSelector(
+              group: group,
+              selectedOption: _selectedOptions[group.label],
+              onSelected: (option) => setState(() => _selectedOptions[group.label] = option),
+            ),
+            const SizedBox(height: 20),
+          ],
+          _buildSectionTitle('Quantité'),
+          const SizedBox(height: 10),
+          QuantitySelector(
+            quantity: _quantity,
+            onChanged: (value) => setState(() => _quantity = value),
+          ),
+          const SizedBox(height: 26),
+          _buildSectionTitle('Description'),
+          const SizedBox(height: 10),
+          ExpandableText(text: detail.description),
+          const SizedBox(height: 26),
+          _buildSectionTitle('Spécifications'),
+          const SizedBox(height: 6),
+          Column(
+            children: detail.specifications
+                .map((entry) => ProductSpecification(entry: entry))
+                .toList(),
+          ),
+          const SizedBox(height: 26),
+          _buildSectionTitle('Livraison et retours'),
+          const SizedBox(height: 6),
+          DeliveryInfoSection(info: detail.delivery),
+          const SizedBox(height: 26),
+          _buildReviewsSection(detail),
+          const SizedBox(height: 26),
+          if (detail.relatedProducts.isNotEmpty) ...[
+            _buildSectionTitle('Vous pourriez aussi aimer'),
+            const SizedBox(height: 12),
+            RelatedProductsCarousel(
+              products: detail.relatedProducts,
+              onProductTap: _openProduct,
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -292,7 +377,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  Widget _buildBottomActionBar() {
+  Widget _buildBottomActionBar(ProductDetailModel detail) {
     final colors = context.colors;
 
     return SafeArea(
@@ -308,7 +393,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               child: SizedBox(
                 height: 54,
                 child: OutlinedButton.icon(
-                  onPressed: _addToCart,
+                  onPressed: _isAddingToCart ? null : () => _addToCart(detail),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colors.primary,
                     side: BorderSide(color: colors.primary, width: 1.4),
@@ -324,7 +409,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               child: PrimaryButton(
                 label: 'Acheter maintenant',
                 backgroundColor: colors.accentOrange,
-                onPressed: _buyNow,
+                isLoading: _isAddingToCart,
+                onPressed: () => _buyNow(detail),
               ),
             ),
           ],

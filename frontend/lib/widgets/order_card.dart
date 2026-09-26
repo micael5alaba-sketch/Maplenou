@@ -12,28 +12,32 @@ class OrderCard extends StatelessWidget {
   final VendorOrderModel order;
   final VoidCallback onViewDetails;
 
-  /// Called when the seller taps the primary action button — only
-  /// relevant for [VendorOrderStatus.toPrepare] (mark ready to ship) and
-  /// [VendorOrderStatus.shipping] (mark delivered). Null for statuses that
-  /// have no further action.
+  /// Called when the seller taps the primary action button — seul le
+  /// vendeur peut faire avancer PENDING → PREPARING → READY_FOR_PICKUP
+  /// (`order.canAdvance`) ; au-delà (livraison, réception), c'est le
+  /// livreur qui prend le relais. Null pour tout autre statut.
   final VoidCallback? onPrimaryAction;
+
+  /// Contacter le livreur assigné — proposé uniquement une fois la commande
+  /// en cours de livraison (READY_FOR_PICKUP/IN_DELIVERY), pas avant.
+  final VoidCallback? onContactCourier;
 
   const OrderCard({
     super.key,
     required this.order,
     required this.onViewDetails,
     this.onPrimaryAction,
+    this.onContactCourier,
   });
 
   String? get _primaryActionLabel {
-    switch (order.status) {
-      case VendorOrderStatus.toPrepare:
+    switch (order.rawStatus) {
+      case 'PENDING':
+        return 'Commencer la préparation';
+      case 'PREPARING':
         return 'Prêt pour livraison';
-      case VendorOrderStatus.shipping:
-        return 'Marquer comme livrée';
-      case VendorOrderStatus.delivered:
-      case VendorOrderStatus.cancelled:
-        // Commande terminée : plus aucune action, seul "Détails" a du sens.
+      default:
+        // Plus d'action vendeur possible sur ce statut.
         return null;
     }
   }
@@ -147,6 +151,23 @@ class OrderCard extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                       ),
                     ),
+                  ),
+                ),
+              ],
+              if (onContactCourier != null) ...[
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 44,
+                  width: 44,
+                  child: OutlinedButton(
+                    onPressed: onContactCourier,
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      foregroundColor: colors.primary,
+                      side: BorderSide(color: colors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
                   ),
                 ),
               ],

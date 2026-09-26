@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../models/product_model.dart';
+import '../services/api_client.dart';
 import '../services/cart_service.dart';
 import '../services/product_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -89,13 +90,17 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
   }
 
-  void _addToCart(ProductModel product) {
-    CartService().addItem(
-      productId: product.id,
-      productName: product.name,
-      imageUrl: product.imageUrl,
-      unitPrice: product.price,
-    );
+  Future<void> _addToCart(ProductModel product) async {
+    try {
+      await CartService().addProductQuickly(product);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(

@@ -3,6 +3,8 @@ package com.maplenou.backend.messaging;
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ShopRepository;
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.delivery.Delivery;
+import com.maplenou.backend.delivery.DeliveryRepository;
 import com.maplenou.backend.messaging.dto.ConversationResponse;
 import com.maplenou.backend.messaging.dto.MessageResponse;
 import com.maplenou.backend.messaging.dto.SendMessageRequest;
@@ -25,6 +27,7 @@ public class MessagingService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final ShopRepository shopRepository;
+    private final DeliveryRepository deliveryRepository;
     private final NotificationService notificationService;
 
     @Transactional
@@ -54,6 +57,66 @@ public class MessagingService {
                         .orElseGet(() -> conversationRepository.save(Conversation.builder()
                                 .type(ConversationType.SUPPORT)
                                 .buyer(requester)
+                                .build()))
+        );
+    }
+
+    /**
+     * Client ou livreur : contacter l'autre partie à propos d'une livraison en cours (bouton sur
+     * le suivi de commande côté client, bouton sur le détail de livraison côté livreur). Les deux
+     * côtés peuvent démarrer la même conversation partagée (une par livraison).
+     */
+    @Transactional
+    public ConversationResponse startOrGetCourierConversation(User currentUser, UUID deliveryId) {
+        Delivery delivery = deliveryRepository.findByIdWithDetails(deliveryId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Livraison introuvable"));
+        User buyer = delivery.getSubOrder().getOrder().getBuyer();
+
+        boolean isBuyer = buyer.getId().equals(currentUser.getId());
+        boolean isCourier = delivery.getAgent() != null && delivery.getAgent().getId().equals(currentUser.getId());
+        if (!isBuyer && !isCourier) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé à cette livraison");
+        }
+        if (delivery.getAgent() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Aucun livreur n'est encore assigné à cette livraison");
+        }
+
+        return ConversationResponse.from(
+                conversationRepository.findByTypeAndDeliveryId(ConversationType.BUYER_COURIER, deliveryId)
+                        .orElseGet(() -> conversationRepository.save(Conversation.builder()
+                                .type(ConversationType.BUYER_COURIER)
+                                .buyer(buyer)
+                                .delivery(delivery)
+                                .build()))
+        );
+    }
+
+    /**
+     * Boutique ou livreur : contacter l'autre partie à propos d'une sous-commande en livraison.
+     * Les deux côtés peuvent démarrer la même conversation partagée (une par livraison).
+     */
+    @Transactional
+    public ConversationResponse startOrGetShopCourierConversation(User currentUser, UUID subOrderId) {
+        Delivery delivery = deliveryRepository.findBySubOrderIdWithDetails(subOrderId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Livraison introuvable"));
+        Shop shop = delivery.getSubOrder().getShop();
+
+        boolean isSeller = shop.getOwner().getId().equals(currentUser.getId());
+        boolean isCourier = delivery.getAgent() != null && delivery.getAgent().getId().equals(currentUser.getId());
+        if (!isSeller && !isCourier) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé à cette livraison");
+        }
+        if (delivery.getAgent() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Aucun livreur n'est encore assigné à cette livraison");
+        }
+
+        return ConversationResponse.from(
+                conversationRepository.findByTypeAndDeliveryId(ConversationType.SELLER_COURIER, delivery.getId())
+                        .orElseGet(() -> conversationRepository.save(Conversation.builder()
+                                .type(ConversationType.SELLER_COURIER)
+                                .seller(shop.getOwner())
+                                .shop(shop)
+                                .delivery(delivery)
                                 .build()))
         );
     }
@@ -117,8 +180,9 @@ public class MessagingService {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Conversation introuvable"));
 
-        boolean isParticipant = conversation.getBuyer().getId().equals(user.getId())
-                || (conversation.getSeller() != null && conversation.getSeller().getId().equals(user.getId()));
+        boolean isParticipant = (conversation.getBuyer() != null && conversation.getBuyer().getId().equals(user.getId()))
+                || (conversation.getSeller() != null && conversation.getSeller().getId().equals(user.getId()))
+                || (courierIdOf(conversation) != null && courierIdOf(conversation).equals(user.getId()));
         boolean isAdminOnSupport = conversation.getType() == ConversationType.SUPPORT
                 && user.getRole() == com.maplenou.backend.user.Role.ADMIN;
 
@@ -128,13 +192,26 @@ public class MessagingService {
         return conversation;
     }
 
+    private UUID courierIdOf(Conversation conversation) {
+        if (conversation.getDelivery() == null || conversation.getDelivery().getAgent() == null) {
+            return null;
+        }
+        return conversation.getDelivery().getAgent().getId();
+    }
+
     private UUID resolveRecipient(Conversation conversation, UUID senderId) {
-        if (conversation.getType() == ConversationType.BUYER_SELLER) {
-            return conversation.getBuyer().getId().equals(senderId)
+        return switch (conversation.getType()) {
+            case BUYER_SELLER -> conversation.getBuyer().getId().equals(senderId)
                     ? conversation.getSeller().getId()
                     : conversation.getBuyer().getId();
-        }
-        // SUPPORT : seul le demandeur reçoit une notif (l'équipe admin surveille son propre tableau de bord)
-        return conversation.getBuyer().getId().equals(senderId) ? null : conversation.getBuyer().getId();
+            case BUYER_COURIER -> conversation.getBuyer().getId().equals(senderId)
+                    ? courierIdOf(conversation)
+                    : conversation.getBuyer().getId();
+            case SELLER_COURIER -> conversation.getSeller().getId().equals(senderId)
+                    ? courierIdOf(conversation)
+                    : conversation.getSeller().getId();
+            // SUPPORT : seul le demandeur reçoit une notif (l'équipe admin surveille son propre tableau de bord)
+            case SUPPORT -> conversation.getBuyer().getId().equals(senderId) ? null : conversation.getBuyer().getId();
+        };
     }
 }

@@ -1,9 +1,7 @@
 enum ReviewTargetType { product, shop }
 
-/// One review written by the buyer, shown on [MyReviewsScreen]. Maps
-/// directly onto the backend's `MyReviewResponse`
-/// (`GET /api/users/me/reviews`, see `MODELE_DONNEES.md`) — already built
-/// and working, just needs auth to be wired up.
+/// One review written by the buyer, shown on [MyReviewsScreen]. Miroir de
+/// `MyReviewResponse` (`review/dto/MyReviewResponse.java`).
 class MyReviewModel {
   final String targetName;
   final ReviewTargetType type;
@@ -18,4 +16,14 @@ class MyReviewModel {
     required this.comment,
     required this.createdAt,
   });
+
+  factory MyReviewModel.fromJson(Map<String, dynamic> json) {
+    return MyReviewModel(
+      targetName: json['targetName'] as String,
+      type: (json['type'] as String) == 'SHOP' ? ReviewTargetType.shop : ReviewTargetType.product,
+      rating: json['rating'] as int,
+      comment: json['comment'] as String? ?? '',
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+  }
 }

@@ -17,6 +17,9 @@ public record UpdateProductRequest(
         @DecimalMin("0.00") BigDecimal oldPrice,
         UUID categoryId,
         ProductStatus status,
-        List<ProductSpecification> specifications
+        List<ProductSpecification> specifications,
+        @DecimalMin("0.0") BigDecimal packageWeightKg,
+        @Size(max = 100) String estimatedDeliveryDelay,
+        Boolean deliveryAvailable
 ) {
 }

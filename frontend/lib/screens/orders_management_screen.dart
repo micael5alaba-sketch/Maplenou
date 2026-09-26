@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/vendor_order_model.dart';
+import '../services/api_client.dart';
+import '../services/seller_messaging_service.dart';
 import '../services/vendor_orders_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -9,6 +11,7 @@ import '../widgets/empty_orders_widget.dart';
 import '../widgets/order_card.dart';
 import '../widgets/orders_filter_bar.dart';
 import '../widgets/seller_bottom_navigation.dart';
+import 'seller_conversation_screen.dart';
 import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
 
@@ -20,9 +23,7 @@ import 'vendor_catalog_screen.dart';
 /// "VendorBottomNavigation" — same 4 tabs (Dashboard, Commandes, Produits,
 /// Profil), no need for a second near-identical widget.
 ///
-/// Backed by [VendorOrdersService] mocked data for now — shaped like a
-/// real paginated, filterable endpoint so wiring the real one later only
-/// touches that service.
+/// Backed by [VendorOrdersService] (`GET/PATCH /api/sub-orders`).
 class OrdersManagementScreen extends StatefulWidget {
   const OrdersManagementScreen({super.key});
 
@@ -94,37 +95,48 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
     _loadPage(reset: true);
   }
 
-  void _handlePrimaryAction(VendorOrderModel order) {
-    final nextStatus = order.status == VendorOrderStatus.toPrepare
-        ? VendorOrderStatus.shipping
-        : VendorOrderStatus.delivered;
+  Future<void> _handlePrimaryAction(VendorOrderModel order) async {
+    try {
+      final updated = await _ordersService.advanceStatus(order);
+      if (!mounted) return;
 
-    setState(() {
-      final index = _orders.indexWhere((o) => o.id == order.id);
-      if (index == -1) return;
+      setState(() {
+        final index = _orders.indexWhere((o) => o.id == order.id);
+        if (index == -1) return;
 
-      final updated = VendorOrderModel(
-        id: order.id,
-        orderNumber: order.orderNumber,
-        dateTime: order.dateTime,
-        customerName: order.customerName,
-        productNames: order.productNames,
-        status: nextStatus,
-        amount: order.amount,
-      );
+        // Le filtre actif ne correspond peut-être plus à ce nouveau statut —
+        // dans ce cas la commande sort simplement de la liste affichée.
+        if (_selectedFilter != null && _selectedFilter != updated.status) {
+          _orders.removeAt(index);
+        } else {
+          _orders[index] = updated;
+        }
+      });
 
-      // Le filtre actif ne correspond peut-être plus à ce nouveau statut —
-      // dans ce cas la commande sort simplement de la liste affichée.
-      if (_selectedFilter != null && _selectedFilter != nextStatus) {
-        _orders.removeAt(index);
-      } else {
-        _orders[index] = updated;
-      }
-    });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('${order.orderNumber} → ${updated.status.badgeLabel}')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('${order.orderNumber} → ${nextStatus.badgeLabel}')));
+  Future<void> _contactCourier(VendorOrderModel order) async {
+    try {
+      final (conversationId, courierName) = await SellerMessagingService().startCourierConversation(order.id);
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SellerConversationScreen(conversationId: conversationId, participantName: courierName),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _showComingSoon(String feature) {
@@ -278,10 +290,8 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
           return OrderCard(
             order: order,
             onViewDetails: () => _showComingSoon('Le détail de la commande ${order.orderNumber}'),
-            onPrimaryAction: order.status == VendorOrderStatus.toPrepare ||
-                    order.status == VendorOrderStatus.shipping
-                ? () => _handlePrimaryAction(order)
-                : null,
+            onPrimaryAction: order.canAdvance ? () => _handlePrimaryAction(order) : null,
+            onContactCourier: order.status == VendorOrderStatus.shipping ? () => _contactCourier(order) : null,
           );
         },
       ),

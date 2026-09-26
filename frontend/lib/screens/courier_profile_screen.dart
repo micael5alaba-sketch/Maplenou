@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/courier_profile_model.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../services/courier_profile_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -14,21 +16,45 @@ import 'courier_history_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_settings_screen.dart';
 import 'courier_support_ticket_screen.dart';
+import 'login_screen.dart';
 
 /// "Profil" tab of the courier space: identity, quick stats, balance, and
 /// links to history/documents/settings/support.
 ///
-/// Backed by [CourierProfileService] mocked data for now — no network call.
-class CourierProfileScreen extends StatelessWidget {
+/// Backed by [CourierProfileService] (identité, solde, nombre de livraisons
+/// et note réels ; l'ancienneté reste sans équivalent backend).
+class CourierProfileScreen extends StatefulWidget {
   const CourierProfileScreen({super.key});
 
-  void _showComingSoon(BuildContext context, String feature) {
+  @override
+  State<CourierProfileScreen> createState() => _CourierProfileScreenState();
+}
+
+class _CourierProfileScreenState extends State<CourierProfileScreen> {
+  late Future<CourierProfileModel> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = CourierProfileService().getProfile();
+  }
+
+  void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
-  void _onTabSelected(BuildContext context, CourierTab tab) {
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  void _onTabSelected(CourierTab tab) {
     if (tab == CourierTab.profile) return;
     switch (tab) {
       case CourierTab.dashboard:
@@ -48,47 +74,86 @@ class CourierProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final profile = CourierProfileService().getProfile();
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
-      drawer: AppDrawer(onComingSoon: (f) => _showComingSoon(context, f)),
+      drawer: AppDrawer(onComingSoon: _showComingSoon),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context, colors),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  _buildIdentityCard(context, colors, profile),
-                  const SizedBox(height: 16),
-                  _buildStatsRow(colors, profile),
-                  const SizedBox(height: 16),
-                  _buildBalanceCard(context, colors, profile),
-                  const SizedBox(height: 20),
-                  Text('PARAMÈTRES & HISTORIQUE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textMuted)),
-                  const SizedBox(height: 10),
-                  _buildMenuRow(context, colors, Icons.history_rounded, 'Historique des courses',
-                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierHistoryScreen()))),
-                  const SizedBox(height: 10),
-                  _buildMenuRow(context, colors, Icons.description_outlined, 'Mes Documents',
-                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDocumentsScreen()))),
-                  const SizedBox(height: 10),
-                  _buildMenuRow(context, colors, Icons.settings_outlined, "Paramètres de l'application",
-                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSettingsScreen()))),
-                  const SizedBox(height: 10),
-                  _buildMenuRow(context, colors, Icons.help_outline_rounded, 'Aide & Support',
-                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSupportTicketScreen()))),
-                  const SizedBox(height: 28),
-                  LogoutButton(onPressed: () => _showComingSoon(context, 'La déconnexion')),
-                ],
+              child: FutureBuilder<CourierProfileModel>(
+                future: _profileFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  return _buildContent(context, colors, snapshot.data!);
+                },
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: CourierBottomNavigation(currentTab: CourierTab.profile, onTabSelected: (tab) => _onTabSelected(context, tab)),
+      bottomNavigationBar: CourierBottomNavigation(currentTab: CourierTab.profile, onTabSelected: _onTabSelected),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le profil.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _profileFuture = CourierProfileService().getProfile()),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, AppColorScheme colors, CourierProfileModel profile) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        _buildIdentityCard(context, colors, profile),
+        const SizedBox(height: 16),
+        _buildStatsRow(colors, profile),
+        const SizedBox(height: 16),
+        _buildBalanceCard(context, colors, profile),
+        const SizedBox(height: 20),
+        Text('PARAMÈTRES & HISTORIQUE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textMuted)),
+        const SizedBox(height: 10),
+        _buildMenuRow(context, colors, Icons.history_rounded, 'Historique des courses',
+            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierHistoryScreen()))),
+        const SizedBox(height: 10),
+        _buildMenuRow(context, colors, Icons.description_outlined, 'Mes Documents',
+            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDocumentsScreen()))),
+        const SizedBox(height: 10),
+        _buildMenuRow(context, colors, Icons.settings_outlined, "Paramètres de l'application",
+            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSettingsScreen()))),
+        const SizedBox(height: 10),
+        _buildMenuRow(context, colors, Icons.help_outline_rounded, 'Aide & Support',
+            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSupportTicketScreen()))),
+        const SizedBox(height: 28),
+        LogoutButton(onPressed: _handleLogout),
+      ],
     );
   }
 
@@ -122,7 +187,10 @@ class CourierProfileScreen extends StatelessWidget {
           CircleAvatar(
             radius: 36,
             backgroundColor: colors.inputFill,
-            child: Text(profile.fullName[0], style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colors.primary)),
+            child: Text(
+              profile.fullName.isNotEmpty ? profile.fullName[0] : '?',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colors.primary),
+            ),
           ),
           const SizedBox(height: 10),
           Text(profile.fullName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textDark)),
@@ -150,11 +218,19 @@ class CourierProfileScreen extends StatelessWidget {
   Widget _buildStatsRow(AppColorScheme colors, CourierProfileModel profile) {
     return Row(
       children: [
-        Expanded(child: _buildStatTile(colors, '${profile.rating}', 'Note', icon: Icons.star_rounded, iconColor: Colors.amber)),
+        Expanded(
+          child: _buildStatTile(
+            colors,
+            profile.rating != null ? profile.rating!.toStringAsFixed(1) : '—',
+            'Note',
+            icon: Icons.star_rounded,
+            iconColor: Colors.amber,
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(child: _buildStatTile(colors, '${profile.deliveriesCount}', 'Livraisons')),
         const SizedBox(width: 10),
-        Expanded(child: _buildStatTile(colors, '${profile.yearsExperience}', 'Ans Exp.')),
+        Expanded(child: _buildStatTile(colors, profile.yearsExperience != null ? '${profile.yearsExperience}' : '—', 'Ans Exp.')),
       ],
     );
   }
@@ -201,7 +277,7 @@ class CourierProfileScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => _showComingSoon(context, 'La demande de retrait'),
+              onPressed: () => _showComingSoon('La demande de retrait'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.primary,
                 foregroundColor: Colors.white,

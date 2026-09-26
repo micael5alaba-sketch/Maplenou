@@ -13,24 +13,25 @@ class OrderTrackingStep {
   });
 }
 
+/// Construit à partir du vrai statut `SubOrderStatus` (voir
+/// `OrderTrackingService`) — pas d'ETA ni de note/nombre de courses livreur
+/// affichés : aucun champ backend équivalent n'existe pour l'instant.
 class OrderTrackingModel {
   final String orderNumber;
-  final String etaLabel;
-  final String courierName;
-  final double courierRating;
-  final int courierDeliveryCount;
+  final String? deliveryId;
+  final String? courierName;
   final String deliveryAddress;
   final String? addressNote;
   final List<OrderTrackingStep> steps;
+  final bool isDelivered;
 
   const OrderTrackingModel({
     required this.orderNumber,
-    required this.etaLabel,
-    required this.courierName,
-    required this.courierRating,
-    required this.courierDeliveryCount,
+    this.deliveryId,
+    this.courierName,
     required this.deliveryAddress,
     this.addressNote,
     required this.steps,
+    this.isDelivered = false,
   });
 }

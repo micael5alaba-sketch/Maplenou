@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/address_model.dart';
 import '../services/address_service.dart';
+import '../services/api_client.dart';
+import '../services/location_service.dart';
 import '../theme/app_color_scheme.dart';
 
 /// "Adresses enregistrées" — reached from [ProfileScreen]'s account
 /// settings section.
 ///
-/// Backed by [AddressService], an in-memory singleton shared across the
-/// app session — maps onto the real, already working `AddressController`
-/// once auth is wired up.
+/// Backed by [AddressService] (`GET/POST/PATCH/DELETE /api/users/me/addresses`).
 class AddressesScreen extends StatefulWidget {
   const AddressesScreen({super.key});
 
@@ -19,6 +19,17 @@ class AddressesScreen extends StatefulWidget {
 
 class _AddressesScreenState extends State<AddressesScreen> {
   final _service = AddressService();
+  late Future<List<AddressModel>> _addressesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressesFuture = _service.getAddresses();
+  }
+
+  void _reload() {
+    setState(() => _addressesFuture = _service.getAddresses());
+  }
 
   Future<void> _openAddAddressSheet() async {
     final added = await showModalBottomSheet<bool>(
@@ -27,13 +38,37 @@ class _AddressesScreenState extends State<AddressesScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _AddAddressSheet(),
     );
-    if (added == true) setState(() {});
+    if (added == true) _reload();
+  }
+
+  Future<void> _setDefault(AddressModel address) async {
+    try {
+      await _service.setDefault(address.id);
+      _reload();
+    } on ApiException catch (e) {
+      _showError(e.message);
+    }
+  }
+
+  Future<void> _remove(AddressModel address) async {
+    try {
+      await _service.remove(address.id);
+      _reload();
+    } on ApiException catch (e) {
+      _showError(e.message);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final addresses = _service.addresses;
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
@@ -42,14 +77,25 @@ class _AddressesScreenState extends State<AddressesScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: addresses.isEmpty
-                  ? _buildEmptyState(colors)
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: addresses.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _buildAddressCard(colors, addresses[index]),
-                    ),
+              child: FutureBuilder<List<AddressModel>>(
+                future: _addressesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final addresses = snapshot.data ?? const [];
+                  if (addresses.isEmpty) return _buildEmptyState(colors);
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: addresses.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) => _buildAddressCard(colors, addresses[index]),
+                  );
+                },
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -117,6 +163,10 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         child: const Text('Par défaut', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
                     ],
+                    if (!address.hasLocation) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.location_off_outlined, size: 14, color: colors.textMuted),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -129,8 +179,8 @@ class _AddressesScreenState extends State<AddressesScreen> {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: colors.textMuted),
             onSelected: (action) {
-              if (action == 'default') setState(() => _service.setDefault(address.id));
-              if (action == 'delete') setState(() => _service.remove(address.id));
+              if (action == 'default') _setDefault(address);
+              if (action == 'delete') _remove(address);
             },
             itemBuilder: (context) => [
               if (!address.isDefault) const PopupMenuItem(value: 'default', child: Text('Définir par défaut')),
@@ -157,6 +207,28 @@ class _AddressesScreenState extends State<AddressesScreen> {
       ),
     );
   }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger les adresses.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Bottom sheet form to add a new address.
@@ -173,6 +245,12 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final _cityController = TextEditingController();
   final _districtController = TextEditingController();
   final _detailsController = TextEditingController();
+  final _locationService = LocationService();
+
+  double? _latitude;
+  double? _longitude;
+  bool _isLocating = false;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -183,15 +261,48 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     super.dispose();
   }
 
-  void _handleSave() {
+  Future<void> _useCurrentLocation() async {
+    setState(() => _isLocating = true);
+    try {
+      final position = await _locationService.getCurrentPosition();
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+    } on LocationException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    AddressService().add(
-      label: _labelController.text.trim(),
-      city: _cityController.text.trim(),
-      district: _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
-      details: _detailsController.text.trim().isEmpty ? null : _detailsController.text.trim(),
-    );
-    Navigator.of(context).pop(true);
+
+    setState(() => _isSaving = true);
+    try {
+      await AddressService().add(
+        label: _labelController.text.trim(),
+        city: _cityController.text.trim(),
+        district: _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
+        details: _detailsController.text.trim().isEmpty ? null : _detailsController.text.trim(),
+        latitude: _latitude,
+        longitude: _longitude,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -226,18 +337,41 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                 TextFormField(controller: _districtController, decoration: const InputDecoration(labelText: 'Quartier (optionnel)')),
                 const SizedBox(height: 12),
                 TextFormField(controller: _detailsController, decoration: const InputDecoration(labelText: 'Détails / repère (optionnel)'), maxLines: 2),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _isLocating ? null : _useCurrentLocation,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _latitude != null ? colors.primary : colors.textDark,
+                    side: BorderSide(color: _latitude != null ? colors.primary : colors.border),
+                  ),
+                  icon: _isLocating
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Icon(_latitude != null ? Icons.check_circle_rounded : Icons.my_location_rounded),
+                  label: Text(_latitude != null ? 'Position actuelle enregistrée' : 'Utiliser ma position actuelle'),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Permet au livreur de te localiser précisément — sinon il se basera uniquement sur le texte de l'adresse.",
+                  style: TextStyle(fontSize: 11, color: colors.textMuted, height: 1.3),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _handleSave,
+                    onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],

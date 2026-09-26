@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../models/product_model.dart';
+import '../services/api_client.dart';
 import '../services/favorites_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/product_card.dart';
@@ -9,9 +10,7 @@ import 'product_details_screen.dart';
 
 /// "Mes Favoris" — reached from [ProfileScreen]'s activity section.
 ///
-/// Backed by [FavoritesService], an in-memory singleton shared across the
-/// app session — maps onto the real, already working `FavoriteController`
-/// once auth is wired up.
+/// Backed by [FavoritesService] (`GET/POST/DELETE /api/favorites`).
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
 
@@ -21,17 +20,27 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final _service = FavoritesService();
+  late Future<List<ProductModel>> _favoritesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _favoritesFuture = _service.getFavorites();
+  }
+
+  void _reload() {
+    setState(() => _favoritesFuture = _service.getFavorites());
+  }
 
   void _openProductDetails(ProductModel product) {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => ProductDetailsScreen(product: product)))
-        .then((_) => setState(() {}));
+        .then((_) => _reload());
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final favorites = _service.items;
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
@@ -40,19 +49,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: favorites.isEmpty
-                  ? _buildEmptyState(colors)
-                  : MasonryGridView.count(
-                      padding: const EdgeInsets.all(16),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      itemCount: favorites.length,
-                      itemBuilder: (context, index) {
-                        final product = favorites[index];
-                        return ProductCard(product: product, onTap: () => _openProductDetails(product));
-                      },
-                    ),
+              child: FutureBuilder<List<ProductModel>>(
+                future: _favoritesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final favorites = snapshot.data ?? const [];
+                  if (favorites.isEmpty) return _buildEmptyState(colors);
+                  return MasonryGridView.count(
+                    padding: const EdgeInsets.all(16),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    itemCount: favorites.length,
+                    itemBuilder: (context, index) {
+                      final product = favorites[index];
+                      return ProductCard(product: product, onTap: () => _openProductDetails(product));
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -84,6 +104,28 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             Icon(Icons.favorite_border_rounded, size: 48, color: colors.textMuted),
             const SizedBox(height: 12),
             Text("Vous n'avez pas encore de favoris.", style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger les favoris.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
           ],
         ),
       ),

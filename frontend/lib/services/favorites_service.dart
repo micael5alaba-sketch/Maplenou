@@ -1,33 +1,58 @@
 import '../models/product_model.dart';
+import 'api_client.dart';
 
-/// In-memory favorites shared across the app session (same pattern as
-/// [CartService]).
+/// `GET/POST/DELETE /api/favorites` (`cart/FavoriteController.java`).
 ///
-/// Mocked for now — no network call, no persistence across app restarts.
-/// Maps onto the real, already working `FavoriteController`
-/// (`GET/POST/DELETE /api/favorites`) once auth is wired up.
+/// Garde en mémoire les ids déjà vus par [getFavorites] pour que
+/// [isFavorite]/[toggle] (utilisés par l'icône cœur de la fiche produit)
+/// n'aient pas à recharger toute la liste à chaque fois.
 class FavoritesService {
   FavoritesService._internal();
   static final FavoritesService _instance = FavoritesService._internal();
   factory FavoritesService() => _instance;
 
-  final Map<String, ProductModel> _favoritesById = {};
+  final _client = ApiClient();
+  Set<String>? _knownFavoriteIds;
 
-  List<ProductModel> get items => List.unmodifiable(_favoritesById.values);
+  Future<List<ProductModel>> getFavorites() async {
+    final data = await _client.get('/api/favorites') as Map<String, dynamic>;
+    final content = data['content'] as List<dynamic>? ?? [];
+    final products = content.map((json) {
+      final favorite = json as Map<String, dynamic>;
+      return ProductModel(
+        id: favorite['productId'] as String,
+        name: favorite['productName'] as String,
+        slug: favorite['productSlug'] as String,
+        imageUrl: favorite['thumbnailUrl'] as String?,
+        price: favorite['basePrice'] as num,
+      );
+    }).toList();
+    _knownFavoriteIds = products.map((p) => p.id).toSet();
+    return products;
+  }
 
-  bool isFavorite(String productId) => _favoritesById.containsKey(productId);
+  Future<bool> isFavorite(String productId) async {
+    _knownFavoriteIds ??= (await getFavorites()).map((p) => p.id).toSet();
+    return _knownFavoriteIds!.contains(productId);
+  }
 
-  /// Returns the new favorite state after toggling.
-  bool toggle(ProductModel product) {
-    if (_favoritesById.containsKey(product.id)) {
-      _favoritesById.remove(product.id);
+  /// Bascule l'état et renvoie le nouvel état (favori ou non).
+  Future<bool> toggle(String productId) async {
+    if (await isFavorite(productId)) {
+      await remove(productId);
       return false;
     }
-    _favoritesById[product.id] = product;
+    await add(productId);
     return true;
   }
 
-  void remove(String productId) {
-    _favoritesById.remove(productId);
+  Future<void> add(String productId) async {
+    await _client.post('/api/favorites', body: {'productId': productId});
+    _knownFavoriteIds?.add(productId);
+  }
+
+  Future<void> remove(String productId) async {
+    await _client.delete('/api/favorites/$productId');
+    _knownFavoriteIds?.remove(productId);
   }
 }

@@ -6,12 +6,23 @@ import '../widgets/primary_button.dart';
 import 'home_screen.dart';
 import 'order_tracking_screen.dart';
 
-/// "Paiement réussi" — shown right after [CheckoutScreen] confirms.
+/// "Commande enregistrée" — shown right after [CheckoutScreen] confirms.
+/// Ne prétend pas qu'un paiement a eu lieu : aucune intégration de paiement
+/// réelle n'existe (`CLAUDE.md` §7), la commande est créée en statut
+/// `CREATED` côté backend, pas `PAID`.
 class PaymentSuccessScreen extends StatelessWidget {
+  final String orderId;
   final String orderNumber;
   final num total;
+  final String deliveryAddressSummary;
 
-  const PaymentSuccessScreen({super.key, required this.orderNumber, required this.total});
+  const PaymentSuccessScreen({
+    super.key,
+    required this.orderId,
+    required this.orderNumber,
+    required this.total,
+    required this.deliveryAddressSummary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +47,10 @@ class PaymentSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Paiement Réussi !', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.primary)),
+                  Text('Commande enregistrée !', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.primary)),
                   const SizedBox(height: 8),
                   Text(
-                    'Merci pour votre confiance. Votre commande est en cours de préparation.',
+                    'Merci pour votre confiance. Le vendeur va confirmer votre commande sous peu.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.textMuted, height: 1.4),
                   ),
@@ -51,7 +62,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                   PrimaryButton(
                     label: 'Suivre ma commande',
                     onPressed: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderNumber: orderNumber)),
+                      MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: orderId)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -84,7 +95,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     return Container(
       color: colors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Text('Paiement réussi', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+      child: Text('Commande enregistrée', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
     );
   }
 
@@ -130,7 +141,7 @@ class PaymentSuccessScreen extends StatelessWidget {
               children: [
                 Icon(Icons.location_on_outlined, size: 16, color: colors.textMuted),
                 const SizedBox(width: 8),
-                const Expanded(child: Text('14 Rue des Ébénistes, Plateau, Abidjan, Côte d\'Ivoire', style: TextStyle(fontSize: 12))),
+                Expanded(child: Text(deliveryAddressSummary, style: const TextStyle(fontSize: 12))),
               ],
             ),
           ),
@@ -141,7 +152,7 @@ class PaymentSuccessScreen extends StatelessWidget {
 
   Widget _buildNextSteps(AppColorScheme colors) {
     final steps = [
-      ('Paiement confirmé', 'Votre transaction a été approuvée.', true),
+      ('Commande reçue', 'Le vendeur a été notifié de votre commande.', true),
       ('Préparation', 'Le vendeur prépare votre colis avec soin.', false),
       ('Expédition', 'Vous recevrez une notification dès que votre commande sera remise au livreur.', false),
     ];

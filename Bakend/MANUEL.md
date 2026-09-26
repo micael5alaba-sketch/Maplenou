@@ -112,6 +112,7 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
 | `SWAGGER_ENABLED` | `false` en production pour masquer la doc API publique | `true` |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL_ENABLED` | Connexion à une instance Redis managée (Upstash, Redis Cloud, AWS ElastiCache…) | `localhost:6379`, sans mot de passe, sans TLS |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | Nb de requêtes/min autorisées sur `/api/auth/**` par IP | `10` |
+| `ADMIN_ALLOWED_IPS` | Liste blanche IP/CIDR pour `/api/admin/**` (ex: `41.207.12.34,10.8.0.0/24`), IPv4 uniquement | vide = pas de restriction |
 | `CLOUDINARY_URL` | Format `cloudinary://<api_key>:<api_secret>@<cloud_name>` | placeholder non fonctionnel |
 | `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §9, non fonctionnelle tant que désactivée) | désactivé |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | Emplacement du fichier de clé Firebase (`classpath:...` = embarqué, `file:/chemin` = fichier externe monté, utilisé par Docker — voir §3) | `classpath:firebase-service-account.json` |
@@ -125,8 +126,11 @@ Firebase — actuellement présent mais à vérifier qu'il s'agit bien du vrai p
 > pour la première fois (nouveau poste, autre développeur, testeur) doit se procurer ce fichier
 > séparément (transmission directe et sécurisée par le porteur du projet — jamais par email en
 > clair ni sur un canal public) et le copier dans `src/main/resources/firebase-service-account.json`
-> avant de démarrer le serveur. **Sans lui, le démarrage échoue** (Firebase ne s'initialise pas :
-> notifications push et le module `notification` indisponibles).
+> avant de démarrer le serveur. **Le serveur démarre quand même sans lui** (`FirebaseConfig`
+> capture l'échec et log un avertissement) : seuls les notifications push, le tracking GPS
+> temps réel et `GET /api/auth/firebase-token` sont indisponibles tant qu'il manque — c'est ce
+> qui permet à la CI (voir `.github/workflows/backend-ci.yml`) de lancer les tests sans ce
+> secret.
 
 ---
 

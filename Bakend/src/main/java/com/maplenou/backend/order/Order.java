@@ -24,6 +24,10 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Référence courte affichée au client/vendeur (ex: "CMD-000482"), voir OrderService.onCreate. */
+    @Column(name = "order_number", nullable = false, unique = true, length = 20)
+    private String orderNumber;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "buyer_id", nullable = false)
     private User buyer;

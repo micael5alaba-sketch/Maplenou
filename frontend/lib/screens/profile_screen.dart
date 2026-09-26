@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/user_profile_model.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/theme_controller.dart';
 import '../theme/app_color_scheme.dart';
@@ -16,15 +19,16 @@ import 'addresses_screen.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'favorites_screen.dart';
+import 'login_screen.dart';
 import 'my_orders_screen.dart';
 import 'my_reviews_screen.dart';
+import 'seller_registration_screen.dart';
 
 /// "Profil" tab: user identity, quick activity shortcuts, account settings
 /// and support links, plus the fixed bottom navigation.
 ///
-/// Backed by [ProfileService] mocked data for now — no network call yet.
-/// Swapping it for a real `GET /api/users/me` later only touches that
-/// service, not this screen or its widgets.
+/// Backed by [ProfileService] (`GET /api/users/me` + adresse par défaut +
+/// nombre de commandes en cours).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -34,7 +38,13 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _profile = ProfileService().getCurrentProfile();
+  late Future<UserProfileModel> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = ProfileService().getCurrentProfile();
+  }
 
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
@@ -56,6 +66,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     _showComingSoon(label);
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   void _onTabSelected(HomeTab tab) {
@@ -143,21 +162,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: Column(
-                  children: [
-                    ProfileHeader(profile: _profile),
-                    const SizedBox(height: 24),
-                    ActivitySection(profile: _profile, onItemTap: _handleActivityTap),
-                    const SizedBox(height: 16),
-                    _buildAccountSettingsCard(),
-                    const SizedBox(height: 16),
-                    SupportSection(onItemTap: _showComingSoon),
-                    const SizedBox(height: 28),
-                    LogoutButton(onPressed: () => _showComingSoon('La déconnexion')),
-                  ],
-                ),
+              child: FutureBuilder<UserProfileModel>(
+                future: _profileFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(snapshot.error);
+                  }
+                  return _buildContent(snapshot.data!);
+                },
               ),
             ),
           ],
@@ -166,6 +181,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       bottomNavigationBar: CustomBottomNavigation(
         currentTab: HomeTab.profile,
         onTabSelected: _onTabSelected,
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object? error) {
+    final colors = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le profil.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _profileFuture = ProfileService().getCurrentProfile()),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(UserProfileModel profile) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Column(
+        children: [
+          ProfileHeader(profile: profile),
+          const SizedBox(height: 24),
+          ActivitySection(profile: profile, onItemTap: _handleActivityTap),
+          const SizedBox(height: 16),
+          _buildAccountSettingsCard(profile),
+          const SizedBox(height: 16),
+          SupportSection(onItemTap: _showComingSoon),
+          const SizedBox(height: 28),
+          LogoutButton(onPressed: _handleLogout),
+        ],
       ),
     );
   }
@@ -191,10 +251,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAccountSettingsCard() {
+  Widget _buildAccountSettingsCard(UserProfileModel profile) {
     return AccountSectionCard(
       title: 'Paramètres du compte',
       children: [
+        if (!profile.isApprovedSeller)
+          ProfileMenuRow(
+            icon: Icons.storefront_outlined,
+            title: 'Devenir vendeur',
+            subtitle: profile.hasPendingSellerApplication
+                ? 'Candidature en cours d\'examen'
+                : 'Créez votre boutique sur Maplenou',
+            badgeLabel: profile.hasPendingSellerApplication ? 'En attente' : null,
+            onTap: profile.hasPendingSellerApplication
+                ? null
+                : () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SellerRegistrationScreen()),
+                    ),
+          ),
         ProfileMenuRow(
           icon: Icons.person_outline_rounded,
           title: 'Informations personnelles',
@@ -204,13 +278,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ProfileMenuRow(
           icon: Icons.location_on_outlined,
           title: 'Adresses enregistrées',
-          subtitle: _profile.primaryAddressSummary,
+          subtitle: profile.primaryAddressSummary,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddressesScreen())),
         ),
         ProfileMenuRow(
           icon: Icons.credit_card_outlined,
           title: 'Modes de paiement',
-          subtitle: _profile.paymentMethodsSummary,
+          subtitle: profile.paymentMethodsSummary,
           onTap: () => _showComingSoon('Modes de paiement'),
         ),
         ValueListenableBuilder<ThemeMode>(

@@ -134,14 +134,15 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode product = post("/api/shops/mine/products",
                 new CreateProductRequest("Produit Order " + rand, "desc", new BigDecimal("10000.00"), null, categoryId,
-                        List.of(new CreateVariantRequest("Standard", null, 10, "SKU-ORDER-" + rand)), null),
+                        List.of(new CreateVariantRequest("Standard", null, 10, "SKU-ORDER-" + rand)), null,
+                        null, null, null),
                 sellerToken, 201);
         productId = UUID.fromString(product.get("id").asText());
         productSlug = product.get("slug").asText();
         variantId = UUID.fromString(product.get("variants").get(0).get("id").asText());
 
         patch("/api/shops/mine/products/" + productId,
-                new UpdateProductRequest(null, null, null, null, null, ProductStatus.ACTIVE, null), sellerToken, 200);
+                new UpdateProductRequest(null, null, null, null, null, ProductStatus.ACTIVE, null, null, null, null), sellerToken, 200);
 
         JsonNode address = post("/api/users/me/addresses",
                 new CreateAddressRequest("Maison", "Lomé", "Bè", "detail", 6.13, 1.22, true), buyerToken, 201);

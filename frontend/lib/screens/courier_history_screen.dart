@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/courier_history_model.dart';
+import '../services/api_client.dart';
 import '../services/courier_history_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/filter_pill.dart';
@@ -12,7 +14,8 @@ enum _HistoryTab { completed, payments, cancelled }
 /// Courier's history: completed rides, payments received, and
 /// cancellations — reached from [CourierProfileScreen].
 ///
-/// Backed by [CourierHistoryService] mocked data for now — no network call.
+/// Backed by [CourierHistoryService] (`GET /api/deliveries/my` +
+/// `GET /api/delivery-agents/me/earnings`).
 class CourierHistoryScreen extends StatefulWidget {
   const CourierHistoryScreen({super.key});
 
@@ -21,9 +24,15 @@ class CourierHistoryScreen extends StatefulWidget {
 }
 
 class _CourierHistoryScreenState extends State<CourierHistoryScreen> {
-  final _history = CourierHistoryService().getHistory();
+  late Future<CourierHistoryModel> _historyFuture;
   final _searchController = TextEditingController();
   _HistoryTab _tab = _HistoryTab.completed;
+
+  @override
+  void initState() {
+    super.initState();
+    _historyFuture = CourierHistoryService().getHistory();
+  }
 
   @override
   void dispose() {
@@ -42,19 +51,42 @@ class _CourierHistoryScreenState extends State<CourierHistoryScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text('Historique', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark)),
-                  const SizedBox(height: 4),
-                  Text('Vos courses terminées', style: TextStyle(fontSize: 13, color: colors.textMuted)),
-                  const SizedBox(height: 14),
-                  SearchField(hintText: 'Rechercher une course, un paiement...', controller: _searchController),
-                  const SizedBox(height: 12),
-                  _buildFilters(),
-                  const SizedBox(height: 16),
-                  ..._buildContent(colors),
-                ],
+              child: FutureBuilder<CourierHistoryModel>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          snapshot.error is ApiException
+                              ? (snapshot.error as ApiException).message
+                              : "Impossible de charger l'historique.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.textMuted),
+                        ),
+                      ),
+                    );
+                  }
+                  final history = snapshot.data!;
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Text('Historique', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark)),
+                      const SizedBox(height: 4),
+                      Text('Vos courses terminées', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                      const SizedBox(height: 14),
+                      SearchField(hintText: 'Rechercher une course, un paiement...', controller: _searchController),
+                      const SizedBox(height: 12),
+                      _buildFilters(),
+                      const SizedBox(height: 16),
+                      ..._buildContent(colors, history),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -92,22 +124,22 @@ class _CourierHistoryScreenState extends State<CourierHistoryScreen> {
     );
   }
 
-  List<Widget> _buildContent(AppColorScheme colors) {
+  List<Widget> _buildContent(AppColorScheme colors, CourierHistoryModel history) {
     switch (_tab) {
       case _HistoryTab.completed:
-        if (_history.completedRides.isEmpty) return [_buildEmptyState(colors, 'Aucune course terminée.')];
+        if (history.completedRides.isEmpty) return [_buildEmptyState(colors, 'Aucune course terminée.')];
         return [
-          for (final ride in _history.completedRides) ...[RideHistoryRow(ride: ride), const SizedBox(height: 12)],
+          for (final ride in history.completedRides) ...[RideHistoryRow(ride: ride), const SizedBox(height: 12)],
         ];
       case _HistoryTab.payments:
-        if (_history.payments.isEmpty) return [_buildEmptyState(colors, 'Aucun paiement reçu.')];
+        if (history.payments.isEmpty) return [_buildEmptyState(colors, 'Aucun paiement reçu.')];
         return [
-          for (final payment in _history.payments) ...[PaymentHistoryRow(payment: payment), const SizedBox(height: 12)],
+          for (final payment in history.payments) ...[PaymentHistoryRow(payment: payment), const SizedBox(height: 12)],
         ];
       case _HistoryTab.cancelled:
-        if (_history.cancelledRides.isEmpty) return [_buildEmptyState(colors, 'Aucune course annulée.')];
+        if (history.cancelledRides.isEmpty) return [_buildEmptyState(colors, 'Aucune course annulée.')];
         return [
-          for (final ride in _history.cancelledRides) ...[RideHistoryRow(ride: ride), const SizedBox(height: 12)],
+          for (final ride in history.cancelledRides) ...[RideHistoryRow(ride: ride), const SizedBox(height: 12)],
         ];
     }
   }

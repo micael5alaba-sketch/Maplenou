@@ -18,6 +18,10 @@ public record CreateProductRequest(
         // Au moins une variante est requise pour pouvoir vendre
         @NotNull @Size(min = 1) @Valid List<CreateVariantRequest> variants,
         // Optionnel : paires libres label/valeur (Marque, Matiere, Origine...)
-        List<ProductSpecification> specifications
+        List<ProductSpecification> specifications,
+        // Champs livraison par produit, tous optionnels.
+        @DecimalMin("0.0") BigDecimal packageWeightKg,
+        @Size(max = 100) String estimatedDeliveryDelay,
+        Boolean deliveryAvailable
 ) {
 }

@@ -1,49 +1,96 @@
 import 'package:flutter/material.dart';
 
-import '../services/active_delivery_service.dart';
+import '../services/api_client.dart';
+import '../services/courier_delivery_service.dart';
+import '../services/media_upload_service.dart';
 import '../theme/app_color_scheme.dart';
-import '../utils/formatters.dart';
 import 'courier_dashboard_screen.dart';
 
-/// "Validation de livraison" — cash-collection checkbox, proof-of-delivery
-/// placeholders (photo/signature/QR scan — no camera/scanner wired up
-/// yet), and the final confirm action.
+/// "Validation de livraison" — capture une photo de preuve (upload signé
+/// Cloudinary, voir `MediaUploadService`), obligatoire côté backend pour
+/// passer une livraison à `DELIVERED` (`UpdateDeliveryRequest.proofUrl`).
+/// Pas de collecte d'espèces ici : aucun flux de paiement à la livraison
+/// n'existe dans ce système (paiement en ligne, explicitement reporté —
+/// `CLAUDE.md` §7).
 class CourierDeliveryConfirmationScreen extends StatefulWidget {
-  const CourierDeliveryConfirmationScreen({super.key});
+  final String deliveryId;
+
+  const CourierDeliveryConfirmationScreen({super.key, required this.deliveryId});
 
   @override
   State<CourierDeliveryConfirmationScreen> createState() => _CourierDeliveryConfirmationScreenState();
 }
 
 class _CourierDeliveryConfirmationScreenState extends State<CourierDeliveryConfirmationScreen> {
-  bool _cashConfirmed = false;
+  final _deliveryService = CourierDeliveryService();
+  final _mediaUploadService = MediaUploadService();
 
-  void _showComingSoon(String feature) {
+  String? _proofUrl;
+  bool _isCapturing = false;
+  bool _isSubmitting = false;
+
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _validateDelivery() {
-    if (!_cashConfirmed) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Confirme la réception du paiement avant de valider.')));
+  Future<void> _capturePhoto() async {
+    setState(() => _isCapturing = true);
+    try {
+      final url = await _mediaUploadService.capturePhotoAndUpload(folder: 'delivery-proofs');
+      if (url != null) setState(() => _proofUrl = url);
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  Future<void> _validateDelivery() async {
+    if (_proofUrl == null) {
+      _showMessage('Prends une photo de preuve avant de valider.');
       return;
     }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const CourierDashboardScreen()),
-      (route) => false,
-    );
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Livraison validée !')));
+
+    setState(() => _isSubmitting = true);
+    try {
+      await _deliveryService.confirmDelivery(widget.deliveryId, proofUrl: _proofUrl!);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const CourierDashboardScreen()),
+        (route) => false,
+      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Livraison validée !')));
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _reportFailure() async {
+    setState(() => _isSubmitting = true);
+    try {
+      await _deliveryService.reportFailure(widget.deliveryId, reason: 'Signalé par le livreur depuis l\'application');
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const CourierDashboardScreen()),
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final delivery = ActiveDeliveryService().getActiveDelivery('current');
     final now = TimeOfDay.now();
 
     return Scaffold(
@@ -56,19 +103,9 @@ class _CourierDeliveryConfirmationScreenState extends State<CourierDeliveryConfi
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildPaymentCard(colors, delivery.amountToCollect),
-                  const SizedBox(height: 20),
-                  Text('PREUVES DE REMISE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textMuted)),
+                  Text('PREUVE DE REMISE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textMuted)),
                   const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(child: _buildProofTile(colors, Icons.camera_alt_outlined, 'Prendre une photo')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildProofTile(colors, Icons.draw_outlined, 'Signature client')),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildScanRow(colors),
+                  _buildProofTile(colors),
                 ],
               ),
             ),
@@ -104,103 +141,43 @@ class _CourierDeliveryConfirmationScreenState extends State<CourierDeliveryConfi
     );
   }
 
-  Widget _buildPaymentCard(AppColorScheme colors, num amount) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border(top: BorderSide(color: colors.accentOrange, width: 3)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.account_balance_wallet_outlined, size: 16, color: colors.textDark),
-              const SizedBox(width: 8),
-              Text('GESTION DU PAIEMENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textMuted)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
-            child: Column(
-              children: [
-                Text('Montant à encaisser', style: TextStyle(fontSize: 12, color: colors.textMuted)),
-                const SizedBox(height: 4),
-                Text(formatFcfa(amount), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.primary)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          InkWell(
-            onTap: () => setState(() => _cashConfirmed = !_cashConfirmed),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: colors.border)),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(value: _cashConfirmed, onChanged: (v) => setState(() => _cashConfirmed = v ?? false), activeColor: colors.primary),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Paiement espèces perçu et vérifié', style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
-                          Text('Le montant exact a été remis par le client.', style: TextStyle(fontSize: 12, color: colors.textMuted)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildProofTile(AppColorScheme colors) {
+    final hasProof = _proofUrl != null;
 
-  Widget _buildProofTile(AppColorScheme colors, IconData icon, String label) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => _showComingSoon(label),
+      onTap: _isCapturing ? null : _capturePhoto,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 28),
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: BorderRadius.circular(16),
+          border: hasProof ? Border.all(color: colors.primary, width: 1.6) : null,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Column(
           children: [
-            CircleAvatar(radius: 22, backgroundColor: colors.inputFill, child: Icon(icon, color: colors.textDark)),
-            const SizedBox(height: 10),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textDark)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScanRow(AppColorScheme colors) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => _showComingSoon('Le scan du QR code'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
-        child: Row(
-          children: [
-            Icon(Icons.qr_code_scanner_rounded, color: colors.textDark),
-            const SizedBox(width: 10),
-            Text('Scanner le QR code de commande', style: TextStyle(color: colors.textDark, fontWeight: FontWeight.w600)),
+            if (hasProof) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(_proofUrl!, width: 120, height: 120, fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 10),
+              Text('Photo capturée', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.primary)),
+              const SizedBox(height: 4),
+              Text('Toucher pour reprendre', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            ] else ...[
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: colors.inputFill,
+                child: _isCapturing
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary))
+                    : Icon(Icons.camera_alt_outlined, color: colors.textDark),
+              ),
+              const SizedBox(height: 10),
+              Text('Prendre une photo de preuve', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textDark)),
+            ],
           ],
         ),
       ),
@@ -219,21 +196,23 @@ class _CourierDeliveryConfirmationScreenState extends State<CourierDeliveryConfi
               width: double.infinity,
               height: 54,
               child: ElevatedButton.icon(
-                onPressed: _validateDelivery,
+                onPressed: _isSubmitting ? null : _validateDelivery,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 ),
-                icon: const Icon(Icons.check_circle_outline_rounded),
+                icon: _isSubmitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.check_circle_outline_rounded),
                 label: const Text('Valider la livraison', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: () => _showComingSoon('Le signalement de problème'),
-              child: Text('Signaler un problème', style: TextStyle(color: colors.error, fontSize: 13)),
+              onPressed: _isSubmitting ? null : _reportFailure,
+              child: Text('Signaler un échec de livraison', style: TextStyle(color: colors.error, fontSize: 13)),
             ),
           ],
         ),

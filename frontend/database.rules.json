@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "deliveries": {
+      "$deliveryId": {
+        "location": {
+          ".write": "auth != null && auth.token.role === 'DELIVERY_AGENT'",
+          ".read": "auth != null"
+        }
+      }
+    }
+  }
+}

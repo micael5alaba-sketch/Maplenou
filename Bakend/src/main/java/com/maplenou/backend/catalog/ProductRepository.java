@@ -43,6 +43,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID>,
     @EntityGraph(attributePaths = {"shop", "category", "images"})
     Page<Product> findByShopIdAndDeletedFalse(UUID shopId, Pageable pageable);
 
+    // Idem, avec recherche par nom — catalogue borné à une seule boutique (pas besoin de
+    // full-text tsvector ici, contrairement au catalogue public, cf. CLAUDE.md §9).
+    @EntityGraph(attributePaths = {"shop", "category", "images"})
+    Page<Product> findByShopIdAndDeletedFalseAndNameContainingIgnoreCase(UUID shopId, String name, Pageable pageable);
+
     // Vue liste catalogue public : mêmes associations nécessaires
     @Override
     @EntityGraph(attributePaths = {"shop", "category", "images"})

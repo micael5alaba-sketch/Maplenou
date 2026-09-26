@@ -30,6 +30,7 @@ public class DeliveryService {
     private final SubOrderRepository subOrderRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final CourierEarningService courierEarningService;
 
     // ----- Admin -----
 
@@ -99,6 +100,28 @@ public class DeliveryService {
     @Transactional(readOnly = true)
     public DeliveryResponse getById(UUID id) {
         return DeliveryResponse.from(getDeliveryWithDetailsOrThrow(id));
+    }
+
+    // ----- Acheteur -----
+
+    /**
+     * Acheteur : statut de livraison de l'une de ses sous-commandes (suivi
+     * de commande). 404 tant que l'admin n'a pas encore créé la Delivery
+     * (sous-commande toujours PENDING/PREPARING/READY_FOR_PICKUP) — le
+     * statut de préparation reste consultable via `GET /api/orders/{id}`
+     * dans ce cas, indépendamment de cet endpoint.
+     */
+    @Transactional(readOnly = true)
+    public DeliveryResponse getForBuyer(User buyer, UUID subOrderId) {
+        Delivery delivery = deliveryRepository.findBySubOrderIdWithDetails(subOrderId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                        "Aucune livraison n'a encore été créée pour cette sous-commande"));
+
+        if (!delivery.getSubOrder().getOrder().getBuyer().getId().equals(buyer.getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Cette commande ne vous appartient pas");
+        }
+
+        return DeliveryResponse.from(delivery);
     }
 
     // ----- Livreur -----
@@ -199,6 +222,11 @@ public class DeliveryService {
         if (request.notes() != null) delivery.setNotes(request.notes());
 
         deliveryRepository.save(delivery);
+
+        if (request.status() == DeliveryStatus.DELIVERED) {
+            courierEarningService.createForDelivery(delivery);
+        }
+
         return reload(delivery.getId());
     }
 

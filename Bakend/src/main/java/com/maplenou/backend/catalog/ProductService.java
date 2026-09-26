@@ -70,6 +70,9 @@ public class ProductService {
                 .basePrice(request.basePrice())
                 .oldPrice(request.oldPrice())
                 .specifications(request.specifications() != null ? request.specifications() : new ArrayList<>())
+                .packageWeightKg(request.packageWeightKg())
+                .estimatedDeliveryDelay(request.estimatedDeliveryDelay())
+                .deliveryAvailable(request.deliveryAvailable() == null || request.deliveryAvailable())
                 .status(ProductStatus.DRAFT)
                 .deleted(false)
                 .build();
@@ -91,12 +94,53 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponse> listMine(User owner, Pageable pageable) {
+    public Page<SellerProductSummaryResponse> listMine(User owner, String search, Pageable pageable) {
         Shop shop = shopService.getMine(owner);
-        // EntityGraph appliqué dans le repository → shop, category, images chargés
-        Page<Product> page = productRepository.findByShopIdAndDeletedFalse(shop.getId(), pageable);
+        // EntityGraph appliqué dans le repository → shop, category, images chargés ;
+        // variants reste lazy + batch-fetch (déjà configuré), volumé borné à un vendeur.
+        Page<Product> page = (search == null || search.isBlank())
+                ? productRepository.findByShopIdAndDeletedFalse(shop.getId(), pageable)
+                : productRepository.findByShopIdAndDeletedFalseAndNameContainingIgnoreCase(shop.getId(), search.trim(), pageable);
         Map<UUID, RatingSummaryResponse> ratings = loadRatingStats(page.getContent());
-        return page.map(p -> toSummaryWithRating(p, ratings));
+        return page.map(p -> toSellerSummaryWithRating(p, ratings));
+    }
+
+    @Transactional
+    public ProductDetailResponse duplicate(User owner, UUID productId) {
+        Shop shop = shopService.getMine(owner);
+        Product source = loadWithDetails(productId);
+        requireOwnership(shop, source);
+
+        String slug = generateUniqueSlug(source.getName());
+        Product copy = Product.builder()
+                .shop(shop)
+                .category(source.getCategory())
+                .name(source.getName())
+                .slug(slug)
+                .description(source.getDescription())
+                .basePrice(source.getBasePrice())
+                .oldPrice(source.getOldPrice())
+                .specifications(new ArrayList<>(source.getSpecifications()))
+                .packageWeightKg(source.getPackageWeightKg())
+                .estimatedDeliveryDelay(source.getEstimatedDeliveryDelay())
+                .deliveryAvailable(source.isDeliveryAvailable())
+                .status(ProductStatus.DRAFT)
+                .deleted(false)
+                .build();
+
+        for (ProductVariant sourceVariant : source.getVariants()) {
+            copy.getVariants().add(ProductVariant.builder()
+                    .product(copy)
+                    .label(sourceVariant.getLabel())
+                    .priceOverride(sourceVariant.getPriceOverride())
+                    .stockQuantity(0) // stock jamais dupliqué : le vendeur ressaisit une quantité réelle
+                    .sku(resolveSku(null, slug))
+                    .build());
+        }
+        // Les images ne sont pas copiées : ce sont des assets Cloudinary propres à la fiche source.
+
+        Product saved = productRepository.save(copy);
+        return ProductDetailResponse.from(loadWithDetails(saved.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -136,6 +180,15 @@ public class ProductService {
         }
         if (request.specifications() != null) {
             product.setSpecifications(request.specifications());
+        }
+        if (request.packageWeightKg() != null) {
+            product.setPackageWeightKg(request.packageWeightKg());
+        }
+        if (request.estimatedDeliveryDelay() != null) {
+            product.setEstimatedDeliveryDelay(request.estimatedDeliveryDelay());
+        }
+        if (request.deliveryAvailable() != null) {
+            product.setDeliveryAvailable(request.deliveryAvailable());
         }
 
         productRepository.save(product);
@@ -400,6 +453,11 @@ public class ProductService {
     private ProductSummaryResponse toSummaryWithRating(Product p, Map<UUID, RatingSummaryResponse> ratings) {
         RatingSummaryResponse stats = ratings.getOrDefault(p.getId(), new RatingSummaryResponse(0.0, 0L));
         return ProductSummaryResponse.from(p, stats.averageRating(), stats.reviewCount());
+    }
+
+    private SellerProductSummaryResponse toSellerSummaryWithRating(Product p, Map<UUID, RatingSummaryResponse> ratings) {
+        RatingSummaryResponse stats = ratings.getOrDefault(p.getId(), new RatingSummaryResponse(0.0, 0L));
+        return SellerProductSummaryResponse.from(p, stats.averageRating(), stats.reviewCount());
     }
 
     private String encodeCursor(Instant createdAt, UUID id) {

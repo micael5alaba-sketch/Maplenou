@@ -63,6 +63,10 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31536000))
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Exception au sein de /api/auth/** (public par défaut) : ce endpoint
+                        // a besoin de l'utilisateur connecté, doit donc être évalué avant le
+                        // permitAll générique ci-dessous (Spring Security s'arrête au premier match).
+                        .requestMatchers(HttpMethod.GET, "/api/auth/firebase-token").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         // Lecture catalogue publique ; écriture protégée par @PreAuthorize
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
@@ -70,6 +74,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/delivery-zones").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pages/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/delivery-agents/*/reviews/**").permitAll()
                         // Panier et favoris : authentification requise (géré par les controllers)
                         .anyRequest().authenticated()
                 )

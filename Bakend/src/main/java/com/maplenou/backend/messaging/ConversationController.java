@@ -40,6 +40,22 @@ public class ConversationController {
                 .body(messagingService.startOrGetSupportConversation(currentUser));
     }
 
+    /** Client : contacter le livreur assigné à une livraison en cours. */
+    @PostMapping("/deliveries/{deliveryId}/courier")
+    public ResponseEntity<ConversationResponse> startWithCourier(@AuthenticationPrincipal User currentUser,
+                                                                  @PathVariable UUID deliveryId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(messagingService.startOrGetCourierConversation(currentUser, deliveryId));
+    }
+
+    /** Boutique ou livreur : contacter l'autre partie à propos d'une sous-commande en livraison. */
+    @PostMapping("/sub-orders/{subOrderId}/courier")
+    public ResponseEntity<ConversationResponse> startWithShopOrCourier(@AuthenticationPrincipal User currentUser,
+                                                                        @PathVariable UUID subOrderId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(messagingService.startOrGetShopCourierConversation(currentUser, subOrderId));
+    }
+
     @GetMapping
     public Page<ConversationResponse> listMine(@AuthenticationPrincipal User currentUser,
                                                 @PageableDefault(size = 20) Pageable pageable) {

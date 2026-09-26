@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/conversation_model.dart';
+import '../services/api_client.dart';
 import '../services/seller_messaging_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/conversation_list_tile.dart';
@@ -8,11 +9,11 @@ import 'seller_conversation_screen.dart';
 
 /// Seller's conversation list, split into "Clients" (buyer↔seller threads)
 /// and "Support" tabs — mirrors the backend's `ConversationType`
-/// (`BUYER_SELLER` / `SUPPORT`, see `MODELE_DONNEES.md`). A seller never
-/// has `Vendeurs`-type threads, unlike the Livreur messaging maquette.
+/// (`BUYER_SELLER` / `SUPPORT`). A seller never has `Vendeurs`-type
+/// threads, unlike the Livreur messaging maquette.
 ///
 /// Reached from [SellerProfileScreen]. Backed by [SellerMessagingService]
-/// mocked data for now — no network call yet.
+/// (`GET /api/conversations`).
 class SellerMessagesScreen extends StatefulWidget {
   const SellerMessagesScreen({super.key});
 
@@ -23,23 +24,38 @@ class SellerMessagesScreen extends StatefulWidget {
 class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
   final _service = SellerMessagingService();
   ConversationKind _selectedKind = ConversationKind.client;
+  late Future<List<ConversationPreviewModel>> _conversationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversationsFuture = _service.getConversations(kind: _selectedKind);
+  }
+
+  void _selectKind(ConversationKind kind) {
+    setState(() {
+      _selectedKind = kind;
+      _conversationsFuture = _service.getConversations(kind: kind);
+    });
+  }
 
   void _openConversation(ConversationPreviewModel conversation) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SellerConversationScreen(
-          conversationId: conversation.id,
-          participantName: conversation.participantName,
-          participantAvatarUrl: conversation.participantAvatarUrl,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => SellerConversationScreen(
+              conversationId: conversation.id,
+              participantName: conversation.participantName,
+              participantAvatarUrl: conversation.participantAvatarUrl,
+            ),
+          ),
+        )
+        .then((_) => setState(() => _conversationsFuture = _service.getConversations(kind: _selectedKind)));
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final conversations = _service.getConversations(kind: _selectedKind);
 
     return Scaffold(
       backgroundColor: colors.homeBackground,
@@ -51,20 +67,56 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
             _buildTabs(colors),
             const SizedBox(height: 12),
             Expanded(
-              child: conversations.isEmpty
-                  ? _buildEmptyState(colors)
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: conversations.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final conversation = conversations[index];
-                        return ConversationListTile(
-                          conversation: conversation,
-                          onTap: () => _openConversation(conversation),
-                        );
-                      },
-                    ),
+              child: FutureBuilder<List<ConversationPreviewModel>>(
+                future: _conversationsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  final conversations = snapshot.data ?? const [];
+                  if (conversations.isEmpty) return _buildEmptyState(colors);
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: conversations.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final conversation = conversations[index];
+                      return ConversationListTile(
+                        conversation: conversation,
+                        onTap: () => _openConversation(conversation),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger les conversations.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _conversationsFuture = _service.getConversations(kind: _selectedKind)),
+              child: const Text('Réessayer'),
             ),
           ],
         ),
@@ -116,7 +168,7 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedKind = kind),
+        onTap: () => _selectKind(kind),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(

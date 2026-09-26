@@ -1,26 +1,27 @@
-/// Full detail of the delivery the courier is currently handling, shown on
-/// [CourierDeliveryDetailScreen] and carried into
-/// [CourierDeliveryConfirmationScreen].
+/// Full detail of one delivery, shown on [CourierDeliveryDetailScreen] and
+/// carried into [CourierDeliveryConfirmationScreen]. Assemblé depuis
+/// `DeliveryModel` + `DeliveryNavigationModel` (voir `CourierDeliveryService`).
 class ActiveDeliveryDetailModel {
+  final String id;
   final String orderNumber;
+  final String status;
+  final String shopName;
+  final String pickupAddress;
   final String clientName;
-  final int clientOrdersCount;
-  final double clientRating;
   final String deliveryAddress;
-  final String? doorCode;
-  final int etaMinutes;
-  final List<String> items;
-  final num amountToCollect;
+  final double? distanceKm;
 
   const ActiveDeliveryDetailModel({
+    required this.id,
     required this.orderNumber,
+    required this.status,
+    required this.shopName,
+    required this.pickupAddress,
     required this.clientName,
-    required this.clientOrdersCount,
-    required this.clientRating,
     required this.deliveryAddress,
-    this.doorCode,
-    required this.etaMinutes,
-    required this.items,
-    required this.amountToCollect,
+    this.distanceKm,
   });
+
+  bool get canStart => status == 'ASSIGNED';
+  bool get canConfirm => status == 'IN_TRANSIT';
 }

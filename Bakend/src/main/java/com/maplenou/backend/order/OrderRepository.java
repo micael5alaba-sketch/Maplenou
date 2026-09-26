@@ -50,4 +50,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /** Nombre de commandes d'un acheteur par statut (pour GET /api/orders/summary). */
     @Query("SELECT o.status, COUNT(o) FROM Order o WHERE o.buyer.id = :buyerId GROUP BY o.status")
     List<Object[]> countByBuyerIdGroupByStatus(@Param("buyerId") UUID buyerId);
+
+    /** Prochaine valeur de order_number_seq (V41), pour générer une référence "CMD-000123". */
+    @Query(value = "SELECT nextval('order_number_seq')", nativeQuery = true)
+    long nextOrderNumberSequenceValue();
 }

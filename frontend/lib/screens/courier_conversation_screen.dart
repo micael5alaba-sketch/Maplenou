@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../models/chat_message_model.dart';
+import '../services/api_client.dart';
 import '../services/courier_messaging_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input_bar.dart';
 
 /// One conversation thread — reached from [CourierMessagesScreen].
-/// Mirrors [SellerConversationScreen] but backed by
-/// [CourierMessagingService] (kept as a separate mocked service per role,
-/// same convention as [VendorOrdersService] vs a future buyer equivalent).
+/// Mirrors [SellerConversationScreen], backed by [CourierMessagingService]
+/// (`GET/POST /api/conversations/{id}/messages` pour le type SUPPORT).
 class CourierConversationScreen extends StatefulWidget {
   final String conversationId;
   final String participantName;
@@ -29,12 +29,12 @@ class CourierConversationScreen extends StatefulWidget {
 class _CourierConversationScreenState extends State<CourierConversationScreen> {
   final _service = CourierMessagingService();
   final _scrollController = ScrollController();
-  late List<ChatMessageModel> _messages;
+  late Future<List<ChatMessageModel>> _messagesFuture;
 
   @override
   void initState() {
     super.initState();
-    _messages = _service.getMessages(widget.conversationId);
+    _messagesFuture = _service.getMessages(widget.conversationId);
   }
 
   @override
@@ -43,18 +43,25 @@ class _CourierConversationScreenState extends State<CourierConversationScreen> {
     super.dispose();
   }
 
-  void _handleSend(String content) {
-    _service.sendMessage(widget.conversationId, content);
-    setState(() => _messages = _service.getMessages(widget.conversationId));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+  Future<void> _handleSend(String content) async {
+    try {
+      await _service.sendMessage(widget.conversationId, content);
+      setState(() => _messagesFuture = _service.getMessages(widget.conversationId));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -68,10 +75,19 @@ class _CourierConversationScreenState extends State<CourierConversationScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                children: [for (final message in _messages) ChatBubble(message: message)],
+              child: FutureBuilder<List<ChatMessageModel>>(
+                future: _messagesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = snapshot.data ?? const [];
+                  return ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    children: [for (final message in messages) ChatBubble(message: message)],
+                  );
+                },
               ),
             ),
             MessageInputBar(onSend: _handleSend),

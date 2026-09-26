@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_color_scheme.dart';
 
 /// "Performance" card: overall rating and validated-deliveries count.
+/// [rating] is `null` tant qu'aucun système de notation livreur n'existe
+/// côté backend — affiche un tiret plutôt qu'une note fabriquée.
 class PerformanceCard extends StatelessWidget {
-  final double rating;
+  final double? rating;
   final int validatedDeliveries;
   final int totalDeliveries;
 
@@ -46,7 +48,10 @@ class PerformanceCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 22),
                   const SizedBox(width: 6),
-                  Text('$rating', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textDark)),
+                  Text(
+                    rating != null ? rating!.toStringAsFixed(1) : '—',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textDark),
+                  ),
                 ],
               ),
               Text(

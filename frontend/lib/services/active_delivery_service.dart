@@ -1,22 +1,35 @@
 import '../models/active_delivery_detail_model.dart';
+import 'courier_delivery_service.dart';
 
-/// Provides the delivery-in-progress detail shown on
-/// [CourierDeliveryDetailScreen] / [CourierDeliveryConfirmationScreen].
-/// Mocked for now — no network call, and no live GPS position feed either
-/// (flagged as a gap: the backend has no notion of a courier's live
-/// position, only a final delivered/failed status).
+/// Détail d'une livraison (`CourierDeliveryService.getMyDeliveries` +
+/// `getNavigation`) — utilisé pour la livraison en cours (`IN_TRANSIT`)
+/// comme pour une livraison encore `ASSIGNED`.
 class ActiveDeliveryService {
-  ActiveDeliveryDetailModel getActiveDelivery(String deliveryId) {
-    return const ActiveDeliveryDetailModel(
-      orderNumber: '#CMD-8492',
-      clientName: 'Aisha Diallo',
-      clientOrdersCount: 3,
-      clientRating: 4.9,
-      deliveryAddress: 'Appartement 4B, Résidence Les Baobabs, Route de Ngor, Dakar',
-      doorCode: '1234',
-      etaMinutes: 12,
-      items: ['2x Savon Artisanal Karité', '1x Huile Essentielle Baobab'],
-      amountToCollect: 12500,
+  final _deliveryService = CourierDeliveryService();
+
+  Future<ActiveDeliveryDetailModel> getActiveDelivery(String deliveryId) async {
+    final deliveries = await _deliveryService.getMyDeliveries();
+    final delivery = deliveries.firstWhere((d) => d.id == deliveryId);
+    final navigation = await _deliveryService.getNavigation(deliveryId);
+
+    return ActiveDeliveryDetailModel(
+      id: delivery.id,
+      orderNumber: delivery.orderNumber,
+      status: delivery.status,
+      shopName: navigation.pickup.label,
+      pickupAddress: navigation.pickup.address,
+      clientName: navigation.dropoff.label,
+      deliveryAddress: navigation.dropoff.address,
+      distanceKm: _deliveryService.straightLineDistanceKm(navigation),
     );
+  }
+
+  /// La livraison actuellement en route (`IN_TRANSIT`), s'il y en a une —
+  /// pour la bannière du dashboard. `null` si le livreur n'a rien en cours.
+  Future<ActiveDeliveryDetailModel?> getCurrentInTransitDelivery() async {
+    final deliveries = await _deliveryService.getMyDeliveries();
+    final inTransit = deliveries.where((d) => d.status == 'IN_TRANSIT').toList();
+    if (inTransit.isEmpty) return null;
+    return getActiveDelivery(inTransit.first.id);
   }
 }

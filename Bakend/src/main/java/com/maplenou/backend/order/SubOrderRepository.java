@@ -19,6 +19,10 @@ public interface SubOrderRepository extends JpaRepository<SubOrder, UUID> {
     @EntityGraph(attributePaths = {"shop", "order"})
     Page<SubOrder> findByShopIdOrderByCreatedAtDesc(UUID shopId, Pageable pageable);
 
+    /** Idem, filtré par statut (onglets "À préparer", "En livraison"... côté vendeur). */
+    @EntityGraph(attributePaths = {"shop", "order"})
+    Page<SubOrder> findByShopIdAndStatusOrderByCreatedAtDesc(UUID shopId, SubOrderStatus status, Pageable pageable);
+
     /** Détail complet d'un sous-ordre avec ses articles. */
     @Query("""
             SELECT so FROM SubOrder so
@@ -37,6 +41,35 @@ public interface SubOrderRepository extends JpaRepository<SubOrder, UUID> {
 
     @Query("SELECT COALESCE(SUM(so.commissionAmount), 0) FROM SubOrder so WHERE so.status <> com.maplenou.backend.order.SubOrderStatus.CANCELLED")
     BigDecimal sumTotalCommission();
+
+    // ----- KPI vendeur (dashboard) -----
+
+    /** Sous-commandes d'une boutique créées après une date donnée — pour le graphique de ventes. */
+    @Query("SELECT so FROM SubOrder so WHERE so.shop.id = :shopId AND so.createdAt >= :since ORDER BY so.createdAt ASC")
+    List<SubOrder> findByShopIdSince(@Param("shopId") UUID shopId, @Param("since") Instant since);
+
+    /** Nombre de sous-commandes en cours (ni livrées, ni annulées/retournées) d'une boutique. */
+    @Query("""
+            SELECT COUNT(so) FROM SubOrder so
+            WHERE so.shop.id = :shopId
+            AND so.status NOT IN (
+                com.maplenou.backend.order.SubOrderStatus.DELIVERED,
+                com.maplenou.backend.order.SubOrderStatus.CANCELLED,
+                com.maplenou.backend.order.SubOrderStatus.RETURNED
+            )
+            """)
+    long countOngoingByShopId(@Param("shopId") UUID shopId);
+
+    long countByShopIdAndStatus(UUID shopId, SubOrderStatus status);
+
+    /** Solde disponible : livré mais pas encore rattaché à un `Payout` (voir `PayoutService`). */
+    @Query("""
+            SELECT COALESCE(SUM(so.netAmount), 0) FROM SubOrder so
+            WHERE so.shop.id = :shopId
+            AND so.status = com.maplenou.backend.order.SubOrderStatus.DELIVERED
+            AND so.payout IS NULL
+            """)
+    BigDecimal sumAvailableBalanceByShopId(@Param("shopId") UUID shopId);
 
     // ----- Payout queries -----
 

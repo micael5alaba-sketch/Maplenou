@@ -1,33 +1,12 @@
 import '../models/my_order_summary_model.dart';
+import 'order_service.dart';
 
-/// Provides the buyer's order list shown on [MyOrdersScreen].
-///
-/// Mocked for now — no network call. Maps directly onto the real, already
-/// working `GET /api/orders` once auth is wired up.
+/// `GET /api/orders` (`order/OrderController.java`), via [OrderService].
 class MyOrdersService {
-  List<MyOrderSummaryModel> getMyOrders() {
-    return [
-      MyOrderSummaryModel(
-        orderNumber: 'MPL-9928',
-        dateTime: DateTime.now().subtract(const Duration(hours: 2)),
-        total: 204000,
-        status: MyOrderStatus.inProgress,
-        itemCount: 3,
-      ),
-      MyOrderSummaryModel(
-        orderNumber: 'MPL-9871',
-        dateTime: DateTime.now().subtract(const Duration(days: 6)),
-        total: 45000,
-        status: MyOrderStatus.delivered,
-        itemCount: 1,
-      ),
-      MyOrderSummaryModel(
-        orderNumber: 'MPL-9740',
-        dateTime: DateTime.now().subtract(const Duration(days: 14)),
-        total: 32000,
-        status: MyOrderStatus.cancelled,
-        itemCount: 1,
-      ),
-    ];
+  final _orderService = OrderService();
+
+  Future<List<MyOrderSummaryModel>> getMyOrders() async {
+    final orders = await _orderService.listMyOrders();
+    return orders.map(MyOrderSummaryModel.fromOrder).toList();
   }
 }

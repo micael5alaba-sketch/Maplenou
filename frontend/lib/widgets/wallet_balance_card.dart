@@ -4,28 +4,24 @@ import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
 /// Hero balance card at the top of [WalletScreen]: centered wallet icon,
-/// available balance, a month-over-month change pill, and the "Demander un
-/// retrait" call to action.
+/// available balance, and the "Demander un retrait" call to action.
 ///
 /// Deliberately a distinct layout from [BalanceCard] (centered/stacked
 /// rather than a horizontal KPI row) to match this screen's hero treatment
 /// in the design.
 class WalletBalanceCard extends StatelessWidget {
   final num availableBalance;
-  final double changePercent;
   final VoidCallback onWithdraw;
 
   const WalletBalanceCard({
     super.key,
     required this.availableBalance,
-    required this.changePercent,
     required this.onWithdraw,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final isPositive = changePercent >= 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -52,18 +48,6 @@ class WalletBalanceCard extends StatelessWidget {
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textDark),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(1)}% ce mois-ci',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary),
-            ),
           ),
           const SizedBox(height: 18),
           SizedBox(

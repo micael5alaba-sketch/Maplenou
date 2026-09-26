@@ -26,13 +26,14 @@ public class SubOrderController {
 
     private final SubOrderService subOrderService;
 
-    /** Liste les sous-commandes de ma boutique. */
+    /** Liste les sous-commandes de ma boutique, avec filtre optionnel par statut. */
     @GetMapping
     @PreAuthorize("hasRole('SELLER')")
     public Page<SubOrderResponse> listMySubOrders(
             @AuthenticationPrincipal User currentUser,
+            @RequestParam(required = false) SubOrderStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
-        return subOrderService.listMySubOrders(currentUser, pageable);
+        return subOrderService.listMySubOrders(currentUser, status, pageable);
     }
 
     /** Détail d'une sous-commande de ma boutique. */

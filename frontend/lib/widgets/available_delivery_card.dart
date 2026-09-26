@@ -4,13 +4,13 @@ import '../models/available_delivery_model.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
-/// One request in [CourierDeliveriesScreen]'s feed: payout amount, pickup
-/// and dropoff points, category, and an "Accepter la course" button.
+/// One assigned delivery in [CourierDeliveriesScreen]'s list: pickup and
+/// dropoff points, distance, and a button to open the delivery's detail.
 class AvailableDeliveryCard extends StatelessWidget {
   final AvailableDeliveryModel delivery;
-  final VoidCallback onAccept;
+  final VoidCallback onOpen;
 
-  const AvailableDeliveryCard({super.key, required this.delivery, required this.onAccept});
+  const AvailableDeliveryCard({super.key, required this.delivery, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -31,40 +31,42 @@ class AvailableDeliveryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(formatFcfa(delivery.amount), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.primary)),
-              Text(formatRelativeDate(delivery.postedAt), style: TextStyle(fontSize: 12, color: colors.textMuted)),
+              Text('Assignée', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.accentOrange)),
+              Text(formatRelativeDate(delivery.assignedAt), style: TextStyle(fontSize: 12, color: colors.textMuted)),
             ],
           ),
           const Divider(height: 20),
-          _buildPoint(colors, colors.accentOrange, 'Point de collecte', delivery.pickupLabel, delivery.pickupDistanceKm, delivery.pickupAddress),
+          _buildPoint(colors, colors.accentOrange, 'Point de collecte', delivery.pickupLabel, delivery.pickupAddress),
           const SizedBox(height: 10),
-          _buildPoint(colors, colors.primary, 'Point de livraison', delivery.dropoffLabel, delivery.totalDistanceKm, delivery.dropoffAddress, isTotal: true),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inventory_2_outlined, size: 14, color: colors.textMuted),
-                const SizedBox(width: 6),
-                Text('${delivery.category} • ${delivery.itemsSummary}', style: TextStyle(fontSize: 12, color: colors.textDark)),
-              ],
+          _buildPoint(colors, colors.primary, 'Point de livraison', delivery.dropoffLabel, delivery.dropoffAddress),
+          if (delivery.distanceKm != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.straighten_rounded, size: 14, color: colors.textMuted),
+                  const SizedBox(width: 6),
+                  Text('${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau', style: TextStyle(fontSize: 12, color: colors.textDark)),
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 46,
             child: ElevatedButton(
-              onPressed: onAccept,
+              onPressed: onOpen,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Accepter la course', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text('Voir les détails', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -72,7 +74,7 @@ class AvailableDeliveryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPoint(AppColorScheme colors, Color dotColor, String label, String place, double distanceKm, String address, {bool isTotal = false}) {
+  Widget _buildPoint(AppColorScheme colors, Color dotColor, String label, String place, String address) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -86,10 +88,7 @@ class AvailableDeliveryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label, style: TextStyle(fontSize: 11, color: colors.textMuted)),
-              Text(
-                '$place • ${distanceKm.toStringAsFixed(1)} km${isTotal ? ' total' : ''}',
-                style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 13),
-              ),
+              Text(place, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 13)),
               Text(address, style: TextStyle(fontSize: 12, color: colors.textMuted)),
             ],
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../screens/login_screen.dart';
+import '../services/auth_service.dart';
 import '../theme/app_color_scheme.dart';
 import 'app_logo.dart';
 
@@ -42,14 +44,21 @@ class AppDrawer extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.logout_rounded, color: textColor),
               title: const Text('Déconnexion'),
-              onTap: () {
-                Navigator.of(context).pop();
-                onComingSoon('La déconnexion');
-              },
+              onTap: () => _handleLogout(context),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    Navigator.of(context).pop();
+    await AuthService().logout();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 }

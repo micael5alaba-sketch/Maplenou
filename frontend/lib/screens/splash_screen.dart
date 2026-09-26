@@ -3,21 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../services/session_service.dart';
+import '../services/app_router.dart';
+import '../services/token_storage.dart';
+import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
-import 'courier_dashboard_screen.dart';
-import 'home_screen.dart';
-import 'profile_selection_screen.dart';
-import 'seller_dashboard_screen.dart';
+import 'login_screen.dart';
 
 /// App entry screen: minimalist full-screen brand splash.
 /// Deep forest green background with the Maplenou logo centered,
 /// no buttons, no loader, no extra copy.
 ///
-/// After a short delay, it checks [SessionService] for a profile chosen on
-/// a previous visit: a returning user is sent straight to that profile's
-/// home screen, while a first-time visitor goes through profile selection.
+/// After a short delay, checks whether a JWT is stored ([TokenStorage]): no
+/// token (or an invalid/expired one) sends the visitor to [LoginScreen];
+/// a valid session fetches the real account (`GET /api/users/me`) and lets
+/// [AppRouter] decide which interface to open based on its actual
+/// capacités (Acheteur/Vendeur/Livreur — voir `CLAUDE.md` §3).
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -41,26 +42,23 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    final roleId = await SessionService().getSelectedRoleId();
+    final target = await _resolveTarget();
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => _screenForRole(roleId)),
-    );
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => target));
   }
 
-  /// A returning user skips straight to their profile's own home screen;
-  /// no saved role (first launch) falls back to profile selection.
-  Widget _screenForRole(String? roleId) {
-    switch (roleId) {
-      case 'buyer':
-        return const HomeScreen();
-      case 'seller':
-        return const SellerDashboardScreen();
-      case 'courier':
-        return const CourierDashboardScreen();
-      default:
-        return const ProfileSelectionScreen();
+  Future<Widget> _resolveTarget() async {
+    final token = await TokenStorage().getAccessToken();
+    if (token == null) return const LoginScreen();
+
+    try {
+      final user = await UserService().getCurrentUser();
+      return await AppRouter.resolveHomeScreen(user);
+    } catch (_) {
+      // Token expiré/révoqué et rafraîchissement impossible : repart de zéro.
+      await TokenStorage().clear();
+      return const LoginScreen();
     }
   }
 

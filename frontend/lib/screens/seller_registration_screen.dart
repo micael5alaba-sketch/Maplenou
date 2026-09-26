@@ -1,81 +1,63 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
+import '../services/seller_application_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
-import 'seller_dashboard_screen.dart';
+import 'home_screen.dart';
 
-/// "Devenir Vendeur" — the form a buyer fills in to apply for a seller
-/// account. Fully mocked for now: submitting just simulates a network
-/// delay, then goes straight to [SellerDashboardScreen].
+/// "Devenir Vendeur" — le formulaire qu'un acheteur remplit pour demander
+/// l'activation de son profil vendeur (`POST /api/sellers/apply`, sur ce
+/// même compte — voir `CLAUDE.md` §3).
 ///
-/// In the real flow, an admin is supposed to review the application before
-/// it's approved — that review step doesn't exist yet (no admin app), so
-/// for now submitting simulates instant approval. Swap this for the real
-/// `POST /api/sellers/apply` + an actual wait-for-approval state once the
-/// admin side exists (see `DEMANDES_MODIFICATIONS_BACKEND.md`).
+/// Un admin doit ensuite approuver la demande (`PATCH
+/// /api/sellers/admin/{id}/status`) — pas d'approbation instantanée : il
+/// n'y a pas encore de back-office admin pour ça, donc l'écran affiche
+/// juste une confirmation d'envoi, pas un accès direct au dashboard.
 class SellerRegistrationScreen extends StatefulWidget {
-  const SellerRegistrationScreen({super.key});
+  /// true quand on arrive ici juste après l'inscription (voir
+  /// [RegisterScreen]) : il n'y a alors rien à "pop" derrière, donc le
+  /// bouton final ouvre l'accueil Acheteur au lieu de revenir en arrière.
+  final bool standalone;
+
+  const SellerRegistrationScreen({super.key, this.standalone = false});
 
   @override
   State<SellerRegistrationScreen> createState() => _SellerRegistrationScreenState();
 }
 
 class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
-  static const _defaultProductType = 'Toutes catégories acceptées';
-  static const _productTypes = [
-    _defaultProductType,
-    'Mode',
-    'Beauté',
-    'Maison',
-    'Électronique',
-    'Alimentation',
-    'Bijoux',
-    'Chaussures',
-    'Accessoires',
-  ];
-
   final _formKey = GlobalKey<FormState>();
   final _shopNameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
+  final _applicationService = SellerApplicationService();
 
-  String _productType = _defaultProductType;
   bool _isSubmitting = false;
+  bool _isSubmitted = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
     _shopNameController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isSubmitting = true);
-    // Simule l'appel réseau — pas encore branché sur POST /api/sellers/apply.
-    // Simule aussi l'approbation admin (pas de back-office admin pour
-    // l'instant) : normalement il y aurait une attente ici avant l'accès au
-    // dashboard.
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Boutique créée ! Bienvenue dans votre espace vendeur.')));
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SellerDashboardScreen()),
-    );
-  }
-
-  void _showTermsComingSoon() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Conditions Générales de Vente bientôt disponibles.')));
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+    try {
+      await _applicationService.apply(shopName: _shopNameController.text.trim());
+      if (!mounted) return;
+      setState(() => _isSubmitted = true);
+    } on ApiException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -91,33 +73,103 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 12),
-                      _buildTitleSection(context),
-                      const SizedBox(height: 28),
-                      _buildFormCard(context),
-                      const SizedBox(height: 20),
-                      _buildInfoCard(context),
-                      const SizedBox(height: 28),
-                      PrimaryButton(
-                        label: 'Créer ma boutique',
-                        isLoading: _isSubmitting,
-                        onPressed: _handleSubmit,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTermsText(context),
-                    ],
-                  ),
-                ),
+                child: _isSubmitted ? _buildSuccessState(context) : _buildForm(context),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildForm(BuildContext context) {
+    final colors = context.colors;
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 12),
+          _buildTitleSection(context),
+          const SizedBox(height: 28),
+          if (_errorMessage != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.error.withValues(alpha: 0.3)),
+              ),
+              child: Text(_errorMessage!, style: TextStyle(color: colors.error, fontSize: 13)),
+            ),
+            const SizedBox(height: 16),
+          ],
+          _buildFormCard(context),
+          const SizedBox(height: 20),
+          _buildInfoCard(context),
+          const SizedBox(height: 28),
+          PrimaryButton(
+            label: 'Envoyer ma demande',
+            isLoading: _isSubmitting,
+            onPressed: _handleSubmit,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessState(BuildContext context) {
+    final colors = context.colors;
+
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(Icons.hourglass_top_rounded, size: 48, color: colors.primary),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Demande envoyée !',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.primary),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          "Votre demande pour \"${_shopNameController.text.trim()}\" est en cours d'examen par "
+          "notre équipe. Vous pourrez créer votre boutique dès qu'elle sera approuvée.",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: colors.textMuted, height: 1.4),
+        ),
+        const SizedBox(height: 28),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () {
+              if (widget.standalone) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.textDark,
+              side: BorderSide(color: colors.border),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            ),
+            child: Text(widget.standalone ? "Aller à l'accueil" : 'Retour',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -128,7 +180,16 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
         children: [
           IconButton(
             icon: Icon(Icons.arrow_back_rounded, color: context.colors.textDark),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (widget.standalone) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
           ),
           const Expanded(
             child: Center(
@@ -184,42 +245,6 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             textCapitalization: TextCapitalization.words,
             validator: (value) =>
                 (value == null || value.trim().length < 2) ? 'Indique le nom de ta boutique.' : null,
-          ),
-          const SizedBox(height: 20),
-          _buildLabel(context, "Numéro de téléphone de l'entreprise *"),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: _inputDecoration(context, 'Ex : +228 01 00 00 00'),
-            validator: (value) {
-              final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-              if (digits.length < 8) return 'Numéro de téléphone invalide.';
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
-          _buildLabel(context, 'Type de produits *'),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _productType,
-            decoration: _inputDecoration(context, null),
-            items: _productTypes
-                .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                .toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => _productType = value);
-            },
-          ),
-          const SizedBox(height: 20),
-          _buildLabel(context, 'Adresse de la boutique *'),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _addressController,
-            maxLines: 3,
-            decoration: _inputDecoration(context, 'Où se trouve votre boutique principale ?'),
-            validator: (value) =>
-                (value == null || value.trim().isEmpty) ? "Indique l'adresse de ta boutique." : null,
           ),
         ],
       ),
@@ -287,26 +312,6 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTermsText(BuildContext context) {
-    final colors = context.colors;
-
-    return RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: TextStyle(fontSize: 12, color: colors.textMuted, height: 1.4),
-        children: [
-          const TextSpan(text: 'En créant votre boutique, vous acceptez nos '),
-          TextSpan(
-            text: 'Conditions Générales de Vente',
-            style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600),
-            recognizer: TapGestureRecognizer()..onTap = _showTermsComingSoon,
-          ),
-          const TextSpan(text: '.'),
         ],
       ),
     );

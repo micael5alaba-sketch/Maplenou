@@ -5,6 +5,9 @@ import com.maplenou.backend.catalog.ProductRepository;
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ShopRepository;
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.delivery.Delivery;
+import com.maplenou.backend.delivery.DeliveryRepository;
+import com.maplenou.backend.delivery.DeliveryStatus;
 import com.maplenou.backend.order.SubOrder;
 import com.maplenou.backend.order.SubOrderRepository;
 import com.maplenou.backend.order.SubOrderStatus;
@@ -25,9 +28,11 @@ public class ReviewService {
 
     private final ProductReviewRepository productReviewRepository;
     private final ShopReviewRepository    shopReviewRepository;
+    private final CourierReviewRepository courierReviewRepository;
     private final SubOrderRepository      subOrderRepository;
     private final ProductRepository       productRepository;
     private final ShopRepository          shopRepository;
+    private final DeliveryRepository      deliveryRepository;
 
     // ── Avis produit ──────────────────────────────────────────────────────────
 
@@ -180,6 +185,60 @@ public class ReviewService {
     public RatingSummaryResponse getShopRatingSummary(UUID shopId) {
         double avg   = shopReviewRepository.findAverageRatingByShopId(shopId).orElse(0.0);
         long   count = shopReviewRepository.countByShopId(shopId);
+        return new RatingSummaryResponse(avg, count);
+    }
+
+    // ── Avis livreur ──────────────────────────────────────────────────────────
+
+    /**
+     * L'acheteur soumet un avis sur le livreur qui a assuré sa livraison.
+     * Règles :
+     *  - La livraison doit être DELIVERED et appartenir à l'acheteur
+     *  - Une seule note par livraison
+     */
+    @Transactional
+    public ReviewResponse createCourierReview(User buyer, CreateCourierReviewRequest req) {
+
+        Delivery delivery = deliveryRepository.findByIdWithDetails(req.deliveryId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Livraison introuvable"));
+
+        if (!delivery.getSubOrder().getOrder().getBuyer().getId().equals(buyer.getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Cette livraison ne vous appartient pas");
+        }
+
+        if (delivery.getStatus() != DeliveryStatus.DELIVERED) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Un avis n'est possible que sur une livraison terminée (statut : " + delivery.getStatus() + ")");
+        }
+
+        if (courierReviewRepository.existsByDeliveryId(delivery.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Cette livraison a déjà été notée");
+        }
+
+        CourierReview review = CourierReview.builder()
+                .delivery(delivery)
+                .agent(delivery.getAgent())
+                .author(buyer)
+                .rating(req.rating())
+                .comment(req.comment())
+                .build();
+
+        return ReviewResponse.from(courierReviewRepository.save(review));
+    }
+
+    /** Avis publics d'un livreur (paginés). */
+    @Transactional(readOnly = true)
+    public Page<ReviewResponse> getCourierReviews(UUID agentId, Pageable pageable) {
+        return courierReviewRepository.findByAgentIdWithAuthor(agentId, pageable)
+                .map(ReviewResponse::from);
+    }
+
+    /** Note moyenne + nombre d'avis d'un livreur. */
+    @Transactional(readOnly = true)
+    public RatingSummaryResponse getCourierRatingSummary(UUID agentId) {
+        double avg   = courierReviewRepository.findAverageRatingByAgentId(agentId).orElse(0.0);
+        long   count = courierReviewRepository.countByAgentId(agentId);
         return new RatingSummaryResponse(avg, count);
     }
 

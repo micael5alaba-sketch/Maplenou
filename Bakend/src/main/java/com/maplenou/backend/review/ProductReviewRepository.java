@@ -65,6 +65,12 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, UU
                        sr.created_at AS created_at
                 FROM shop_reviews sr JOIN shops s ON s.id = sr.shop_id
                 WHERE sr.user_id = :userId
+                UNION ALL
+                SELECT cr.id AS id, 'COURIER' AS type, cr.agent_id AS target_id,
+                       u.full_name AS target_name, cr.rating AS rating, cr.comment AS comment,
+                       cr.created_at AS created_at
+                FROM courier_reviews cr JOIN users u ON u.id = cr.agent_id
+                WHERE cr.user_id = :userId
                 ORDER BY created_at DESC
                 """,
         countQuery = """
@@ -72,6 +78,8 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, UU
                     SELECT id FROM product_reviews WHERE user_id = :userId
                     UNION ALL
                     SELECT id FROM shop_reviews WHERE user_id = :userId
+                    UNION ALL
+                    SELECT id FROM courier_reviews WHERE user_id = :userId
                 ) combined
                 """,
         nativeQuery = true)

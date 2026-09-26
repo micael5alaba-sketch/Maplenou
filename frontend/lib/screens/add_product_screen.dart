@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/category_model.dart';
 import '../models/product_specification_entry.dart';
+import '../models/product_variant_entry.dart';
+import '../services/api_client.dart';
+import '../services/category_service.dart';
+import '../services/media_upload_service.dart';
+import '../services/vendor_catalog_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/primary_button.dart';
 
@@ -12,12 +18,17 @@ import '../widgets/primary_button.dart';
 /// type (électronique, alimentation, bijoux...), matching how
 /// [VendorProductModel]/the catalog are documented as deliberately generic.
 /// It also maps directly onto the real backend's `Product.specifications`
-/// (JSONB list of `{label, value}`, see `MODELE_DONNEES.md`), so wiring
-/// this form to `POST /api/shops/mine/products` later needs no reshaping.
+/// (JSONB list of `{label, value}`, see `MODELE_DONNEES.md`).
 ///
-/// Fully mocked for now: submitting just simulates a network delay, then
-/// pops back to the catalog. Image slots are placeholders — no
-/// image_picker dependency yet.
+/// Variantes : le backend accepte un libellé libre par variante, pas une
+/// vraie structure d'attributs (Taille/Couleur séparés) — pour une
+/// combinaison, le vendeur tape directement "M / Rouge" comme un seul
+/// libellé (voir `ProductVariantEntry`).
+///
+/// Branché sur `POST /api/shops/mine/products` (voir
+/// `VendorCatalogService.createProduct`). Les photos sont uploadées sur
+/// Cloudinary via [MediaUploadService] dès la sélection (pas seulement à la
+/// publication), puis rattachées au produit une fois créé.
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
 
@@ -26,29 +37,25 @@ class AddProductScreen extends StatefulWidget {
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
-  static const _defaultCategory = 'Choisir une catégorie';
-  static const _categories = [
-    _defaultCategory,
-    'Mode',
-    'Beauté',
-    'Maison',
-    'Électronique',
-    'Alimentation',
-    'Bijoux',
-    'Chaussures',
-    'Accessoires',
-  ];
-
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _oldPriceController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
+  final _weightController = TextEditingController();
+  final _delayController = TextEditingController();
 
-  String _category = _defaultCategory;
+  late final Future<List<CategoryModel>> _categoriesFuture = CategoryService().getCategories();
+  CategoryModel? _category;
   final List<ProductSpecificationEntry> _specifications = [];
+  final List<ProductVariantEntry> _variants = [ProductVariantEntry(label: 'Standard', stockQuantity: '1')];
+  bool _deliveryAvailable = true;
   bool _isSubmitting = false;
+  String? _errorMessage;
+
+  final _mediaUploadService = MediaUploadService();
+  final List<String?> _imageUrls = List<String?>.filled(4, null);
+  final List<bool> _isUploadingImage = List<bool>.filled(4, false);
 
   @override
   void dispose() {
@@ -56,14 +63,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _oldPriceController.dispose();
-    _quantityController.dispose();
+    _weightController.dispose();
+    _delayController.dispose();
     super.dispose();
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  Future<void> _pickImage(int index) async {
+    setState(() => _isUploadingImage[index] = true);
+    try {
+      final url = await _mediaUploadService.pickImageAndUpload(folder: 'products');
+      if (url != null) setState(() => _imageUrls[index] = url);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _isUploadingImage[index] = false);
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() => _imageUrls[index] = null);
   }
 
   void _addSpecification() {
@@ -74,25 +95,66 @@ class _AddProductScreenState extends State<AddProductScreen> {
     setState(() => _specifications.removeAt(index));
   }
 
+  void _addVariant() {
+    setState(() => _variants.add(ProductVariantEntry()));
+  }
+
+  void _removeVariant(int index) {
+    setState(() => _variants.removeAt(index));
+  }
+
   Future<void> _handlePublish() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_category == _defaultCategory) {
+    if (_category == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('Choisis une catégorie.')));
       return;
     }
+    if (_variants.any((v) => v.label.trim().isEmpty || int.tryParse(v.stockQuantity) == null || int.parse(v.stockQuantity) < 0)) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Chaque variante a besoin d\'un libellé et d\'un stock valide.')));
+      return;
+    }
 
-    setState(() => _isSubmitting = true);
-    // Mocké — pas encore branché sur POST /api/shops/mine/products.
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Produit publié !')));
-    Navigator.of(context).pop(true);
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+    try {
+      await VendorCatalogService().createProduct(
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        basePrice: num.parse(_priceController.text),
+        oldPrice: _oldPriceController.text.trim().isEmpty ? null : num.parse(_oldPriceController.text),
+        categoryId: _category!.id,
+        variants: _variants
+            .map((v) => {
+                  'label': v.label.trim(),
+                  'stockQuantity': int.parse(v.stockQuantity),
+                  if (v.priceOverride.trim().isNotEmpty) 'priceOverride': num.parse(v.priceOverride),
+                })
+            .toList(),
+        specifications: _specifications
+            .where((s) => s.label.trim().isNotEmpty && s.value.trim().isNotEmpty)
+            .map((s) => {'label': s.label.trim(), 'value': s.value.trim()})
+            .toList(),
+        imageUrls: _imageUrls.whereType<String>().toList(),
+        packageWeightKg: _weightController.text.trim().isEmpty ? null : num.parse(_weightController.text),
+        estimatedDeliveryDelay: _delayController.text.trim().isEmpty ? null : _delayController.text.trim(),
+        deliveryAvailable: _deliveryAvailable,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Produit publié !')));
+      Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -124,13 +186,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         style: TextStyle(fontSize: 13, color: colors.textMuted),
                       ),
                       const SizedBox(height: 24),
+                      if (_errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colors.error.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: colors.error.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(_errorMessage!, style: TextStyle(color: colors.error, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildImagesSection(colors),
                       const SizedBox(height: 16),
                       _buildBasicInfoSection(colors),
                       const SizedBox(height: 16),
                       _buildOrganisationSection(colors),
                       const SizedBox(height: 16),
+                      _buildVariantsSection(colors),
+                      const SizedBox(height: 16),
                       _buildPriceSection(colors),
+                      const SizedBox(height: 16),
+                      _buildDeliverySection(colors),
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -153,7 +231,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             child: PrimaryButton(
                               label: 'Publier le produit',
                               isLoading: _isSubmitting,
-                              onPressed: _handlePublish,
+                              onPressed: _isUploadingImage.any((u) => u) ? null : _handlePublish,
                             ),
                           ),
                         ],
@@ -225,25 +303,64 @@ class _AddProductScreenState extends State<AddProductScreen> {
         crossAxisSpacing: 12,
         childAspectRatio: 1.3,
         children: [
-          _buildImageSlot(colors, 'Photo principale', filled: true),
-          for (var i = 0; i < 3; i++) _buildImageSlot(colors, 'Ajouter une photo'),
+          for (var i = 0; i < _imageUrls.length; i++)
+            _buildImageSlot(colors, i, label: i == 0 ? 'Photo principale' : 'Ajouter une photo'),
         ],
       ),
     ]);
   }
 
-  Widget _buildImageSlot(AppColorScheme colors, String label, {bool filled = false}) {
+  Widget _buildImageSlot(AppColorScheme colors, int index, {required String label}) {
+    final imageUrl = _imageUrls[index];
+    final isUploading = _isUploadingImage[index];
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () => _showComingSoon('La sélection de photo'),
+      onTap: isUploading ? null : () => _pickImage(index),
       child: DottedBorderBox(
-        color: filled ? colors.inputFill : colors.surface,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        color: imageUrl != null ? colors.inputFill : colors.surface,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Icon(filled ? Icons.add_photo_alternate_rounded : Icons.add_rounded, color: colors.textMuted),
-            const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            if (imageUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(imageUrl, fit: BoxFit.cover),
+              )
+            else
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_rounded, color: colors.textMuted),
+                  const SizedBox(height: 6),
+                  Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+                ],
+              ),
+            if (isUploading)
+              ColoredBox(
+                color: Colors.black.withValues(alpha: 0.35),
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4, color: colors.surface),
+                  ),
+                ),
+              ),
+            if (imageUrl != null && !isUploading)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => _removeImage(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -274,12 +391,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return _buildCard(colors, 'Organisation', [
       _buildLabel(colors, 'Catégorie'),
       const SizedBox(height: 8),
-      DropdownButtonFormField<String>(
-        initialValue: _category,
-        decoration: _inputDecoration(colors, null),
-        items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-        onChanged: (value) {
-          if (value != null) setState(() => _category = value);
+      FutureBuilder<List<CategoryModel>>(
+        future: _categoriesFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return SizedBox(
+              height: 48,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
+                ),
+              ),
+            );
+          }
+          final categories = snapshot.data!;
+          return DropdownButtonFormField<CategoryModel>(
+            initialValue: _category,
+            decoration: _inputDecoration(colors, 'Choisir une catégorie'),
+            items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+            onChanged: (value) => setState(() => _category = value),
+          );
         },
       ),
       const SizedBox(height: 20),
@@ -362,18 +495,108 @@ class _AddProductScreenState extends State<AddProductScreen> {
         keyboardType: const TextInputType.numberWithOptions(decimal: false),
         decoration: _inputDecoration(colors, 'Prix avant réduction'),
       ),
-      const SizedBox(height: 16),
-      _buildLabel(colors, 'Quantité en stock'),
+    ]);
+  }
+
+  Widget _buildVariantsSection(AppColorScheme colors) {
+    return _buildCard(colors, 'Variantes', [
+      Text(
+        "Une ligne par variante vendue séparément (ex: \"S\", \"M / Rouge\"...) — chacune avec son propre stock, et un prix différent du prix de base si besoin.",
+        style: TextStyle(fontSize: 12, color: colors.textMuted),
+      ),
+      for (var i = 0; i < _variants.length; i++) ...[
+        const SizedBox(height: 12),
+        _buildVariantRow(colors, i),
+      ],
+      const SizedBox(height: 12),
+      TextButton.icon(
+        onPressed: _addVariant,
+        icon: Icon(Icons.add_rounded, size: 18, color: colors.primary),
+        label: Text('Ajouter une variante', style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600)),
+      ),
+    ]);
+  }
+
+  Widget _buildVariantRow(AppColorScheme colors, int index) {
+    final entry = _variants[index];
+
+    // Keyed by the entry's own identity, same reasoning as _buildSpecificationRow.
+    return Container(
+      key: ValueKey(entry),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: entry.label,
+                  decoration: _inputDecoration(colors, 'Libellé (ex: M, Rouge...)'),
+                  onChanged: (value) => entry.label = value,
+                ),
+              ),
+              if (_variants.length > 1)
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: colors.error, size: 20),
+                  onPressed: () => _removeVariant(index),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: entry.stockQuantity,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration(colors, 'Stock'),
+                  onChanged: (value) => entry.stockQuantity = value,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  initialValue: entry.priceOverride,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                  decoration: _inputDecoration(colors, 'Prix (optionnel)'),
+                  onChanged: (value) => entry.priceOverride = value,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliverySection(AppColorScheme colors) {
+    return _buildCard(colors, 'Livraison (optionnel)', [
+      _buildLabel(colors, 'Poids du colis (kg)'),
       const SizedBox(height: 8),
       TextFormField(
-        controller: _quantityController,
-        keyboardType: TextInputType.number,
-        decoration: _inputDecoration(colors, '1'),
-        validator: (value) {
-          final qty = int.tryParse(value ?? '');
-          if (qty == null || qty < 0) return 'Quantité invalide.';
-          return null;
-        },
+        controller: _weightController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: _inputDecoration(colors, 'ex. 0.8'),
+      ),
+      const SizedBox(height: 16),
+      _buildLabel(colors, 'Délai de livraison estimé'),
+      const SizedBox(height: 8),
+      TextFormField(
+        controller: _delayController,
+        decoration: _inputDecoration(colors, 'ex. 2 à 4 jours'),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          Expanded(child: _buildLabel(colors, 'Livraison disponible pour ce produit')),
+          Switch(
+            value: _deliveryAvailable,
+            activeThumbColor: colors.primary,
+            onChanged: (value) => setState(() => _deliveryAvailable = value),
+          ),
+        ],
       ),
     ]);
   }

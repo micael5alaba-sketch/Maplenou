@@ -1,69 +1,51 @@
-import '../models/cart_item_model.dart';
+import '../models/cart_model.dart';
+import '../models/product_model.dart';
+import 'api_client.dart';
+import 'product_service.dart';
 
-/// In-memory cart shared across the app session.
-///
-/// Mocked for now — no network call, no persistence across app restarts.
-/// The real backend already has everything needed (`GET/POST/PATCH/DELETE
-/// /api/cart/items`, scoped to `ProductVariant`), but wiring it requires
-/// the authentication this session deliberately deferred (see
-/// `CartItemModel`'s doc comment for the shape it maps onto).
+/// `GET/POST/PATCH/DELETE /api/cart[/items]` (`cart/CartController.java`).
 class CartService {
-  CartService._internal();
-  static final CartService _instance = CartService._internal();
-  factory CartService() => _instance;
+  final _client = ApiClient();
+  final _productService = ProductService();
 
-  final List<CartItemModel> _items = [];
+  Future<CartModel> getCart() async {
+    final data = await _client.get('/api/cart') as Map<String, dynamic>;
+    return CartModel.fromJson(data);
+  }
 
-  List<CartItemModel> get items => List.unmodifiable(_items);
-
-  num get subtotal => _items.fold(0, (sum, item) => sum + item.lineTotal);
-
-  int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
-
-  /// Adds [quantity] of a product/variant, merging into an existing line
-  /// (same product + variant) rather than creating a duplicate row.
-  void addItem({
-    required String productId,
-    required String productName,
-    String? variantId,
-    String? variantLabel,
-    String? imageUrl,
-    required num unitPrice,
-    int quantity = 1,
-  }) {
-    final existingIndex = _items.indexWhere((i) => i.productId == productId && i.variantId == variantId);
-    if (existingIndex != -1) {
-      final existing = _items[existingIndex];
-      _items[existingIndex] = existing.copyWith(quantity: existing.quantity + quantity);
-      return;
+  /// Ajout rapide depuis une carte produit (grille catalogue), sans passer
+  /// par le choix de variante de la fiche détail : prend la première
+  /// variante du produit (le cas courant d'un produit à variante unique).
+  Future<void> addProductQuickly(ProductModel product, {int quantity = 1}) async {
+    final detail = await _productService.getProductDetail(product.slug);
+    final variants = detail['variants'] as List<dynamic>? ?? [];
+    if (variants.isEmpty) {
+      throw ApiException(0, "Ce produit n'a pas encore de variante en vente.");
     }
-    _items.add(CartItemModel(
-      id: '${productId}_${variantId ?? 'default'}_${_items.length}',
-      productId: productId,
-      productName: productName,
-      variantId: variantId,
-      variantLabel: variantLabel,
-      imageUrl: imageUrl,
-      unitPrice: unitPrice,
-      quantity: quantity,
-    ));
+    final variantId = (variants.first as Map<String, dynamic>)['id'] as String;
+    await addItem(productVariantId: variantId, quantity: quantity);
   }
 
-  void updateQuantity(String itemId, int quantity) {
-    final index = _items.indexWhere((i) => i.id == itemId);
-    if (index == -1) return;
-    if (quantity <= 0) {
-      _items.removeAt(index);
-      return;
-    }
-    _items[index] = _items[index].copyWith(quantity: quantity);
+  Future<CartModel> addItem({required String productVariantId, int quantity = 1}) async {
+    final data = await _client.post(
+      '/api/cart/items',
+      body: {'productVariantId': productVariantId, 'quantity': quantity},
+    ) as Map<String, dynamic>;
+    return CartModel.fromJson(data);
   }
 
-  void removeItem(String itemId) {
-    _items.removeWhere((i) => i.id == itemId);
+  Future<CartModel> updateQuantity(String cartItemId, int quantity) async {
+    final data = await _client.patch(
+      '/api/cart/items/$cartItemId',
+      body: {'quantity': quantity},
+    ) as Map<String, dynamic>;
+    return CartModel.fromJson(data);
   }
 
-  void clear() {
-    _items.clear();
+  Future<CartModel> removeItem(String cartItemId) async {
+    final data = await _client.delete('/api/cart/items/$cartItemId') as Map<String, dynamic>;
+    return CartModel.fromJson(data);
   }
+
+  Future<void> clear() => _client.delete('/api/cart');
 }

@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
-/// "Statistiques rapides" 2x2 grid on [WalletScreen]: total earned this
-/// month, sales count, pending amount, average rating.
+/// "Statistiques rapides" 2x2 grid on [WalletScreen]: total déjà reversé,
+/// nombre de reversements, montant en attente, note moyenne boutique.
 class WalletStatsGrid extends StatelessWidget {
-  final num totalEarnedMonth;
-  final int salesCountMonth;
+  final num totalPaidOut;
+  final int paidPayoutsCount;
   final num pendingAmount;
   final double averageRating;
 
   const WalletStatsGrid({
     super.key,
-    required this.totalEarnedMonth,
-    required this.salesCountMonth,
+    required this.totalPaidOut,
+    required this.paidPayoutsCount,
     required this.pendingAmount,
     required this.averageRating,
   });
@@ -40,11 +40,11 @@ class WalletStatsGrid extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _buildTile(colors, Icons.trending_up_rounded, 'TOTAL GAGNÉ (MOIS)', formatFcfa(totalEarnedMonth)),
+                child: _buildTile(colors, Icons.trending_up_rounded, 'TOTAL REVERSÉ', formatFcfa(totalPaidOut)),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildTile(colors, Icons.shopping_bag_outlined, 'VENTES (MOIS)', '$salesCountMonth'),
+                child: _buildTile(colors, Icons.shopping_bag_outlined, 'REVERSEMENTS', '$paidPayoutsCount'),
               ),
             ],
           ),

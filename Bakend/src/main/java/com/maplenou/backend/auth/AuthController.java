@@ -1,11 +1,15 @@
 package com.maplenou.backend.auth;
 
 import com.maplenou.backend.auth.dto.*;
+import com.maplenou.backend.user.User;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final FirebaseTokenService firebaseTokenService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -38,5 +43,16 @@ public class AuthController {
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Jeton Firebase personnalisé pour le compte connecté — nécessaire pour
+     * accéder à Firebase Realtime Database (tracking GPS livreur) sous les
+     * règles de sécurité qui exigent une session Firebase authentifiée.
+     */
+    @GetMapping("/firebase-token")
+    @SecurityRequirement(name = "bearerAuth")
+    public FirebaseTokenResponse getFirebaseToken(@AuthenticationPrincipal User currentUser) {
+        return new FirebaseTokenResponse(firebaseTokenService.createToken(currentUser));
     }
 }

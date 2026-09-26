@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/courier_dashboard_model.dart';
 import '../theme/app_color_scheme.dart';
-import '../utils/formatters.dart';
 
 /// One "Courses Actives" card on [CourierDashboardScreen]: either "À
-/// collecter" (heading to the shop) or "En route" (heading to the client,
-/// cash to collect + a confirm button).
+/// collecter" (heading to the shop) or "En route" (heading to the client)
+/// with a confirm button.
 class ActiveDeliveryCard extends StatelessWidget {
   final ActiveDeliveryModel delivery;
   final VoidCallback onTap;
@@ -54,19 +53,8 @@ class ActiveDeliveryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (_isEnRoute && delivery.amountToCollect != null)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('À encaisser', style: TextStyle(fontSize: 11, color: colors.textMuted)),
-                      Text(
-                        '${formatFcfa(delivery.amountToCollect!)} (Espèces)',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.accentOrange),
-                      ),
-                    ],
-                  )
-                else
-                  Text('${delivery.distanceKm} km • ${delivery.etaMinutes} min',
+                if (delivery.distanceKm != null)
+                  Text('${delivery.distanceKm!.toStringAsFixed(1)} km',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textDark)),
               ],
             ),

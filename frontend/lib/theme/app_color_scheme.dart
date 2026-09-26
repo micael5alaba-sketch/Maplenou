@@ -127,6 +127,11 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
 
 /// Ergonomic access: `context.colors.primary` instead of
 /// `Theme.of(context).extension<AppColorScheme>()!.primary`.
+///
+/// Repli sur [AppColorScheme.light] si l'extension est absente : ne devrait
+/// jamais arriver dans l'app réelle (`MaplenouApp` définit toujours
+/// `theme`/`darkTheme`), mais un widget testé isolément sous un
+/// `MaterialApp` nu (sans thème) ne doit pas planter pour autant.
 extension AppColorSchemeContext on BuildContext {
-  AppColorScheme get colors => Theme.of(this).extension<AppColorScheme>()!;
+  AppColorScheme get colors => Theme.of(this).extension<AppColorScheme>() ?? AppColorScheme.light;
 }

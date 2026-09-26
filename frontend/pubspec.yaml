@@ -50,6 +50,26 @@ dependencies:
   http: ^1.2.2
   fl_chart: ^1.2.0
 
+  # Capture d'une photo de preuve de livraison (upload signé Cloudinary).
+  image_picker: ^1.1.2
+
+  # Stockage sécurisé du JWT (access/refresh token) — jamais dans
+  # SharedPreferences en clair.
+  flutter_secure_storage: ^9.2.2
+
+  # Capture de la position GPS de l'acheteur (adresse de livraison) et du
+  # livreur (navigation pickup/dropoff).
+  geolocator: ^13.0.2
+  permission_handler: ^11.3.1
+
+  # Tracking GPS temps réel du livreur pendant une livraison en cours —
+  # écriture/lecture directe sur Firebase Realtime Database depuis le
+  # client, voir `notification/FirebaseRealtimeDbStructure.java` côté
+  # backend pour la structure exacte des données.
+  firebase_core: ^3.8.0
+  firebase_database: ^11.1.6
+  firebase_auth: ^5.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

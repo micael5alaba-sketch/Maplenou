@@ -29,11 +29,12 @@ public class SubOrderService {
     // ----- Lecture vendeur -----
 
     @Transactional(readOnly = true)
-    public Page<SubOrderResponse> listMySubOrders(User seller, Pageable pageable) {
+    public Page<SubOrderResponse> listMySubOrders(User seller, SubOrderStatus status, Pageable pageable) {
         Shop shop = getShopOrThrow(seller);
-        return subOrderRepository
-                .findByShopIdOrderByCreatedAtDesc(shop.getId(), pageable)
-                .map(SubOrderResponse::from);
+        Page<SubOrder> page = status == null
+                ? subOrderRepository.findByShopIdOrderByCreatedAtDesc(shop.getId(), pageable)
+                : subOrderRepository.findByShopIdAndStatusOrderByCreatedAtDesc(shop.getId(), status, pageable);
+        return page.map(SubOrderResponse::from);
     }
 
     @Transactional(readOnly = true)

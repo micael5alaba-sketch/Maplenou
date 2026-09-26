@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/courier_dashboard_model.dart';
+import '../services/api_client.dart';
 import '../services/courier_dashboard_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/active_delivery_card.dart';
@@ -17,12 +18,13 @@ import 'courier_messages_screen.dart';
 import 'courier_profile_screen.dart';
 import 'courier_deliveries_screen.dart';
 
-/// Courier's main dashboard: online/offline toggle, earnings evolution,
-/// daily goal, performance, and active deliveries.
+/// Courier's main dashboard: online/offline toggle (état local, pas de
+/// notion backend de disponibilité), évolution des gains, objectif du
+/// jour, performance, et livraisons actives.
 ///
-/// Backed by [CourierDashboardService] mocked data for now — no network
-/// call yet. The earnings/goal/rating figures have no backend model to
-/// map onto (see that service's doc comment).
+/// Backed by [CourierDashboardService] (gains/livraisons réels — note et
+/// objectif du jour restent volontairement sans équivalent backend, voir
+/// ce service).
 class CourierDashboardScreen extends StatefulWidget {
   const CourierDashboardScreen({super.key});
 
@@ -33,18 +35,26 @@ class CourierDashboardScreen extends StatefulWidget {
 class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = CourierDashboardService();
-  late CourierDashboardModel _dashboard;
+  late Future<CourierDashboardModel> _dashboardFuture;
+  bool _isOnline = false;
 
   final CourierTab _currentTab = CourierTab.dashboard;
 
   @override
   void initState() {
     super.initState();
-    _dashboard = _service.getDashboard(isOnline: false);
+    _dashboardFuture = _service.getDashboard(isOnline: _isOnline);
   }
 
   void _setOnline(bool isOnline) {
-    setState(() => _dashboard = _service.getDashboard(isOnline: isOnline));
+    setState(() {
+      _isOnline = isOnline;
+      _dashboardFuture = _service.getDashboard(isOnline: isOnline);
+    });
+  }
+
+  void _reload() {
+    setState(() => _dashboardFuture = _service.getDashboard(isOnline: _isOnline));
   }
 
   void _showComingSoon(String feature) {
@@ -54,11 +64,15 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   }
 
   void _openDeliveryDetail(ActiveDeliveryModel delivery) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveryDetailScreen()));
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => CourierDeliveryDetailScreen(deliveryId: delivery.id)))
+        .then((_) => _reload());
   }
 
   void _openConfirmation(ActiveDeliveryModel delivery) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveryConfirmationScreen()));
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => CourierDeliveryConfirmationScreen(deliveryId: delivery.id)))
+        .then((_) => _reload());
   }
 
   void _onTabSelected(CourierTab tab) {
@@ -67,7 +81,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
       case CourierTab.dashboard:
         break;
       case CourierTab.deliveries:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen())).then((_) => _reload());
         break;
       case CourierTab.messages:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
@@ -81,7 +95,6 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final dashboard = _dashboard;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -92,76 +105,115 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bonjour, ${dashboard.courierName}',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('Prêt pour votre journée ?', style: TextStyle(fontSize: 14, color: colors.textMuted)),
-                    const SizedBox(height: 16),
-                    OnlineStatusToggle(isOnline: dashboard.isOnline, onChanged: _setOnline),
-                    const SizedBox(height: 20),
-                    EarningsEvolutionCard(
-                      points: dashboard.weeklyEarningsSeries,
-                      weeklyTotal: dashboard.weeklyTotal,
-                      changePercent: dashboard.weeklyChangePercent,
-                    ),
-                    const SizedBox(height: 16),
-                    DailyEarningsCard(earnings: dashboard.dailyEarnings, goal: dashboard.dailyGoal),
-                    const SizedBox(height: 16),
-                    PerformanceCard(
-                      rating: dashboard.rating,
-                      validatedDeliveries: dashboard.validatedDeliveries,
-                      totalDeliveries: dashboard.totalDeliveriesToday,
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton.icon(
-                        onPressed: dashboard.isOnline
-                            ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()))
-                            : () => _setOnline(true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colors.accentOrange,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        ),
-                        icon: Icon(dashboard.isOnline ? Icons.local_shipping_rounded : Icons.toggle_on_rounded),
-                        label: Text(
-                          dashboard.isOnline ? 'Prêt pour une nouvelle course' : 'Passer en ligne',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (dashboard.isOnline && dashboard.activeDeliveries.isNotEmpty) ...[
-                      Text('Courses Actives', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textDark)),
-                      const SizedBox(height: 12),
-                      for (final delivery in dashboard.activeDeliveries) ...[
-                        ActiveDeliveryCard(
-                          delivery: delivery,
-                          onTap: () => _openDeliveryDetail(delivery),
-                          onConfirm: () => _openConfirmation(delivery),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ] else
-                      _buildOfflineState(colors, dashboard.isOnline),
-                  ],
-                ),
+              child: FutureBuilder<CourierDashboardModel>(
+                future: _dashboardFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return _buildErrorState(colors, snapshot.error);
+                  }
+                  return _buildContent(context, colors, snapshot.data!);
+                },
               ),
             ),
           ],
         ),
       ),
       bottomNavigationBar: CourierBottomNavigation(currentTab: _currentTab, onTabSelected: _onTabSelected),
+    );
+  }
+
+  Widget _buildErrorState(AppColorScheme colors, Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+            const SizedBox(height: 12),
+            Text(
+              error is ApiException ? error.message : 'Impossible de charger le dashboard.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _reload, child: const Text('Réessayer')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, AppColorScheme colors, CourierDashboardModel dashboard) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Bonjour, ${dashboard.courierName}',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textDark),
+          ),
+          const SizedBox(height: 4),
+          Text('Prêt pour votre journée ?', style: TextStyle(fontSize: 14, color: colors.textMuted)),
+          const SizedBox(height: 16),
+          OnlineStatusToggle(isOnline: dashboard.isOnline, onChanged: _setOnline),
+          const SizedBox(height: 20),
+          EarningsEvolutionCard(
+            points: dashboard.weeklyEarningsSeries,
+            weeklyTotal: dashboard.weeklyTotal,
+            changePercent: dashboard.weeklyChangePercent ?? 0,
+          ),
+          const SizedBox(height: 16),
+          DailyEarningsCard(earnings: dashboard.dailyEarnings, goal: dashboard.dailyGoal),
+          const SizedBox(height: 16),
+          PerformanceCard(
+            rating: dashboard.rating,
+            validatedDeliveries: dashboard.validatedDeliveries,
+            totalDeliveries: dashboard.totalDeliveriesToday,
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: dashboard.isOnline
+                  ? () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()))
+                      .then((_) => _reload())
+                  : () => _setOnline(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accentOrange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              ),
+              icon: Icon(dashboard.isOnline ? Icons.local_shipping_rounded : Icons.toggle_on_rounded),
+              label: Text(
+                dashboard.isOnline ? 'Voir mes livraisons' : 'Passer en ligne',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (dashboard.isOnline && dashboard.activeDeliveries.isNotEmpty) ...[
+            Text('Courses Actives', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textDark)),
+            const SizedBox(height: 12),
+            for (final delivery in dashboard.activeDeliveries) ...[
+              ActiveDeliveryCard(
+                delivery: delivery,
+                onTap: () => _openDeliveryDetail(delivery),
+                onConfirm: delivery.status == ActiveDeliveryStatus.enRoute ? () => _openConfirmation(delivery) : null,
+              ),
+              const SizedBox(height: 12),
+            ],
+          ] else
+            _buildOfflineState(colors, dashboard.isOnline),
+        ],
+      ),
     );
   }
 
@@ -201,14 +253,14 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
           Icon(Icons.cloud_off_rounded, size: 40, color: colors.textMuted),
           const SizedBox(height: 12),
           Text(
-            isOnline ? 'Aucune course active pour le moment.' : 'Vous êtes hors ligne',
+            isOnline ? 'Aucune livraison active pour le moment.' : 'Vous êtes hors ligne',
             style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark),
           ),
           const SizedBox(height: 6),
           Text(
             isOnline
-                ? "Consultez l'onglet Courses pour en accepter une."
-                : 'Passez en ligne pour commencer à recevoir des courses et augmenter vos gains.',
+                ? "Consultez l'onglet Courses pour vos livraisons assignées."
+                : 'Passez en ligne pour voir vos livraisons assignées.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
           ),

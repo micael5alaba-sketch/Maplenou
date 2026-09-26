@@ -1,0 +1,38 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Installer les dépendances
+        run: flutter pub get
+
+      - name: Analyser (flutter analyze)
+        run: flutter analyze
+
+      - name: Lancer les tests
+        run: flutter test

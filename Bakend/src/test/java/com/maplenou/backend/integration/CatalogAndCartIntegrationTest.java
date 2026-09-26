@@ -127,7 +127,8 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         JsonNode createdProduct = post("/api/shops/mine/products",
                 new CreateProductRequest("Téléphone Test " + rand, "Un bon téléphone",
                         new BigDecimal("15000.00"), null, subCategoryId,
-                        List.of(new CreateVariantRequest("64Go", null, 10, "SKU-" + rand)), null),
+                        List.of(new CreateVariantRequest("64Go", null, 10, "SKU-" + rand)), null,
+                        null, null, null),
                 sellerToken, 201);
         productId = UUID.fromString(createdProduct.get("id").asText());
         assertEquals("DRAFT", createdProduct.get("status").asText());
@@ -136,7 +137,8 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         // Prix trop bas rejeté
         post("/api/shops/mine/products",
                 new CreateProductRequest("Trop pas cher", null, new BigDecimal("100.00"), null, subCategoryId,
-                        List.of(new CreateVariantRequest("v", null, 1, "SKU-LOW-" + rand)), null),
+                        List.of(new CreateVariantRequest("v", null, 1, "SKU-LOW-" + rand)), null,
+                        null, null, null),
                 sellerToken, 400);
 
         JsonNode myProducts = get("/api/shops/mine/products", sellerToken, 200);
@@ -149,7 +151,8 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 400);
 
         JsonNode activated = patch("/api/shops/mine/products/" + productId,
-                new UpdateProductRequest(null, null, null, null, null, com.maplenou.backend.catalog.ProductStatus.ACTIVE, null),
+                new UpdateProductRequest(null, null, null, null, null, com.maplenou.backend.catalog.ProductStatus.ACTIVE, null,
+                        null, null, null),
                 sellerToken, 200);
         assertEquals("ACTIVE", activated.get("status").asText());
 

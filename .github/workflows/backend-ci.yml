@@ -1,0 +1,74 @@
+name: Backend CI
+
+# Se déclenche uniquement sur les changements du backend, jamais sur une PR qui ne touche que
+# le frontend (voir aussi frontend-ci.yml) -- deux workflows séparés, pas un seul monolithique.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Bakend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "Bakend/**"
+      - ".github/workflows/backend-ci.yml"
+
+defaults:
+  run:
+    working-directory: Bakend
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Ce projet n'utilise pas Testcontainers (voir MANUEL.md §12) : les tests tournent contre
+    # de vrais services Postgres/Redis, comme en local -- mêmes identifiants que le fallback de
+    # développement dans application.properties, pour n'avoir aucune variable d'env à définir ici.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: maplenou_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Micael2005@
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer le JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+          cache-dependency-path: Bakend/pom.xml
+
+      - name: Lancer les tests
+        run: ./mvnw --batch-mode --no-transfer-progress test
+
+      - name: Publier les rapports de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-surefire-reports
+          path: Bakend/target/surefire-reports
+          if-no-files-found: ignore
+
+      - name: Construire le jar (vérifie que le build de production passe aussi)
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests package
