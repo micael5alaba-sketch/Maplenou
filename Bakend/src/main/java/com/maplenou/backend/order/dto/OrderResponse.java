@@ -18,9 +18,17 @@ public record OrderResponse(
         DeliveryAddressDto deliveryAddress,
         List<SubOrderSummary> subOrders,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** URL de paiement FedaPay à ouvrir côté client — uniquement renseignée juste après
+         * POST /api/orders (voir OrderService.placeOrder), null partout ailleurs (on ne
+         * regénère pas un lien de paiement à chaque relecture de la commande). */
+        String paymentUrl
 ) {
     public static OrderResponse from(Order order) {
+        return from(order, null);
+    }
+
+    public static OrderResponse from(Order order, String paymentUrl) {
         var addr = order.getDeliveryAddress();
         var addrDto = addr == null ? null : new DeliveryAddressDto(
                 addr.getLabel(),
@@ -40,7 +48,8 @@ public record OrderResponse(
                 addrDto,
                 order.getSubOrders().stream().map(SubOrderSummary::from).toList(),
                 order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                paymentUrl
         );
     }
 }

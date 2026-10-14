@@ -24,7 +24,7 @@ class PaymentMethodOptionTile extends StatelessWidget {
         return const Color(0xFFF5C518);
       case PaymentMethodType.flooz:
         return const Color(0xFF1E5FCB);
-      case PaymentMethodType.stripe:
+      case PaymentMethodType.card:
         return Colors.transparent;
     }
   }
@@ -56,7 +56,7 @@ class PaymentMethodOptionTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (option.type == PaymentMethodType.stripe)
+            if (option.type == PaymentMethodType.card)
               Icon(Icons.credit_card_rounded, color: colors.textDark)
             else
               Container(

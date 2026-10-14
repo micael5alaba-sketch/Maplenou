@@ -39,6 +39,14 @@ public class Payout {
     @Column(name = "commission_total", nullable = false, precision = 14, scale = 2)
     private BigDecimal commissionTotal;
 
+    /**
+     * Frais mensuels d'activité (voir {@code SellerFeeService}) déduits de ce reversement avant
+     * versement — {@code amount} ci-dessus est déjà net de cette déduction.
+     */
+    @Column(name = "fees_deducted", nullable = false, precision = 14, scale = 2)
+    @Builder.Default
+    private BigDecimal feesDeducted = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

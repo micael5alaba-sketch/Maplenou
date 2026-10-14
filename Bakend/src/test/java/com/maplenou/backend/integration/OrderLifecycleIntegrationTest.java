@@ -7,6 +7,10 @@ import com.maplenou.backend.cart.CartRepository;
 import com.maplenou.backend.cart.dto.AddToCartRequest;
 import com.maplenou.backend.catalog.*;
 import com.maplenou.backend.catalog.dto.*;
+import com.maplenou.backend.courier.CourierDocumentStatus;
+import com.maplenou.backend.courier.CourierDocumentType;
+import com.maplenou.backend.courier.dto.ReviewCourierDocumentRequest;
+import com.maplenou.backend.courier.dto.SubmitCourierDocumentRequest;
 import com.maplenou.backend.delivery.DeliveryRepository;
 import com.maplenou.backend.delivery.DeliveryStatus;
 import com.maplenou.backend.delivery.ProofType;
@@ -106,19 +110,32 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         String sellerPhone = "+22871" + String.format("%07d", rand % 10_000_000L);
         String agentPhone = "+22872" + String.format("%07d", rand % 10_000_000L);
 
-        JsonNode buyerAuth = post("/api/auth/register", new RegisterRequest("Order Buyer", buyerPhone, "Passw0rd!"), null, 201);
+        JsonNode buyerAuth = post("/api/auth/register", new RegisterRequest("Order Buyer", buyerPhone, "Passw0rd!", null), null, 201);
         buyerId = UUID.fromString(buyerAuth.get("user").get("id").asText());
         buyerToken = buyerAuth.get("accessToken").asText();
 
-        JsonNode sellerAuth = post("/api/auth/register", new RegisterRequest("Order Seller", sellerPhone, "Passw0rd!"), null, 201);
+        JsonNode sellerAuth = post("/api/auth/register", new RegisterRequest("Order Seller", sellerPhone, "Passw0rd!", null), null, 201);
         sellerId = UUID.fromString(sellerAuth.get("user").get("id").asText());
 
-        JsonNode agentAuth = post("/api/auth/register", new RegisterRequest("Order Agent", agentPhone, "Passw0rd!"), null, 201);
+        JsonNode agentAuth = post("/api/auth/register", new RegisterRequest("Order Agent", agentPhone, "Passw0rd!", null), null, 201);
         agentId = UUID.fromString(agentAuth.get("user").get("id").asText());
         patch("/api/admin/users/" + agentId + "/role", new ChangeRoleRequest(Role.DELIVERY_AGENT), adminToken, 200);
         agentToken = login(agentPhone, "Passw0rd!");
 
-        JsonNode apply = post("/api/sellers/apply", new ApplySellerRequest("Boutique Order " + rand),
+        // Un livreur ne peut recevoir de livraison que si ses 4 documents obligatoires sont
+        // VALID (voir DeliveryService.assignAgent / CourierDocumentService.isFullyVerified) :
+        // on simule ici la validation admin pour que le reste de la suite (assignation réelle
+        // plus bas) reflète un livreur opérationnel, pas un livreur fraîchement inscrit.
+        for (CourierDocumentType type : CourierDocumentType.values()) {
+            JsonNode submitted = post("/api/delivery-agents/me/documents",
+                    new SubmitCourierDocumentRequest(type, "https://res.cloudinary.com/demo/image/upload/v1/docs/d.jpg", null),
+                    agentToken, 201);
+            UUID documentId = UUID.fromString(submitted.get("id").asText());
+            patch("/api/admin/courier-documents/" + documentId + "/review",
+                    new ReviewCourierDocumentRequest(CourierDocumentStatus.VALID, null), adminToken, 200);
+        }
+
+        JsonNode apply = post("/api/sellers/apply", new ApplySellerRequest("Boutique Order " + rand, null),
                 sellerAuth.get("accessToken").asText(), 201);
         sellerProfileId = UUID.fromString(apply.get("id").asText());
         patch("/api/sellers/admin/" + sellerProfileId + "/status",
@@ -165,7 +182,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         post("/api/cart/items", new AddToCartRequest(variantId, 3), buyerToken, 200);
 
         JsonNode order = post("/api/orders",
-                new PlaceOrderRequest(addressId, "PROMO" + rand, null), buyerToken, 201);
+                new PlaceOrderRequest(addressId, "PROMO" + rand, null, null), buyerToken, 201);
         orderId = UUID.fromString(order.get("id").asText());
         assertEquals("CREATED", order.get("status").asText());
         assertTrue(order.get("discountAmount").decimalValue().compareTo(BigDecimal.ZERO) > 0);
@@ -173,7 +190,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
 
         // Le code promo a déjà été utilisé par cet acheteur -> une deuxième commande avec le même code échoue
         post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 200);
-        post("/api/orders", new PlaceOrderRequest(addressId, "PROMO" + rand, null), buyerToken, 409);
+        post("/api/orders", new PlaceOrderRequest(addressId, "PROMO" + rand, null, null), buyerToken, 409);
         // Le panier doit être vidé manuellement car la tentative précédente a échoué avant de vider le panier
         delete("/api/cart", buyerToken, 204);
     }
@@ -197,7 +214,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
 
         // Deuxième commande dédiée à un paiement échoué
         post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 200);
-        JsonNode order2 = post("/api/orders", new PlaceOrderRequest(addressId, null, null), buyerToken, 201);
+        JsonNode order2 = post("/api/orders", new PlaceOrderRequest(addressId, null, null, null), buyerToken, 201);
         order2Id = UUID.fromString(order2.get("id").asText());
         subOrder2Id = UUID.fromString(order2.get("subOrders").get(0).get("id").asText());
 
@@ -400,7 +417,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Order(11)
     void secondSubOrderReturnApprovedRestoresStockAndMarksReturned() throws Exception {
         post("/api/cart/items", new AddToCartRequest(variantId, 2), buyerToken, 200);
-        JsonNode order = post("/api/orders", new PlaceOrderRequest(addressId, null, null), buyerToken, 201);
+        JsonNode order = post("/api/orders", new PlaceOrderRequest(addressId, null, null, null), buyerToken, 201);
         UUID thisOrderId = UUID.fromString(order.get("id").asText());
         UUID thisSubOrderId = UUID.fromString(order.get("subOrders").get(0).get("id").asText());
 

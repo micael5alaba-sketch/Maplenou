@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/active_delivery_detail_model.dart';
 import '../services/active_delivery_service.dart';
@@ -7,6 +9,8 @@ import '../services/courier_delivery_service.dart';
 import '../services/courier_location_tracking_service.dart';
 import '../services/courier_messaging_service.dart';
 import '../theme/app_color_scheme.dart';
+import '../utils/formatters.dart';
+import '../widgets/live_tracking_map.dart';
 import 'courier_conversation_screen.dart';
 import 'courier_delivery_confirmation_screen.dart';
 
@@ -101,6 +105,28 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
     }
   }
 
+  /// Ouvre l'app Google Maps installée sur le téléphone avec l'itinéraire
+  /// vers le point de retrait (tant que la course n'est pas commencée) ou
+  /// vers le client (une fois en route) — pas de carte intégrée, pas de clé
+  /// Google Maps Platform (voir `INVENTAIRE_ABONNEMENTS.md` §3).
+  Future<void> _openNavigation(ActiveDeliveryDetailModel delivery) async {
+    final lat = delivery.navigationLatitude;
+    final lng = delivery.navigationLongitude;
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Position GPS non disponible pour cette adresse.')));
+      return;
+    }
+    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir Google Maps.')));
+    }
+  }
+
   void _handleConfirm() {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => CourierDeliveryConfirmationScreen(deliveryId: widget.deliveryId)))
@@ -150,6 +176,10 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
       children: [
         _buildMapPlaceholder(colors, delivery),
         const SizedBox(height: 16),
+        if (delivery.estimatedEarning != null) ...[
+          _buildEarningCard(colors, delivery.estimatedEarning!),
+          const SizedBox(height: 16),
+        ],
         _buildClientCard(context, colors, delivery),
         const SizedBox(height: 16),
         _buildAddressCard(colors, delivery),
@@ -217,32 +247,98 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
   }
 
   Widget _buildMapPlaceholder(AppColorScheme colors, ActiveDeliveryDetailModel delivery) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        height: 200,
-        color: colors.inputFill,
-        child: Stack(
-          children: [
-            Center(child: Icon(Icons.map_outlined, size: 48, color: colors.textMuted)),
-            if (delivery.distanceKm != null)
-              Positioned(
-                top: 12,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
-                    child: Text(
-                      '${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 13),
+    final hasTarget = delivery.hasNavigationTarget;
+    final points = <TrackedPoint>[
+      if (delivery.pickupLatitude != null && delivery.pickupLongitude != null)
+        TrackedPoint(
+          position: ll.LatLng(delivery.pickupLatitude!, delivery.pickupLongitude!),
+          icon: Icons.storefront_rounded,
+          color: colors.accentOrange,
+        ),
+      if (delivery.dropoffLatitude != null && delivery.dropoffLongitude != null)
+        TrackedPoint(
+          position: ll.LatLng(delivery.dropoffLatitude!, delivery.dropoffLongitude!),
+          icon: Icons.location_on_rounded,
+          color: colors.primary,
+        ),
+    ];
+
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              LiveTrackingMap(points: points, height: 200),
+              if (delivery.distanceKm != null)
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          '${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 13),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
+        const SizedBox(height: 10),
+        if (hasTarget)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openNavigation(delivery),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              icon: const Icon(Icons.directions_rounded, size: 18),
+              label: const Text('Ouvrir l\'itinéraire dans Google Maps'),
+            ),
+          )
+        else
+          Text(
+            'Position GPS non disponible pour cette adresse',
+            style: TextStyle(color: colors.textMuted, fontSize: 12),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEarningCard(AppColorScheme colors, double estimatedEarning) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.payments_outlined, color: colors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('GAIN ESTIMÉ POUR CETTE COURSE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.textMuted)),
+                const SizedBox(height: 2),
+                Text(formatFcfa(estimatedEarning), style: TextStyle(fontWeight: FontWeight.bold, color: colors.primary, fontSize: 16)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

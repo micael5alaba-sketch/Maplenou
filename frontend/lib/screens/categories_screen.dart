@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../models/category_model.dart';
 import '../models/product_model.dart';
 import '../services/api_client.dart';
 import '../services/cart_service.dart';
+import '../services/category_service.dart';
 import '../services/product_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -17,12 +21,20 @@ import 'favorites_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
 
+enum _SortOption { recent, priceAsc, priceDesc }
+
 /// "Catégories" tab: search + filters over a staggered results grid.
 ///
 /// Reached from [HomeScreen]'s bottom navigation. Products are fetched
-/// from the backend catalog (`GET /api/products`) via [ProductService].
+/// from the backend catalog (`GET /api/products`) via [ProductService],
+/// with real category/prix/recherche filters — pas de "bientôt disponible"
+/// ici, tous les filtres appellent le backend (recherche = full-text
+/// tsvector, voir `ProductController`/`ProductRepository`).
 class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({super.key});
+  final String? initialSearch;
+  final CategoryModel? initialCategory;
+
+  const CategoriesScreen({super.key, this.initialSearch, this.initialCategory});
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -31,15 +43,30 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _productService = ProductService();
+  final _categoryService = CategoryService();
+  late final _searchController = TextEditingController(text: widget.initialSearch ?? '');
 
   List<ProductModel> _results = [];
   bool _isLoading = true;
   String? _error;
+  Timer? _debounce;
+
+  late CategoryModel? _selectedCategory = widget.initialCategory;
+  num? _minPrice;
+  num? _maxPrice;
+  _SortOption _sort = _SortOption.recent;
 
   @override
   void initState() {
     super.initState();
     _loadResults();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadResults() async {
@@ -48,10 +75,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       _error = null;
     });
     try {
-      final results = await _productService.getCategoryResults();
+      final results = await _productService.getCategoryResults(
+        categoryId: _selectedCategory?.id,
+        minPrice: _minPrice,
+        maxPrice: _maxPrice,
+        search: _searchController.text,
+      );
       if (!mounted) return;
       setState(() {
-        _results = results;
+        _results = _sortResults(results);
         _isLoading = false;
       });
     } catch (_) {
@@ -63,10 +95,195 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  void _showComingSoon(String feature) {
+  List<ProductModel> _sortResults(List<ProductModel> input) {
+    final list = [...input];
+    switch (_sort) {
+      case _SortOption.recent:
+        break;
+      case _SortOption.priceAsc:
+        list.sort((a, b) => a.price.compareTo(b.price));
+      case _SortOption.priceDesc:
+        list.sort((a, b) => b.price.compareTo(a.price));
+    }
+    return list;
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _loadResults);
+  }
+
+  Future<void> _pickCategory() async {
+    List<CategoryModel> categories;
+    try {
+      categories = await _categoryService.getCategories();
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+      return;
+    }
+    if (!mounted) return;
+    final colors = context.colors;
+    final picked = await showModalBottomSheet<CategoryModel?>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Catégorie', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              const SizedBox(height: 8),
+              ListTile(
+                title: Text('Toutes les catégories', style: TextStyle(color: colors.textDark)),
+                trailing: _selectedCategory == null ? Icon(Icons.check_rounded, color: colors.primary) : null,
+                onTap: () => Navigator.of(sheetContext).pop(),
+              ),
+              for (final category in categories)
+                ListTile(
+                  title: Text(category.name, style: TextStyle(color: colors.textDark)),
+                  trailing: _selectedCategory?.id == category.id ? Icon(Icons.check_rounded, color: colors.primary) : null,
+                  onTap: () => Navigator.of(sheetContext).pop(category),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted) return;
+    setState(() => _selectedCategory = picked);
+    _loadResults();
+  }
+
+  Future<void> _pickPriceRange() async {
+    final minController = TextEditingController(text: _minPrice?.toStringAsFixed(0) ?? '');
+    final maxController = TextEditingController(text: _maxPrice?.toStringAsFixed(0) ?? '');
+    final colors = context.colors;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: colors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Fourchette de prix (FCFA)', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: minController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Min'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: maxController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Max'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(false),
+                          child: const Text('Annuler'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
+                          onPressed: () => Navigator.of(sheetContext).pop(true),
+                          child: const Text('Appliquer'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (applied != true || !mounted) return;
+    setState(() {
+      _minPrice = num.tryParse(minController.text.trim());
+      _maxPrice = num.tryParse(maxController.text.trim());
+    });
+    _loadResults();
+  }
+
+  void _pickSort() {
+    final colors = context.colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        const labels = {
+          _SortOption.recent: 'Plus récent',
+          _SortOption.priceAsc: 'Prix croissant',
+          _SortOption.priceDesc: 'Prix décroissant',
+        };
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Trier par', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              for (final option in _SortOption.values)
+                ListTile(
+                  title: Text(labels[option]!, style: TextStyle(color: colors.textDark)),
+                  trailing: _sort == option ? Icon(Icons.check_rounded, color: colors.primary) : null,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    setState(() {
+                      _sort = option;
+                      _results = _sortResults(_results);
+                    });
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedCategory = null;
+      _minPrice = null;
+      _maxPrice = null;
+      _searchController.clear();
+    });
+    _loadResults();
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _openProductDetails(ProductModel product) {
@@ -94,10 +311,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     try {
       await CartService().addProductQuickly(product);
     } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.message)));
+      _showMessage(e.message);
       return;
     }
     if (!mounted) return;
@@ -117,15 +331,19 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: context.colors.homeBackground,
-      drawer: AppDrawer(onComingSoon: _showComingSoon),
+      drawer: AppDrawer(onComingSoon: _showMessage),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(),
             const SizedBox(height: 12),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SearchField(hintText: 'Rechercher des produits, artisans...'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SearchField(
+                hintText: 'Rechercher des produits, artisans...',
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+              ),
             ),
             const SizedBox(height: 14),
             _buildFilters(),
@@ -167,23 +385,27 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   Widget _buildFilters() {
+    final hasFilters = _selectedCategory != null || _minPrice != null || _maxPrice != null || _searchController.text.isNotEmpty;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          const FilterPill(label: 'Tout voir', isActive: true),
+          FilterPill(label: 'Tout voir', isActive: !hasFilters, onTap: hasFilters ? _clearFilters : null),
           const SizedBox(width: 8),
           FilterPill(
-            label: 'Catégorie',
+            label: _selectedCategory?.name ?? 'Catégorie',
+            isActive: _selectedCategory != null,
             showChevron: true,
-            onTap: () => _showComingSoon('Le filtre par catégorie'),
+            onTap: _pickCategory,
           ),
           const SizedBox(width: 8),
           FilterPill(
-            label: 'Prix',
+            label: (_minPrice != null || _maxPrice != null) ? 'Prix ✓' : 'Prix',
+            isActive: _minPrice != null || _maxPrice != null,
             showChevron: true,
-            onTap: () => _showComingSoon('Le filtre par prix'),
+            onTap: _pickPriceRange,
           ),
         ],
       ),
@@ -192,6 +414,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   Widget _buildResultsBar() {
     final colors = context.colors;
+    const sortLabels = {
+      _SortOption.recent: 'Plus récent',
+      _SortOption.priceAsc: 'Prix croissant',
+      _SortOption.priceDesc: 'Prix décroissant',
+    };
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -221,7 +448,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           const SizedBox(width: 8),
           Flexible(
             child: GestureDetector(
-              onTap: () => _showComingSoon('Le tri des résultats'),
+              onTap: _pickSort,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -231,7 +458,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         children: [
                           TextSpan(text: 'Trier par: ', style: TextStyle(fontSize: 13, color: colors.textMuted)),
                           TextSpan(
-                            text: 'Plus récent',
+                            text: sortLabels[_sort],
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textDark),
                           ),
                         ],
@@ -267,6 +494,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: context.colors.textMuted)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _loadResults, child: const Text('Réessayer')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_results.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 42, color: context.colors.textMuted),
+              const SizedBox(height: 12),
+              Text('Aucun résultat pour ces critères.', style: TextStyle(color: context.colors.textMuted)),
             ],
           ),
         ),

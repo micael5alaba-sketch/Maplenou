@@ -8,6 +8,7 @@ import com.maplenou.backend.order.SubOrderRepository;
 import com.maplenou.backend.payout.dto.GeneratePayoutsRequest;
 import com.maplenou.backend.payout.dto.PayoutResponse;
 import com.maplenou.backend.payout.dto.UpdatePayoutStatusRequest;
+import com.maplenou.backend.sellerfee.SellerFeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class PayoutService {
     private final PayoutRepository payoutRepository;
     private final SubOrderRepository subOrderRepository;
     private final AuditService auditService;
+    private final SellerFeeService sellerFeeService;
 
     // ----- Scheduler automatique -----
 
@@ -162,6 +164,22 @@ public class PayoutService {
                 .map(PayoutResponse::from);
     }
 
+    /**
+     * Vendeur : détail d'un de ses payouts, avec le détail des sous-commandes incluses
+     * (pour la facture téléchargeable). Vérifie que le payout appartient bien à cette boutique.
+     */
+    @Transactional(readOnly = true)
+    public com.maplenou.backend.payout.dto.PayoutDetailResponse getSellerPayoutDetail(UUID payoutId, UUID shopId) {
+        Payout payout = getOrThrow(payoutId);
+        if (!payout.getShop().getId().equals(shopId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé");
+        }
+        var subOrders = subOrderRepository.findByPayoutId(payoutId).stream()
+                .map(com.maplenou.backend.order.dto.SubOrderSummary::from)
+                .toList();
+        return com.maplenou.backend.payout.dto.PayoutDetailResponse.from(payout, subOrders);
+    }
+
     // ----- Privé -----
 
     /**
@@ -196,15 +214,26 @@ public class PayoutService {
                     .map(SubOrder::getCommissionAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            // Frais mensuels d'activité (voir SellerFeeService) déduits AVANT tout versement —
+            // jamais au-delà du solde disponible, le reliquat reste dû pour le prochain reversement.
+            BigDecimal unpaidFees = sellerFeeService.getUnpaidFeesTotal(shopId);
+            BigDecimal feesToDeduct = unpaidFees.min(netTotal);
+            BigDecimal netAfterFees = netTotal.subtract(feesToDeduct);
+
             Payout payout = Payout.builder()
                     .shop(subOrders.get(0).getShop())
                     .periodStart(from)
                     .periodEnd(to)
-                    .amount(netTotal)
+                    .amount(netAfterFees)
                     .commissionTotal(commTotal)
+                    .feesDeducted(feesToDeduct)
                     .status(PayoutStatus.PENDING)
                     .build();
             payout = payoutRepository.save(payout);
+
+            if (feesToDeduct.signum() > 0) {
+                sellerFeeService.applyDeduction(shopId, feesToDeduct, payout);
+            }
 
             // Lier les SubOrders au payout pour éviter de les réinclure la semaine suivante
             for (SubOrder so : subOrders) {
@@ -212,8 +241,8 @@ public class PayoutService {
                 subOrderRepository.save(so);
             }
 
-            log.info("[Payout] Créé payout {} pour shop {} : {} FCFA net ({} sous-ordres)",
-                    payout.getId(), shopId, netTotal, subOrders.size());
+            log.info("[Payout] Créé payout {} pour shop {} : {} FCFA net ({} sous-ordres, {} FCFA de frais déduits)",
+                    payout.getId(), shopId, netAfterFees, subOrders.size(), feesToDeduct);
             created++;
         }
         return created;

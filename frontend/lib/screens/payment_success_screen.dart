@@ -4,6 +4,7 @@ import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 import '../widgets/primary_button.dart';
 import 'home_screen.dart';
+import 'order_receipt_screen.dart';
 import 'order_tracking_screen.dart';
 
 /// "Commande enregistrée" — shown right after [CheckoutScreen] confirms.
@@ -63,6 +64,21 @@ class PaymentSuccessScreen extends StatelessWidget {
                     label: 'Suivre ma commande',
                     onPressed: () => Navigator.of(context).pushReplacement(
                       MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: orderId)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderReceiptScreen(orderId: orderId))),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.primary,
+                        side: BorderSide(color: colors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                      label: const Text('Voir le reçu', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 12),

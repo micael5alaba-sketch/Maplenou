@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_client.dart';
 import '../services/app_router.dart';
 import '../services/auth_service.dart';
@@ -9,11 +10,12 @@ import '../widgets/primary_button.dart';
 import 'seller_registration_screen.dart';
 
 /// Inscription (`POST /api/auth/register`, `auth/AuthController.java`).
-/// Le compte est toujours créé Acheteur par défaut — pas de rôle séparé
-/// côté backend (voir `CLAUDE.md` §3). [intendedRole] ne change que la
-/// navigation juste après l'inscription : 'seller' enchaîne directement sur
-/// la candidature vendeur ([SellerRegistrationScreen]) plutôt que d'obliger
-/// à la retrouver plus tard dans les paramètres du profil.
+/// Le compte est Acheteur par défaut, sauf si [intendedRole] vaut 'courier' :
+/// dans ce cas le compte est créé directement avec le rôle `DELIVERY_AGENT`
+/// (`accountType` envoyé au backend, cahier des charges §3.3 — livreur
+/// indépendant). 'seller' enchaîne directement sur la candidature vendeur
+/// ([SellerRegistrationScreen]) plutôt que d'obliger à la retrouver plus
+/// tard dans les paramètres du profil.
 class RegisterScreen extends StatefulWidget {
   final String intendedRole;
 
@@ -55,6 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fullName: _fullNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         password: _passwordController.text,
+        accountType: widget.intendedRole == 'courier' ? 'DELIVERY_AGENT' : null,
       );
       if (!mounted) return;
 
@@ -79,6 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: colors.lightBackground,
@@ -95,13 +99,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Center(child: AppLogo(variant: AppLogoVariant.stackedColor, size: 110)),
                   const SizedBox(height: 24),
                   Text(
-                    'Créer un compte',
+                    l10n.registerTitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colors.textDark),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Rejoignez Maplenou en quelques secondes.',
+                    l10n.registerSubtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
                   ),
@@ -121,18 +125,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _fullNameController,
                     textCapitalization: TextCapitalization.words,
-                    decoration: _inputDecoration(context, 'Nom complet', Icons.person_outline_rounded),
+                    decoration: _inputDecoration(context, l10n.fullNameHint, Icons.person_outline_rounded),
                     validator: (value) =>
-                        (value == null || value.trim().length < 2) ? 'Nom complet requis.' : null,
+                        (value == null || value.trim().length < 2) ? l10n.fullNameRequired : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration(context, 'Numéro de téléphone', Icons.phone_outlined),
+                    decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
                     validator: (value) {
                       final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (digits.length < 8) return 'Numéro de téléphone invalide.';
+                      if (digits.length < 8) return l10n.phoneNumberInvalid;
                       return null;
                     },
                   ),
@@ -140,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    decoration: _inputDecoration(context, 'Mot de passe', Icons.lock_outline_rounded).copyWith(
+                    decoration: _inputDecoration(context, l10n.passwordHint, Icons.lock_outline_rounded).copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -151,17 +155,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.length < 8) {
-                        return 'Au moins 8 caractères, une majuscule et un chiffre.';
+                        return l10n.passwordRule;
                       }
                       if (!RegExp(r'^(?=.*[A-Z])(?=.*[0-9]).{8,}$').hasMatch(value)) {
-                        return 'Au moins 8 caractères, une majuscule et un chiffre.';
+                        return l10n.passwordRule;
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 24),
                   PrimaryButton(
-                    label: "S'inscrire",
+                    label: l10n.registerButton,
                     isLoading: _isSubmitting,
                     onPressed: _handleSubmit,
                   ),

@@ -10,6 +10,7 @@ import '../widgets/search_field.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import '../widgets/vendor_product_card.dart';
 import 'add_product_screen.dart';
+import 'edit_product_screen.dart';
 import 'orders_management_screen.dart';
 import 'seller_profile_screen.dart';
 
@@ -105,6 +106,29 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
     }
   }
 
+  Future<void> _openEdit(VendorProductModel product) async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EditProductScreen(productId: product.id)),
+    );
+    if (updated == true) _reload();
+  }
+
+  Future<void> _duplicate(VendorProductModel product) async {
+    try {
+      await _service.duplicateProduct(product.id);
+      _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('"${product.name}" dupliqué (brouillon à réactiver).')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   void _onTabSelected(SellerTab tab) {
     if (tab == SellerTab.products) return;
     switch (tab) {
@@ -177,9 +201,9 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
                               for (final product in filtered) ...[
                                 VendorProductCard(
                                   product: product,
-                                  onEdit: () => _showComingSoon('La modification de "${product.name}"'),
-                                  onView: () => _showComingSoon('La fiche de "${product.name}"'),
-                                  onDuplicate: () => _showComingSoon('La duplication de "${product.name}"'),
+                                  onEdit: () => _openEdit(product),
+                                  onView: () => _openEdit(product),
+                                  onDuplicate: () => _duplicate(product),
                                   onDelete: () => _confirmDelete(product),
                                 ),
                                 const SizedBox(height: 14),

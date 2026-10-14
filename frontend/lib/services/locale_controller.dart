@@ -5,12 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// `DEMANDES_MODIFICATIONS_BACKEND.md` §9 : "à revoir seulement si on veut
 /// la synchroniser entre appareils" — pas de backend pour ça).
 ///
-/// L'app entière n'existe qu'en français aujourd'hui (aucune infrastructure
-/// `flutter_localizations`/ARB) : ce contrôleur retient un choix réel et le
-/// fait survivre à un redémarrage, mais seul `french` change effectivement
-/// quelque chose à l'affichage. Les autres valeurs sont proposées pour que
-/// le réglage soit honnête sur ce qui existe, pas pour simuler une
-/// traduction qui n'existe pas.
+/// `flutter_localizations`/ARB (`lib/l10n/`) sont en place et `english` est
+/// réellement traduit — mais seulement pour une partie de l'app (navigation,
+/// connexion/inscription) pour l'instant, pas encore pour chaque écran.
+/// `ewe` reste proposé mais non traduit, pour que le réglage soit honnête
+/// sur ce qui existe, pas pour simuler une traduction qui n'existe pas.
 enum AppLanguage { french, english, ewe }
 
 extension AppLanguageLabel on AppLanguage {
@@ -25,7 +24,18 @@ extension AppLanguageLabel on AppLanguage {
     }
   }
 
-  bool get isAvailable => this == AppLanguage.french;
+  bool get isAvailable => this == AppLanguage.french || this == AppLanguage.english;
+
+  Locale get locale {
+    switch (this) {
+      case AppLanguage.french:
+        return const Locale('fr');
+      case AppLanguage.english:
+        return const Locale('en');
+      case AppLanguage.ewe:
+        return const Locale('fr');
+    }
+  }
 }
 
 final localeController = LocaleController();

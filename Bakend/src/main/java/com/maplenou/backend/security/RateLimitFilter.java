@@ -20,8 +20,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Rate limiting distribué par IP sur les endpoints d'authentification.
- * Limite configurable via app.rate-limit.auth.max-per-minute (défaut : 10) sur /api/auth/**
+ * Rate limiting distribué par IP, en deux niveaux :
+ *   - Strict sur les endpoints d'authentification (app.rate-limit.auth.max-per-minute, défaut 10)
+ *     — protège contre le bruteforce de mot de passe/2FA.
+ *   - Large sur l'ensemble de l'API (app.rate-limit.global.max-per-minute, défaut 120) — protège
+ *     contre un visiteur (ou bot) qui spamme n'importe quel endpoint, sans gêner un usage normal.
+ * Une requête sur /api/auth/** est comptée dans les deux compteurs à la fois.
  * Implémenté via Redis INCR + EXPIRE (script Lua atomique) :
  * fonctionne correctement même avec plusieurs instances de l'application.
  */
@@ -31,7 +35,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int WINDOW_SECONDS = 60;
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final int maxRequestsPerMinute;
+    private final int maxAuthRequestsPerMinute;
+    private final int maxGlobalRequestsPerMinute;
 
     /**
      * IPs des reverse proxies de confiance (ex: "127.0.0.1,10.0.0.1").
@@ -41,9 +46,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private Set<String> trustedProxyIps = Collections.emptySet();
 
     public RateLimitFilter(RedisTemplate<String, String> redisTemplate,
-                            @Value("${app.rate-limit.auth.max-per-minute:10}") int maxRequestsPerMinute) {
+                            @Value("${app.rate-limit.auth.max-per-minute:10}") int maxAuthRequestsPerMinute,
+                            @Value("${app.rate-limit.global.max-per-minute:120}") int maxGlobalRequestsPerMinute) {
         this.redisTemplate = redisTemplate;
-        this.maxRequestsPerMinute = maxRequestsPerMinute;
+        this.maxAuthRequestsPerMinute = maxAuthRequestsPerMinute;
+        this.maxGlobalRequestsPerMinute = maxGlobalRequestsPerMinute;
     }
 
     @Value("${app.trusted-proxy-ips:}")
@@ -72,31 +79,43 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/auth/");
+        return !request.getRequestURI().startsWith("/api/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String key = "rate:" + extractClientIp(request);
+        String ip = extractClientIp(request);
+        boolean isAuthEndpoint = request.getRequestURI().startsWith("/api/auth/");
 
+        if (isAuthEndpoint && isOverLimit("rate:auth:" + ip, maxAuthRequestsPerMinute)) {
+            rejectTooManyRequests(response);
+            return;
+        }
+        if (isOverLimit("rate:global:" + ip, maxGlobalRequestsPerMinute)) {
+            rejectTooManyRequests(response);
+            return;
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private boolean isOverLimit(String key, int max) {
         Long count = redisTemplate.execute(
                 RATE_LIMIT_SCRIPT,
                 List.of(key),
                 String.valueOf(WINDOW_SECONDS)
         );
+        return count != null && count > max;
+    }
 
-        if (count != null && count > maxRequestsPerMinute) {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType("application/json");
-            response.getWriter().write(
-                    "{\"error\":\"Trop de tentatives. Réessayez dans une minute.\",\"status\":429}"
-            );
-            return;
-        }
-
-        filterChain.doFilter(request, response);
+    private void rejectTooManyRequests(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setContentType("application/json");
+        response.getWriter().write(
+                "{\"error\":\"Trop de tentatives. Réessayez dans une minute.\",\"status\":429}"
+        );
     }
 
     /**

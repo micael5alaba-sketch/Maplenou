@@ -181,6 +181,37 @@ public class NotificationService {
         }
     }
 
+    // ── Frais vendeur ─────────────────────────────────────────────────────────
+
+    @Async
+    public void sellerFeeActivated(UUID sellerId, BigDecimal amount, String categoryLabel, String monthLabel) {
+        try {
+            fcmService.sendToUser(
+                    sellerId,
+                    "Frais mensuel d'activité",
+                    "Votre catégorie « " + categoryLabel + " » entraîne un frais de " + amount
+                            + " FCFA pour " + monthLabel + ", déduit avant votre prochain reversement.",
+                    Map.of("type", "SELLER_FEE_ACTIVATED")
+            );
+        } catch (Exception e) {
+            log.error("Erreur notification sellerFeeActivated: {}", e.getMessage());
+        }
+    }
+
+    @Async
+    public void sellerFeeDeducted(UUID sellerId, BigDecimal amount) {
+        try {
+            fcmService.sendToUser(
+                    sellerId,
+                    "Frais déduit de votre reversement",
+                    amount + " FCFA de frais d'activité ont été déduits de votre dernier reversement.",
+                    Map.of("type", "SELLER_FEE_DEDUCTED")
+            );
+        } catch (Exception e) {
+            log.error("Erreur notification sellerFeeDeducted: {}", e.getMessage());
+        }
+    }
+
     // ── Utilitaire ────────────────────────────────────────────────────────────
 
     private String shortId(UUID id) {

@@ -261,7 +261,33 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     super.dispose();
   }
 
+  Future<bool> _confirmLocationUsage() async {
+    final colors = context.colors;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Utiliser ta position actuelle ?'),
+        content: const Text(
+          'Maplenou va demander accès à ta position GPS pour pré-remplir automatiquement ta '
+          'ville et ton quartier, et permettre au livreur de te localiser précisément. '
+          'Ta position n\'est utilisée que pour cette adresse et n\'est jamais partagée ailleurs.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Non merci')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Autoriser', style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    return accepted ?? false;
+  }
+
   Future<void> _useCurrentLocation() async {
+    if (!await _confirmLocationUsage()) return;
+    if (!mounted) return;
+
     setState(() => _isLocating = true);
     try {
       final position = await _locationService.getCurrentPosition();
@@ -269,6 +295,18 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         _latitude = position.latitude;
         _longitude = position.longitude;
       });
+
+      final geocoded = await _locationService.reverseGeocode(position.latitude, position.longitude);
+      if (geocoded != null && mounted) {
+        setState(() {
+          if (_cityController.text.trim().isEmpty && geocoded.city != null) {
+            _cityController.text = geocoded.city!;
+          }
+          if (_districtController.text.trim().isEmpty && geocoded.district != null) {
+            _districtController.text = geocoded.district!;
+          }
+        });
+      }
     } on LocationException catch (e) {
       _showMessage(e.message);
     } finally {

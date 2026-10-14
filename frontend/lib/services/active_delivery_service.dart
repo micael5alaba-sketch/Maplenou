@@ -21,6 +21,11 @@ class ActiveDeliveryService {
       clientName: navigation.dropoff.label,
       deliveryAddress: navigation.dropoff.address,
       distanceKm: _deliveryService.straightLineDistanceKm(navigation),
+      pickupLatitude: navigation.pickup.latitude,
+      pickupLongitude: navigation.pickup.longitude,
+      dropoffLatitude: navigation.dropoff.latitude,
+      dropoffLongitude: navigation.dropoff.longitude,
+      estimatedEarning: navigation.estimatedEarning,
     );
   }
 

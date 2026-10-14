@@ -33,6 +33,24 @@ public class CourierDocumentService {
     }
 
     /**
+     * Un livreur est pleinement vérifié quand ses 4 documents obligatoires sont tous VALID
+     * (voir {@link CourierDocumentType}, statut effectif qui prend en compte l'expiration).
+     * Utilisé pour bloquer toute affectation de livraison à un livreur non encore validé par
+     * l'admin (cahier des charges §3.3/§3.4) — tant que ce n'est pas vrai, aucune commande ne
+     * doit lui être assignée.
+     */
+    @Transactional(readOnly = true)
+    public boolean isFullyVerified(UUID courierId) {
+        List<CourierDocument> documents = courierDocumentRepository.findByCourierId(courierId);
+        for (CourierDocumentType type : CourierDocumentType.values()) {
+            boolean hasValid = documents.stream()
+                    .anyMatch(d -> d.getType() == type && d.effectiveStatus() == CourierDocumentStatus.VALID);
+            if (!hasValid) return false;
+        }
+        return true;
+    }
+
+    /**
      * Envoi ou remplacement d'un document — un seul par (courier, type) : un nouvel envoi
      * écrase le précédent et repasse en PENDING, même s'il avait déjà été VALID ou REJECTED
      * (ex. renouvellement d'une assurance qui va expirer).

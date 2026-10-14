@@ -32,6 +32,12 @@ class VendorOrdersService {
     return filtered.sublist(start, end);
   }
 
+  /// Détail complet d'une sous-commande (`SubOrderResponse`, avec le détail
+  /// des articles) — pour [OrderDetailScreen].
+  Future<Map<String, dynamic>> getSubOrderDetail(String subOrderId) async {
+    return await _client.get('/api/sub-orders/$subOrderId') as Map<String, dynamic>;
+  }
+
   Future<VendorOrderModel> advanceStatus(VendorOrderModel order) async {
     final nextStatus = order.nextRawStatus;
     if (nextStatus == null) {

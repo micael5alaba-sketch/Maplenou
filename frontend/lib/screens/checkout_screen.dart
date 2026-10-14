@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/address_model.dart';
 import '../models/cart_model.dart';
+import '../models/payment_country_model.dart';
 import '../models/payment_method_option_model.dart';
 import '../services/address_service.dart';
 import '../services/api_client.dart';
@@ -12,14 +14,21 @@ import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 import '../widgets/payment_method_option_tile.dart';
 import 'addresses_screen.dart';
+import 'order_tracking_screen.dart';
 import 'payment_success_screen.dart';
 
 /// "Paiement" — delivery address, payment method choice, order summary.
 ///
 /// `Confirmer` appelle le vrai `POST /api/orders` (`OrderService`) : la
-/// commande est créée (statut `CREATED`), mais aucun paiement réel ne se
-/// produit — FedaPay/Stripe est explicitement reporté (`CLAUDE.md` §7).
-/// Le choix du moyen de paiement reste donc purement illustratif.
+/// commande est créée (statut `CREATED`). Si FedaPay est activé côté backend
+/// (`app.fedapay.enabled=true`), la réponse contient une `paymentUrl` réelle
+/// ouverte dans le navigateur, puis l'app bascule sur [OrderTrackingScreen]
+/// (le vrai statut PAID n'arrive qu'via le webhook, de façon asynchrone —
+/// impossible d'annoncer un succès immédiat ici). Sinon (cas par défaut hors
+/// production), le comportement historique est conservé :
+/// [PaymentSuccessScreen] s'affiche directement, sans paiement réel.
+/// Le choix du moyen de paiement reste illustratif (FedaPay décide lui-même
+/// du canal Mobile Money/carte sur sa page hébergée).
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -38,6 +47,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   static const num _fallbackDeliveryFee = 1500;
 
   PaymentMethodType _selectedMethod = PaymentMethodType.tMoney;
+  PaymentCountry _selectedCountry = PaymentCountry.togo;
   bool _isSubmitting = false;
 
   late Future<(CartModel, List<AddressModel>, num)> _loadFuture;
@@ -52,10 +62,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<(CartModel, List<AddressModel>, num)> _load() async {
     final cart = await _cartService.getCart();
     final addresses = await _addressService.getAddresses();
-    if (addresses.isNotEmpty) {
+    if (_selectedAddress == null && addresses.isNotEmpty) {
       _selectedAddress = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
     }
 
+    final deliveryFee = await _resolveDeliveryFee();
+    return (cart, addresses, deliveryFee);
+  }
+
+  Future<num> _resolveDeliveryFee() async {
     num deliveryFee = _fallbackDeliveryFee;
     try {
       final zone = await _deliveryZoneService.resolveZone(
@@ -67,14 +82,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Zones de livraison injoignables : on garde le repli plutôt que de
       // bloquer le checkout.
     }
-
-    return (cart, addresses, deliveryFee);
+    return deliveryFee;
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  Future<void> _pickAddress(AppColorScheme colors, List<AddressModel> addresses) async {
+    final chosen = await showModalBottomSheet<AddressModel>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Choisir une adresse', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              ),
+              for (final address in addresses)
+                ListTile(
+                  leading: Icon(
+                    address.id == _selectedAddress?.id ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                    color: colors.primary,
+                  ),
+                  title: Text(address.label, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
+                  subtitle: Text([address.summary, if (address.details != null) address.details!].join(', ')),
+                  onTap: () => Navigator.of(sheetContext).pop(address),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (chosen == null || chosen.id == _selectedAddress?.id || !mounted) return;
+    setState(() {
+      _selectedAddress = chosen;
+      _loadFuture = _load();
+    });
   }
 
   void _showMessage(String message) {
@@ -93,8 +139,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final order = await _orderService.placeOrder(addressId: address.id);
+      final order = await _orderService.placeOrder(
+        addressId: address.id,
+        paymentCountry: _selectedCountry.isoCode,
+      );
       if (!mounted) return;
+
+      final paymentUrl = order.paymentUrl;
+      if (paymentUrl != null) {
+        final opened = await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+        if (!mounted) return;
+        if (!opened) {
+          _showMessage("Impossible d'ouvrir la page de paiement. Réessaie depuis \"Mes commandes\".");
+        }
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: order.id)),
+        );
+        return;
+      }
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
@@ -173,6 +236,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               _buildSectionTitle(colors, Icons.local_shipping_outlined, 'Adresse de livraison'),
               const SizedBox(height: 10),
               _buildAddressCard(colors, addresses),
+              const SizedBox(height: 24),
+              _buildSectionTitle(colors, Icons.public_rounded, 'Pays du paiement mobile money'),
+              const SizedBox(height: 10),
+              _buildCountryPicker(colors),
               const SizedBox(height: 24),
               _buildSectionTitle(colors, Icons.account_balance_wallet_outlined, 'Choisissez un moyen de paiement'),
               const SizedBox(height: 10),
@@ -260,7 +327,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return GestureDetector(
       onTap: addresses.length <= 1
           ? null
-          : () => _showComingSoon('Le changement rapide d\'adresse ici'),
+          : () => _pickAddress(colors, addresses),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -288,6 +355,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCountryPicker(AppColorScheme colors) {
+    return Row(
+      children: [
+        for (final country in PaymentCountry.values) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedCountry = country),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedCountry == country ? colors.primary.withValues(alpha: 0.08) : colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedCountry == country ? colors.primary : colors.border,
+                    width: _selectedCountry == country ? 1.6 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(country.flag, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 2),
+                    Text(
+                      country.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: _selectedCountry == country ? FontWeight.bold : FontWeight.normal,
+                        color: _selectedCountry == country ? colors.primary : colors.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (country != PaymentCountry.values.last) const SizedBox(width: 8),
+        ],
+      ],
     );
   }
 

@@ -34,3 +34,11 @@ build/
 
 ### Secrets ###
 firebase-service-account.json
+.env.local.ps1
+
+### Logs ###
+logs/
+*.log
+dump.rdb
+hs_err_pid*.log
+replay_pid*.log

@@ -6,10 +6,11 @@ import 'user_service.dart';
 /// Assemble le profil affiché sur [ProfileScreen] à partir de trois vrais
 /// endpoints : `GET /api/users/me` (identité), `GET /api/orders/summary`
 /// (badge "commandes en cours") et `GET /api/users/me/addresses` (adresse
-/// par défaut). `paymentMethodsSummary` reste un texte indicatif
-/// ("T-Money, Flooz, Carte") — le paiement réel est explicitement reporté
-/// (`CLAUDE.md` §7), il n'y a pas de moyens de paiement enregistrés côté
-/// acheteur à afficher.
+/// par défaut). `paymentMethodsSummary` est un texte indicatif seulement :
+/// il n'y a pas de "moyen de paiement enregistré" côté acheteur (FedaPay ne
+/// mémorise rien), le vrai choix (pays + T-Money/Flooz/Carte) se fait à
+/// l'étape "Paiement" du panier — le sous-titre le dit explicitement pour
+/// éviter de laisser croire qu'on peut le configurer depuis le profil.
 class ProfileService {
   final _userService = UserService();
   final _orderService = OrderService();
@@ -43,7 +44,7 @@ class ProfileService {
       isVerified: user.phoneVerified,
       ongoingOrdersCount: ongoingOrdersCount,
       primaryAddressSummary: primaryAddressSummary,
-      paymentMethodsSummary: 'T-Money, Flooz, Carte',
+      paymentMethodsSummary: 'Choisi à l\'étape paiement (T-Money, Flooz, Carte)',
       isApprovedSeller: user.isApprovedSeller,
       hasPendingSellerApplication: user.hasPendingSellerApplication,
     );

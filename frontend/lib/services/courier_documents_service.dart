@@ -21,6 +21,16 @@ class CourierDocumentsService {
     }).toList();
   }
 
+  /// Vrai seulement quand les 4 documents obligatoires sont tous `valid` —
+  /// tant que ce n'est pas le cas, le backend refuse de toute façon
+  /// d'assigner une livraison à ce livreur (voir `DeliveryService.assignAgent`
+  /// côté backend) : ce gate côté app ne fait qu'éviter d'afficher un
+  /// dashboard vide sans explication.
+  Future<bool> isFullyVerified() async {
+    final documents = await getDocuments();
+    return documents.every((d) => d.status == DocumentStatus.valid);
+  }
+
   Future<CourierDocumentModel> submit({
     required CourierDocumentType type,
     required String fileUrl,

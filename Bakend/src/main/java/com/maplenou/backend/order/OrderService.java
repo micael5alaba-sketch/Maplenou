@@ -12,11 +12,14 @@ import com.maplenou.backend.order.dto.OrderResponse;
 import com.maplenou.backend.order.dto.OrderSummaryResponse;
 import com.maplenou.backend.order.dto.OrdersSummaryResponse;
 import com.maplenou.backend.order.dto.PlaceOrderRequest;
+import com.maplenou.backend.payment.FedaPayCheckoutService;
 import com.maplenou.backend.promo.PromoCodeService;
 import com.maplenou.backend.user.Address;
 import com.maplenou.backend.user.AddressRepository;
 import com.maplenou.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final CartRepository cartRepository;
@@ -37,6 +41,10 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CommissionService commissionService;
     private final PromoCodeService promoCodeService;
+    private final FedaPayCheckoutService fedaPayCheckoutService;
+
+    @Value("${app.fedapay.enabled}")
+    private boolean fedapayEnabled;
 
     // ----- Lecture acheteur -----
 
@@ -194,11 +202,23 @@ public class OrderService {
             orderRepository.save(saved);
         }
 
-        // 8. Vider le panier
+        // 8. Démarrer le paiement FedaPay (désactivé par défaut en dev/CI, voir app.fedapay.enabled).
+        String paymentUrl = null;
+        if (fedapayEnabled) {
+            var checkout = fedaPayCheckoutService.startCheckout(saved, request.paymentCountry());
+            saved.setFedapayTransactionId(checkout.transactionId());
+            orderRepository.save(saved);
+            paymentUrl = checkout.paymentUrl();
+        } else {
+            log.warn("FedaPay désactivé (app.fedapay.enabled=false) — commande {} créée sans paiement réel", saved.getOrderNumber());
+        }
+
+        // 9. Vider le panier (après un éventuel échec FedaPay ci-dessus, qui aurait fait
+        // rollback toute la transaction — le panier ne doit être vidé que si tout a réussi).
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        return OrderResponse.from(saved);
+        return OrderResponse.from(saved, paymentUrl);
     }
 
     // ----- Utilitaires privés -----

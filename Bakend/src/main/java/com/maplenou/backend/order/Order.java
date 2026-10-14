@@ -46,6 +46,10 @@ public class Order {
     @Column(name = "payment_reference", length = 255)
     private String paymentReference;
 
+    /** Id de la transaction FedaPay associée — sert à retrouver la commande depuis le webhook. */
+    @Column(name = "fedapay_transaction_id")
+    private Long fedapayTransactionId;
+
     /** Code promo appliqué (null si aucun). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promo_code_id")

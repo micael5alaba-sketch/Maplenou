@@ -51,6 +51,22 @@ public class PayoutController {
         return payoutService.listForShop(shop.getId(), pageable);
     }
 
+    /**
+     * GET /api/seller/payouts/{id}
+     * Vendeur : détail d'un de ses reversements, avec le détail des sous-commandes incluses
+     * (pour générer une facture téléchargeable côté app).
+     */
+    @GetMapping("/api/seller/payouts/{id}")
+    @PreAuthorize("hasRole('SELLER')")
+    public com.maplenou.backend.payout.dto.PayoutDetailResponse getMyPayoutDetail(
+            @AuthenticationPrincipal User currentUser,
+            @PathVariable UUID id) {
+        Shop shop = shopRepository.findByOwnerId(currentUser.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                        "Aucune boutique associée à ce compte"));
+        return payoutService.getSellerPayoutDetail(id, shop.getId());
+    }
+
     // ─── Admin ─────────────────────────────────────────────────────────────────
 
     /**

@@ -300,7 +300,10 @@ public class ProductService {
     @Transactional(readOnly = true)
     public CursorPage<ProductSummaryResponse> listCatalog(UUID categoryId, UUID shopId,
                                                            BigDecimal minPrice, BigDecimal maxPrice,
-                                                           String cursor, int size) {
+                                                           String search, String cursor, int size) {
+        if (search != null && !search.isBlank()) {
+            return searchCatalog(search.trim(), categoryId, shopId, minPrice, maxPrice, cursor, size);
+        }
         Specification<Product> spec = buildCatalogSpec(categoryId, shopId, minPrice, maxPrice);
 
         if (cursor != null) {
@@ -329,6 +332,48 @@ public class ProductService {
 
         String nextCursor = null;
         if (hasNext) {
+            Product last = page.get(page.size() - 1);
+            nextCursor = encodeCursor(last.getCreatedAt(), last.getId());
+        }
+
+        Map<UUID, RatingSummaryResponse> ratings = loadRatingStats(page);
+
+        return new CursorPage<>(
+                page.stream().map(p -> toSummaryWithRating(p, ratings)).toList(),
+                nextCursor,
+                hasNext
+        );
+    }
+
+    // Recherche catalogue (full-text, voir ProductRepository.searchCatalogIds) : mêmes filtres et
+    // même pagination par curseur que listCatalog, mais tri par pertinence impossible à combiner
+    // proprement avec le keyset sur created_at/id — on trie par date comme le reste du catalogue,
+    // le matching tsvector faisant déjà le travail de pertinence (candidats pertinents uniquement).
+    private CursorPage<ProductSummaryResponse> searchCatalog(String search, UUID categoryId, UUID shopId,
+                                                              BigDecimal minPrice, BigDecimal maxPrice,
+                                                              String cursor, int size) {
+        Instant cursorCreatedAt = null;
+        UUID cursorId = null;
+        if (cursor != null) {
+            CursorData data = decodeCursor(cursor);
+            cursorCreatedAt = data.createdAt();
+            cursorId = data.id();
+        }
+
+        List<UUID> ids = productRepository.searchCatalogIds(
+                search, categoryId, shopId, minPrice, maxPrice, cursorCreatedAt, cursorId, size + 1);
+
+        boolean hasNext = ids.size() > size;
+        List<UUID> pageIds = hasNext ? ids.subList(0, size) : ids;
+
+        // findByIdIn ne garantit pas l'ordre d'entrée : on réordonne selon le résultat de la
+        // requête native (déjà trié created_at DESC, id DESC).
+        Map<UUID, Product> byId = productRepository.findByIdIn(pageIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+        List<Product> page = pageIds.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+
+        String nextCursor = null;
+        if (hasNext && !page.isEmpty()) {
             Product last = page.get(page.size() - 1);
             nextCursor = encodeCursor(last.getCreatedAt(), last.getId());
         }

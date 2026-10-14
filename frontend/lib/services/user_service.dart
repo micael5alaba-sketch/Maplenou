@@ -23,4 +23,10 @@ class UserService {
     ) as Map<String, dynamic>;
     return UserModel.fromJson(data);
   }
+
+  /// Anonymisation RGPD du compte (`GdprService.selfDelete`) — pas une
+  /// suppression physique (obligation comptable sur les commandes déjà
+  /// facturées, voir `CLAUDE.md` §10), mais le compte devient inutilisable :
+  /// à appeler uniquement juste avant de déconnecter l'utilisateur.
+  Future<void> deleteAccount() => _client.delete('/api/users/me');
 }

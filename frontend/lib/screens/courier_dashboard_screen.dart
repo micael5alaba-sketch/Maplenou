@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/courier_dashboard_model.dart';
 import '../services/api_client.dart';
 import '../services/courier_dashboard_service.dart';
+import '../services/courier_documents_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/active_delivery_card.dart';
 import '../widgets/app_drawer.dart';
@@ -14,8 +15,10 @@ import '../widgets/online_status_toggle.dart';
 import '../widgets/performance_card.dart';
 import 'courier_delivery_confirmation_screen.dart';
 import 'courier_delivery_detail_screen.dart';
+import 'courier_documents_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_profile_screen.dart';
+import 'notifications_screen.dart';
 import 'courier_deliveries_screen.dart';
 
 /// Courier's main dashboard: online/offline toggle (état local, pas de
@@ -35,7 +38,9 @@ class CourierDashboardScreen extends StatefulWidget {
 class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = CourierDashboardService();
+  final _documentsService = CourierDocumentsService();
   late Future<CourierDashboardModel> _dashboardFuture;
+  late Future<bool> _verifiedFuture;
   bool _isOnline = false;
 
   final CourierTab _currentTab = CourierTab.dashboard;
@@ -44,6 +49,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   void initState() {
     super.initState();
     _dashboardFuture = _service.getDashboard(isOnline: _isOnline);
+    _verifiedFuture = _documentsService.isFullyVerified();
   }
 
   void _setOnline(bool isOnline) {
@@ -54,7 +60,10 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   }
 
   void _reload() {
-    setState(() => _dashboardFuture = _service.getDashboard(isOnline: _isOnline));
+    setState(() {
+      _dashboardFuture = _service.getDashboard(isOnline: _isOnline);
+      _verifiedFuture = _documentsService.isFullyVerified();
+    });
   }
 
   void _showComingSoon(String feature) {
@@ -105,16 +114,30 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
           children: [
             _buildHeader(colors),
             Expanded(
-              child: FutureBuilder<CourierDashboardModel>(
-                future: _dashboardFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+              child: FutureBuilder<bool>(
+                future: _verifiedFuture,
+                builder: (context, verifiedSnapshot) {
+                  if (verifiedSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return _buildErrorState(colors, snapshot.error);
+                  if (verifiedSnapshot.hasError) {
+                    return _buildErrorState(colors, verifiedSnapshot.error);
                   }
-                  return _buildContent(context, colors, snapshot.data!);
+                  if (verifiedSnapshot.data != true) {
+                    return _buildVerificationPendingState(colors);
+                  }
+                  return FutureBuilder<CourierDashboardModel>(
+                    future: _dashboardFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError || !snapshot.hasData) {
+                        return _buildErrorState(colors, snapshot.error);
+                      }
+                      return _buildContent(context, colors, snapshot.data!);
+                    },
+                  );
                 },
               ),
             ),
@@ -122,6 +145,53 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
         ),
       ),
       bottomNavigationBar: CourierBottomNavigation(currentTab: _currentTab, onTabSelected: _onTabSelected),
+    );
+  }
+
+  /// Cahier des charges §3.3/§3.4 : tant que l'admin n'a pas validé les 4
+  /// documents obligatoires, le livreur ne doit avoir accès à rien d'autre
+  /// qu'au dépôt de ses documents — aucune livraison ne peut lui être
+  /// affectée de toute façon (verrou appliqué aussi côté backend).
+  Widget _buildVerificationPendingState(AppColorScheme colors) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pending_actions_rounded, size: 56, color: colors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Compte en cours de validation',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textDark),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Déposez vos documents (pièce d\'identité, permis, assurance et carte grise du '
+              'véhicule). Vous recevrez vos premières livraisons dès que notre équipe les aura validés.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDocumentsScreen()));
+                _reload();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+              ),
+              child: const Text('Déposer mes documents', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _reload, child: const Text('Rafraîchir le statut')),
+          ],
+        ),
+      ),
     );
   }
 
@@ -230,7 +300,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
           const Expanded(child: Center(child: AppLogo(variant: AppLogoVariant.horizontalColor, size: 34))),
           IconButton(
             icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
           ),
         ],
       ),

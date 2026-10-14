@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/delivery_model.dart';
+import '../services/api_client.dart';
+import '../services/courier_delivery_service.dart';
+import '../services/media_upload_service.dart';
 import '../services/support_ticket_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/primary_button.dart';
@@ -7,10 +11,10 @@ import 'courier_ticket_confirmation_screen.dart';
 
 /// "Créer un ticket" — the courier's support-request form.
 ///
-/// Backed by [SupportTicketService], mocked: no structured ticket entity
-/// exists on the backend yet (see that service's doc comment), so
-/// submitting just simulates a delay and generates a ticket number
-/// locally.
+/// Backed by [SupportTicketService] (`POST /api/support-tickets`, un vrai
+/// ticket avec numéro de suivi généré côté backend), avec sélection d'une
+/// vraie livraison récente ([CourierDeliveryService]) et upload réel d'une
+/// photo de preuve ([MediaUploadService]).
 class CourierSupportTicketScreen extends StatefulWidget {
   const CourierSupportTicketScreen({super.key});
 
@@ -24,8 +28,14 @@ class _CourierSupportTicketScreenState extends State<CourierSupportTicketScreen>
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _mediaUploadService = MediaUploadService();
+
+  late final Future<List<DeliveryModel>> _deliveriesFuture = CourierDeliveryService().getMyDeliveries();
 
   String _category = _categories.first;
+  DeliveryModel? _selectedDelivery;
+  String? _photoUrl;
+  bool _isUploadingPhoto = false;
   bool _isSubmitting = false;
 
   @override
@@ -35,27 +45,81 @@ class _CourierSupportTicketScreenState extends State<CourierSupportTicketScreen>
     super.dispose();
   }
 
-  void _showComingSoon(String feature) {
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _pickDelivery() async {
+    final deliveries = await _deliveriesFuture;
+    if (!mounted) return;
+    final colors = context.colors;
+    final picked = await showModalBottomSheet<DeliveryModel?>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Commande concernée', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              const SizedBox(height: 8),
+              ListTile(
+                title: Text('Aucune', style: TextStyle(color: colors.textDark)),
+                onTap: () => Navigator.of(sheetContext).pop(),
+              ),
+              for (final delivery in deliveries)
+                ListTile(
+                  title: Text('#${delivery.orderNumber} — ${delivery.shopName}', style: TextStyle(color: colors.textDark)),
+                  subtitle: Text(delivery.status, style: TextStyle(fontSize: 12, color: colors.textMuted)),
+                  onTap: () => Navigator.of(sheetContext).pop(delivery),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    setState(() => _selectedDelivery = picked);
+  }
+
+  Future<void> _addPhoto() async {
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final url = await _mediaUploadService.pickImageAndUpload(folder: 'support-tickets');
+      if (url != null) setState(() => _photoUrl = url);
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
   }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    final ticketNumber = await SupportTicketService().submitTicket(
-      category: _category,
-      subject: _subjectController.text.trim(),
-      description: _descriptionController.text.trim(),
-    );
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => CourierTicketConfirmationScreen(ticketNumber: ticketNumber)),
-    );
+    try {
+      final ticket = await SupportTicketService().submitTicket(
+        category: _category,
+        relatedDeliveryId: _selectedDelivery?.id,
+        subject: _subjectController.text.trim(),
+        description: _descriptionController.text.trim(),
+        photoUrl: _photoUrl,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => CourierTicketConfirmationScreen(ticketNumber: ticket.ticketNumber)),
+      );
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -109,14 +173,20 @@ class _CourierSupportTicketScreenState extends State<CourierSupportTicketScreen>
                       Text('Commande concernée (Optionnel)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textDark)),
                       const SizedBox(height: 8),
                       InkWell(
-                        onTap: () => _showComingSoon('La sélection de commande'),
+                        onTap: _pickDelivery,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(14)),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Sélectionnez une commande récente...', style: TextStyle(color: colors.textMuted)),
+                              Expanded(
+                                child: Text(
+                                  _selectedDelivery != null ? '#${_selectedDelivery!.orderNumber} — ${_selectedDelivery!.shopName}' : 'Sélectionnez une commande récente...',
+                                  style: TextStyle(color: _selectedDelivery != null ? colors.textDark : colors.textMuted),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                               Icon(Icons.keyboard_arrow_down_rounded, color: colors.textMuted),
                             ],
                           ),
@@ -141,23 +211,33 @@ class _CourierSupportTicketScreenState extends State<CourierSupportTicketScreen>
                       ),
                       const SizedBox(height: 16),
                       InkWell(
-                        onTap: () => _showComingSoon('L\'ajout de photo'),
+                        onTap: _isUploadingPhoto ? null : _addPhoto,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: colors.border),
+                            border: Border.all(color: _photoUrl != null ? colors.primary : colors.border),
                           ),
-                          child: Column(
-                            children: [
-                              Icon(Icons.add_photo_alternate_outlined, color: colors.textMuted),
-                              const SizedBox(height: 6),
-                              Text('Ajouter une photo ou une preuve', style: TextStyle(color: colors.textMuted, fontSize: 13)),
-                              const SizedBox(height: 2),
-                              Text('Formats acceptés : JPG, PNG (Max 5MB)', style: TextStyle(color: colors.textMuted, fontSize: 11)),
-                            ],
-                          ),
+                          child: _isUploadingPhoto
+                              ? Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary)))
+                              : Column(
+                                  children: [
+                                    Icon(
+                                      _photoUrl != null ? Icons.check_circle_rounded : Icons.add_photo_alternate_outlined,
+                                      color: _photoUrl != null ? colors.primary : colors.textMuted,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _photoUrl != null ? 'Photo ajoutée' : 'Ajouter une photo ou une preuve',
+                                      style: TextStyle(color: _photoUrl != null ? colors.primary : colors.textMuted, fontSize: 13),
+                                    ),
+                                    if (_photoUrl == null) ...[
+                                      const SizedBox(height: 2),
+                                      Text('Formats acceptés : JPG, PNG (Max 5MB)', style: TextStyle(color: colors.textMuted, fontSize: 11)),
+                                    ],
+                                  ],
+                                ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -191,10 +271,7 @@ class _CourierSupportTicketScreenState extends State<CourierSupportTicketScreen>
               ],
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );

@@ -41,6 +41,16 @@ public class SellerProfile {
     @Builder.Default
     private SellerStatus status = SellerStatus.PENDING;
 
+    /**
+     * Catégorie tarifaire pour le frais mensuel d'activité (voir
+     * {@code com.maplenou.backend.sellerfee.SellerFeeService}) — choisie à l'inscription,
+     * changeable seulement via une demande approuvée, effective le mois suivant.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fee_category", nullable = false, length = 20)
+    @Builder.Default
+    private SellerFeeCategory feeCategory = SellerFeeCategory.STANDARD;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

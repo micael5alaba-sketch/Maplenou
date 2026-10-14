@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_client.dart';
 import '../services/app_router.dart';
 import '../services/auth_service.dart';
@@ -91,6 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: colors.lightBackground,
@@ -106,15 +108,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Center(child: AppLogo(variant: AppLogoVariant.stackedColor, size: 140)),
                   const SizedBox(height: 32),
                   Text(
-                    _mfaToken == null ? 'Connexion' : 'Vérification en deux étapes',
+                    _mfaToken == null ? l10n.loginTitle : l10n.loginMfaTitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colors.textDark),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _mfaToken == null
-                        ? 'Connectez-vous avec votre numéro de téléphone.'
-                        : "Entrez le code à 6 chiffres de votre application d'authentification.",
+                    _mfaToken == null ? l10n.loginSubtitle : l10n.loginMfaSubtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
                   ),
@@ -138,15 +138,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: _inputDecoration(context, 'Numéro de téléphone', Icons.phone_outlined),
+                      decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
                       validator: (value) =>
-                          (value == null || value.trim().isEmpty) ? 'Numéro de téléphone requis.' : null,
+                          (value == null || value.trim().isEmpty) ? l10n.phoneNumberRequired : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      decoration: _inputDecoration(context, 'Mot de passe', Icons.lock_outline_rounded).copyWith(
+                      decoration: _inputDecoration(context, l10n.passwordHint, Icons.lock_outline_rounded).copyWith(
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -156,24 +156,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       validator: (value) =>
-                          (value == null || value.isEmpty) ? 'Mot de passe requis.' : null,
+                          (value == null || value.isEmpty) ? l10n.passwordRequired : null,
                     ),
                   ] else
                     TextFormField(
                       controller: _totpController,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      decoration: _inputDecoration(context, 'Code à 6 chiffres', Icons.pin_outlined),
+                      decoration: _inputDecoration(context, l10n.totpCodeHint, Icons.pin_outlined),
                     ),
                   const SizedBox(height: 24),
                   PrimaryButton(
-                    label: _mfaToken == null ? 'Se connecter' : 'Vérifier',
+                    label: _mfaToken == null ? l10n.loginButton : l10n.verifyButton,
                     isLoading: _isSubmitting,
                     onPressed: _handleSubmit,
                   ),
                   if (_mfaToken == null) ...[
                     const SizedBox(height: 20),
-                    _buildRegisterLink(context),
+                    _buildRegisterLink(context, l10n),
                   ],
                 ],
               ),
@@ -184,16 +184,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildRegisterLink(BuildContext context) {
+  Widget _buildRegisterLink(BuildContext context, AppLocalizations l10n) {
     final colors = context.colors;
     return RichText(
       textAlign: TextAlign.center,
       text: TextSpan(
         style: TextStyle(fontSize: 13, color: colors.textMuted),
         children: [
-          const TextSpan(text: "Pas encore de compte ? "),
+          TextSpan(text: l10n.noAccountYet),
           TextSpan(
-            text: "S'inscrire",
+            text: l10n.signUpLink,
             style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600),
             recognizer: TapGestureRecognizer()
               ..onTap = () => Navigator.of(context).push(

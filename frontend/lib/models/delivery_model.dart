@@ -63,7 +63,12 @@ class DeliveryNavigationModel {
   final NavigationPointModel pickup;
   final NavigationPointModel dropoff;
 
-  const DeliveryNavigationModel({required this.pickup, required this.dropoff});
+  /// Gain net estimé pour le livreur (75% du tarif de la zone de livraison,
+  /// voir `CourierEarningService`) — affiché dès que la livraison est
+  /// assignée, pas seulement une fois terminée.
+  final double? estimatedEarning;
+
+  const DeliveryNavigationModel({required this.pickup, required this.dropoff, this.estimatedEarning});
 
   factory DeliveryNavigationModel.fromJson(Map<String, dynamic> json) {
     final pickup = json['pickup'] as Map<String, dynamic>;
@@ -81,6 +86,7 @@ class DeliveryNavigationModel {
         latitude: (dropoff['latitude'] as num?)?.toDouble(),
         longitude: (dropoff['longitude'] as num?)?.toDouble(),
       ),
+      estimatedEarning: (json['estimatedEarning'] as num?)?.toDouble(),
     );
   }
 }

@@ -4,7 +4,10 @@ import '../models/user_profile_model.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/conversation_service.dart';
+import '../services/locale_controller.dart';
 import '../services/theme_controller.dart';
+import '../services/user_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/account_section_card.dart';
 import '../widgets/activity_section.dart';
@@ -15,13 +18,17 @@ import '../widgets/logout_button.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/support_section.dart';
+import 'about_screen.dart';
 import 'addresses_screen.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
+import 'edit_profile_screen.dart';
 import 'favorites_screen.dart';
+import 'help_center_screen.dart';
 import 'login_screen.dart';
 import 'my_orders_screen.dart';
 import 'my_reviews_screen.dart';
+import 'seller_conversation_screen.dart';
 import 'seller_registration_screen.dart';
 
 /// "Profil" tab: user identity, quick activity shortcuts, account settings
@@ -44,6 +51,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _profileFuture = ProfileService().getCurrentProfile();
+  }
+
+  void _reloadProfile() {
+    setState(() => _profileFuture = ProfileService().getCurrentProfile());
+  }
+
+  Future<void> _pushAndReload(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) _reloadProfile();
   }
 
   void _showComingSoon(String feature) {
@@ -69,6 +85,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Supprimer mon compte'),
+        content: const Text(
+          'Cette action est définitive : vous perdrez l\'accès à votre compte, vos commandes '
+          'passées restent conservées de façon anonymisée (obligation comptable). Continuer ?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Supprimer', style: TextStyle(color: colors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await UserService().deleteAccount();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+
     await AuthService().logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -103,6 +158,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case ThemeMode.system:
         return 'Système';
     }
+  }
+
+  Future<void> _contactSupport() async {
+    try {
+      final conversationId = await ConversationService().startSupportConversation();
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SellerConversationScreen(
+          conversationId: conversationId,
+          participantName: 'Support Maplenou',
+        ),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _openEditProfile() async {
+    try {
+      final user = await UserService().getCurrentUser();
+      if (!mounted) return;
+      await _pushAndReload(EditProfileScreen(
+        initialFullName: user.fullName,
+        initialEmail: user.email,
+        phoneNumber: user.phoneNumber,
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _showPaymentMethodsInfo() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Modes de paiement'),
+        content: const Text(
+          'Le pays (Togo, Bénin, Côte d\'Ivoire) et le moyen de paiement Mobile Money/carte se '
+          'choisissent directement à l\'étape "Paiement" au moment de valider une commande.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Compris')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickLanguage() async {
+    final colors = context.colors;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Langue', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+              const SizedBox(height: 8),
+              for (final language in AppLanguage.values)
+                ValueListenableBuilder<AppLanguage>(
+                  valueListenable: localeController,
+                  builder: (context, current, _) {
+                    return ListTile(
+                      title: Text(language.label, style: TextStyle(color: colors.textDark)),
+                      subtitle: language.isAvailable
+                          ? null
+                          : Text('Pas encore disponible', style: TextStyle(color: colors.textMuted, fontSize: 12)),
+                      trailing: current == language ? Icon(Icons.check_rounded, color: colors.primary) : null,
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        if (!language.isAvailable) {
+                          _showComingSoon('Le passage en ${language.label}');
+                          return;
+                        }
+                        await localeController.setLanguage(language);
+                      },
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showThemePicker() {
@@ -222,7 +371,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           _buildAccountSettingsCard(profile),
           const SizedBox(height: 16),
-          SupportSection(onItemTap: _showComingSoon),
+          SupportSection(
+            onItemTap: (label) {
+              switch (label) {
+                case 'À propos de Maplenou':
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+                case "Centre d'aide":
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpCenterScreen()));
+                case 'Nous contacter':
+                  _contactSupport();
+                default:
+                  _showComingSoon(label);
+              }
+            },
+          ),
           const SizedBox(height: 28),
           LogoutButton(onPressed: _handleLogout),
         ],
@@ -265,27 +427,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             badgeLabel: profile.hasPendingSellerApplication ? 'En attente' : null,
             onTap: profile.hasPendingSellerApplication
                 ? null
-                : () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SellerRegistrationScreen()),
-                    ),
+                : () => _pushAndReload(const SellerRegistrationScreen()),
           ),
         ProfileMenuRow(
           icon: Icons.person_outline_rounded,
           title: 'Informations personnelles',
-          subtitle: 'Modifier profil, mot de passe',
-          onTap: () => _showComingSoon('Informations personnelles'),
+          subtitle: 'Modifier nom, email',
+          onTap: _openEditProfile,
         ),
         ProfileMenuRow(
           icon: Icons.location_on_outlined,
           title: 'Adresses enregistrées',
           subtitle: profile.primaryAddressSummary,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddressesScreen())),
+          onTap: () => _pushAndReload(const AddressesScreen()),
         ),
         ProfileMenuRow(
           icon: Icons.credit_card_outlined,
           title: 'Modes de paiement',
           subtitle: profile.paymentMethodsSummary,
-          onTap: () => _showComingSoon('Modes de paiement'),
+          onTap: _showPaymentMethodsInfo,
         ),
         ValueListenableBuilder<ThemeMode>(
           valueListenable: themeController,
@@ -298,11 +458,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
+        ValueListenableBuilder<AppLanguage>(
+          valueListenable: localeController,
+          builder: (context, language, _) {
+            return ProfileMenuRow(
+              icon: Icons.language_rounded,
+              title: 'Langue',
+              subtitle: language.label,
+              onTap: _pickLanguage,
+            );
+          },
+        ),
         ProfileMenuRow(
-          icon: Icons.language_rounded,
-          title: 'Langue',
-          subtitle: 'Français, English',
-          onTap: () => _showComingSoon('Langue'),
+          icon: Icons.delete_outline_rounded,
+          title: 'Supprimer mon compte',
+          subtitle: 'Suppression définitive de l\'accès à votre compte',
+          accentColor: context.colors.error,
+          onTap: _handleDeleteAccount,
         ),
       ],
     );

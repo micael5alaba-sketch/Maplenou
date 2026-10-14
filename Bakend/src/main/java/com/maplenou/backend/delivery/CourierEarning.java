@@ -9,10 +9,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Gain d'un livreur pour une livraison terminée. Montant provisoire : les
- * frais de la {@link DeliveryZone} correspondant à l'adresse de livraison
- * (voir {@link CourierEarningService}) — l'`Order` ne mémorise pas encore
- * quelle zone a été appliquée au moment du checkout, donc la zone est
+ * Gain d'un livreur pour une livraison terminée. Le montant brut (tarif de
+ * la {@link DeliveryZone} correspondant à l'adresse de livraison — voir
+ * {@link CourierEarningService}) est toujours partagé 25 % plateforme /
+ * 75 % livreur ; {@code amount} reste le montant net déjà versable au
+ * livreur, comme avant l'introduction du barème. L'`Order` ne mémorise pas
+ * encore quelle zone a été appliquée au moment du checkout, donc la zone est
  * déduite a posteriori par correspondance de ville/quartier.
  */
 @Entity
@@ -36,6 +38,19 @@ public class CourierEarning {
     @JoinColumn(name = "agent_id", nullable = false)
     private User agent;
 
+    /** Tarif complet de la zone de livraison, avant répartition. */
+    @Column(name = "gross_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal grossAmount;
+
+    /** Part gardée par la plateforme (0.2500 = 25 %). */
+    @Column(name = "commission_rate", nullable = false, precision = 5, scale = 4)
+    private BigDecimal commissionRate;
+
+    /** Montant gardé par la plateforme, {@code grossAmount * commissionRate}. */
+    @Column(name = "commission_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal commissionAmount;
+
+    /** Montant net versable au livreur, {@code grossAmount - commissionAmount}. */
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 

@@ -8,6 +8,7 @@ import '../utils/formatters.dart';
 import '../widgets/filter_pill.dart';
 import '../widgets/sale_transaction_card.dart';
 import '../widgets/search_field.dart';
+import 'notifications_screen.dart';
 
 /// Seller's full sales history: lifetime totals, then a searchable,
 /// filterable list of past transactions (completed or cancelled).
@@ -60,12 +61,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           t.customerName.toLowerCase().contains(_query);
       return matchesFilter && matchesQuery;
     }).toList();
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
   @override
@@ -167,7 +162,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           ),
           IconButton(
             icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
           ),
         ],
       ),

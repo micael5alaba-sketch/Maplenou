@@ -9,11 +9,13 @@ import '../utils/formatters.dart';
 class WithdrawalHistorySection extends StatelessWidget {
   final List<WithdrawalModel> withdrawals;
   final VoidCallback onSeeAll;
+  final void Function(WithdrawalModel withdrawal) onDownloadInvoice;
 
   const WithdrawalHistorySection({
     super.key,
     required this.withdrawals,
     required this.onSeeAll,
+    required this.onDownloadInvoice,
   });
 
   @override
@@ -82,6 +84,11 @@ class WithdrawalHistorySection extends StatelessWidget {
           isPending ? Icons.access_time_rounded : Icons.check_circle_rounded,
           size: 18,
           color: isPending ? colors.accentOrange : colors.primary,
+        ),
+        IconButton(
+          icon: Icon(Icons.download_outlined, size: 18, color: colors.textMuted),
+          tooltip: 'Télécharger la facture',
+          onPressed: () => onDownloadInvoice(withdrawal),
         ),
       ],
     );

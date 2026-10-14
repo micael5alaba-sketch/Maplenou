@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/locale_controller.dart';
 import '../services/theme_controller.dart';
+import '../services/user_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/logout_button.dart';
 import 'courier_pin_settings_screen.dart';
 import 'login_screen.dart';
 
 /// "Paramètres" — delivery preferences, appearance, notifications,
-/// language and PIN. Le thème, la langue et le code PIN sont réels
-/// (préférences locales à l'appareil — voir `ThemeController`,
-/// `LocaleController`, `CourierPinService`) ; zone de livraison et
-/// notifications restent des espaces réservés.
+/// language and PIN. Le thème, la langue, les notifications et le code PIN
+/// sont réels (préférences locales à l'appareil — voir `ThemeController`,
+/// `LocaleController`, `CourierPinService`) ; seule la zone de livraison
+/// reste un espace réservé (pas de notion de zone assignée au livreur côté
+/// backend pour l'instant).
 class CourierSettingsScreen extends StatefulWidget {
   const CourierSettingsScreen({super.key});
 
@@ -21,7 +25,27 @@ class CourierSettingsScreen extends StatefulWidget {
 }
 
 class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
+  static const _notificationsPrefKey = 'courier_notifications_enabled';
+
   bool _notificationsEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPreference();
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _notificationsEnabled = prefs.getBool(_notificationsPrefKey) ?? true);
+  }
+
+  Future<void> _setNotificationsEnabled(bool value) async {
+    setState(() => _notificationsEnabled = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationsPrefKey, value);
+  }
 
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
@@ -83,6 +107,44 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
     );
   }
 
+  Future<void> _handleDeleteAccount() async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Supprimer mon compte'),
+        content: const Text(
+          'Cette action est définitive : vous perdrez l\'accès à votre compte livreur. Continuer ?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Supprimer', style: TextStyle(color: colors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await UserService().deleteAccount();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -127,7 +189,7 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
                     'Notifications',
                     subtitle: 'Nouvelles courses & alertes',
                     value: _notificationsEnabled,
-                    onChanged: (v) => setState(() => _notificationsEnabled = v),
+                    onChanged: _setNotificationsEnabled,
                   ),
                   const SizedBox(height: 10),
                   ValueListenableBuilder<AppLanguage>(
@@ -140,6 +202,17 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
                   _buildSectionLabel(colors, 'SÉCURITÉ'),
                   const SizedBox(height: 8),
                   _buildRow(colors, Icons.dialpad_rounded, 'Changer le code PIN', subtitle: 'Sécurité de connexion', onTap: _openPinSettings),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel(colors, 'COMPTE'),
+                  const SizedBox(height: 8),
+                  _buildRow(
+                    colors,
+                    Icons.delete_outline_rounded,
+                    'Supprimer mon compte',
+                    subtitle: 'Suppression définitive de l\'accès à votre compte',
+                    accentColor: colors.error,
+                    onTap: _handleDeleteAccount,
+                  ),
                   const SizedBox(height: 28),
                   LogoutButton(onPressed: _handleLogout),
                 ],
@@ -172,7 +245,7 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
     return Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.textMuted));
   }
 
-  Widget _buildRow(AppColorScheme colors, IconData icon, String title, {required String subtitle, required VoidCallback onTap}) {
+  Widget _buildRow(AppColorScheme colors, IconData icon, String title, {required String subtitle, required VoidCallback onTap, Color? accentColor}) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -185,13 +258,13 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: colors.primary, size: 20),
+            Icon(icon, color: accentColor ?? colors.primary, size: 20),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: accentColor ?? colors.textDark)),
                   Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textMuted)),
                 ],
               ),

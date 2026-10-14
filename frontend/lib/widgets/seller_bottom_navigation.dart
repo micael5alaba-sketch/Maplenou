@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_color_scheme.dart';
 
 /// The four destinations reachable from [SellerBottomNavigation].
@@ -18,15 +19,16 @@ class SellerBottomNavigation extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  static const _items = [
-    (tab: SellerTab.dashboard, icon: Icons.space_dashboard_rounded, label: 'Dashboard'),
-    (tab: SellerTab.orders, icon: Icons.receipt_long_rounded, label: 'Commandes'),
-    (tab: SellerTab.products, icon: Icons.inventory_2_rounded, label: 'Produits'),
-    (tab: SellerTab.profile, icon: Icons.person_rounded, label: 'Profil'),
-  ];
+  List<({SellerTab tab, IconData icon, String label})> _items(AppLocalizations l10n) => [
+        (tab: SellerTab.dashboard, icon: Icons.space_dashboard_rounded, label: l10n.navDashboard),
+        (tab: SellerTab.orders, icon: Icons.receipt_long_rounded, label: l10n.navOrders),
+        (tab: SellerTab.products, icon: Icons.inventory_2_rounded, label: l10n.navProducts),
+        (tab: SellerTab.profile, icon: Icons.person_rounded, label: l10n.navProfile),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.surface,
@@ -44,7 +46,7 @@ class SellerBottomNavigation extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [for (final item in _items) _buildItem(context, item)],
+            children: [for (final item in _items(l10n)) _buildItem(context, item)],
           ),
         ),
       ),

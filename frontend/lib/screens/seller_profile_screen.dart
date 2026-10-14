@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/seller_profile_model.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/conversation_service.dart';
 import '../services/seller_profile_service.dart';
 import '../services/shop_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -13,9 +14,12 @@ import '../widgets/logout_button.dart';
 import '../widgets/profile_menu_row.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import '../widgets/seller_profile_header.dart';
+import 'about_screen.dart';
+import 'help_center_screen.dart';
 import 'login_screen.dart';
 import 'orders_management_screen.dart';
 import 'sales_history_screen.dart';
+import 'seller_conversation_screen.dart';
 import 'seller_dashboard_screen.dart';
 import 'seller_messages_screen.dart';
 import 'vendor_catalog_screen.dart';
@@ -72,6 +76,24 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  Future<void> _contactSupport() async {
+    try {
+      final conversationId = await ConversationService().startSupportConversation();
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SellerConversationScreen(
+          conversationId: conversationId,
+          participantName: 'Support Maplenou',
+        ),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _showMessage(String message) {
@@ -360,17 +382,17 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
             ProfileMenuRow(
               icon: Icons.help_outline_rounded,
               title: "Centre d'aide",
-              onTap: () => _showComingSoon("Centre d'aide"),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpCenterScreen())),
             ),
             ProfileMenuRow(
               icon: Icons.chat_bubble_outline_rounded,
               title: 'Nous contacter',
-              onTap: () => _showComingSoon('Nous contacter'),
+              onTap: _contactSupport,
             ),
             ProfileMenuRow(
               icon: Icons.info_outline_rounded,
               title: 'À propos de Maplenou',
-              onTap: () => _showComingSoon('À propos de Maplenou'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen())),
             ),
           ],
         ],

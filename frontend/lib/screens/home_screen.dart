@@ -6,6 +6,7 @@ import '../models/product_model.dart';
 import '../services/api_client.dart';
 import '../services/cart_service.dart';
 import '../services/category_service.dart';
+import '../services/notification_history_service.dart';
 import '../services/product_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_drawer.dart';
@@ -17,6 +18,7 @@ import '../widgets/search_field.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'favorites_screen.dart';
+import 'notifications_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
 
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ProductModel> _products = [];
   bool _isLoading = true;
   String? _error;
+  int _unreadNotifications = 0;
 
   final HomeTab _currentTab = HomeTab.home;
 
@@ -49,6 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadUnreadNotifications();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    final count = await NotificationHistoryService().unreadCount();
+    if (!mounted) return;
+    setState(() => _unreadNotifications = count);
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+    _loadUnreadNotifications();
   }
 
   Future<void> _loadData() async {
@@ -121,6 +136,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
   }
 
+  void _searchAndOpenResults(String query) {
+    if (query.trim().isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CategoriesScreen(initialSearch: query.trim())),
+    );
+  }
+
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -138,9 +160,12 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 12),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SearchField(hintText: 'Que recherchez-vous ?'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SearchField(
+                hintText: 'Que recherchez-vous ?',
+                onSubmitted: _searchAndOpenResults,
+              ),
             ),
             Expanded(child: _buildBody()),
           ],
@@ -224,17 +249,18 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         IconButton(
           icon: Icon(Icons.notifications_none_rounded, color: context.colors.textDark),
-          onPressed: () => _showComingSoon('Notifications'),
+          onPressed: _openNotifications,
         ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(color: context.colors.error, shape: BoxShape.circle),
+        if (_unreadNotifications > 0)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(color: context.colors.error, shape: BoxShape.circle),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -312,7 +338,9 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 100,
           child: CategoryCarousel(
             categories: _categories,
-            onCategoryTap: (category) => _showComingSoon('La catégorie ${category.name}'),
+            onCategoryTap: (category) => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => CategoriesScreen(initialCategory: category)),
+            ),
           ),
         ),
       ],

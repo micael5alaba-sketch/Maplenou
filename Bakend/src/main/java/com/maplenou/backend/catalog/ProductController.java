@@ -140,10 +140,11 @@ public class ProductController {
             @RequestParam(required = false) UUID shopId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
         int clampedSize = Math.min(Math.max(size, 1), 100);
-        return productService.listCatalog(categoryId, shopId, minPrice, maxPrice, cursor, clampedSize);
+        return productService.listCatalog(categoryId, shopId, minPrice, maxPrice, search, cursor, clampedSize);
     }
 
     @GetMapping("/api/products/{slug}")

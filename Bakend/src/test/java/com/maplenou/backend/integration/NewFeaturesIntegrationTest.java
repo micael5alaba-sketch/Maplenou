@@ -69,18 +69,18 @@ class NewFeaturesIntegrationTest extends AbstractIntegrationTest {
         String adminToken = login("+22890000000", "Micael2005@");
 
         JsonNode buyerAuth = post("/api/auth/register",
-                new RegisterRequest("Client JUnit", buyerPhone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Client JUnit", buyerPhone, "Passw0rd!", null), null, 201);
         String buyerToken = buyerAuth.get("accessToken").asText();
         buyerId = UUID.fromString(buyerAuth.get("user").get("id").asText());
 
         JsonNode sellerAuth = post("/api/auth/register",
-                new RegisterRequest("Vendeur JUnit", sellerPhone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Vendeur JUnit", sellerPhone, "Passw0rd!", null), null, 201);
         sellerId = UUID.fromString(sellerAuth.get("user").get("id").asText());
 
         // ----- Seller onboarding -----
         String sellerTokenBeforeApproval = sellerAuth.get("accessToken").asText();
         JsonNode apply = post("/api/sellers/apply",
-                new ApplySellerRequest("Boutique JUnit " + rand), sellerTokenBeforeApproval, 201);
+                new ApplySellerRequest("Boutique JUnit " + rand, null), sellerTokenBeforeApproval, 201);
         sellerProfileId = UUID.fromString(apply.get("id").asText());
 
         JsonNode approved = patch("/api/sellers/admin/" + sellerProfileId + "/status",

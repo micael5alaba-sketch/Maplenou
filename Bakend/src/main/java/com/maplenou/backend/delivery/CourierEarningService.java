@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -23,12 +24,12 @@ import java.util.UUID;
  * Rémunération livreur : un {@link CourierEarning} est créé automatiquement
  * quand une {@link Delivery} passe à DELIVERED (voir {@link DeliveryService#updateStatus}).
  *
- * Montant provisoire — décision actée avec le porteur du projet plutôt que
- * de laisser ce module mocké : les frais de la {@link DeliveryZone}
- * correspondant à l'adresse de livraison, déduits par correspondance de
- * ville/quartier puisque l'`Order` ne mémorise pas encore quelle zone a été
- * appliquée au moment du checkout. Barème à formaliser plus tard (voir
- * `CLAUDE.md` §5, même logique que la commission vendeur).
+ * Barème décidé avec le porteur du projet (même logique que la commission
+ * vendeur, {@code CommissionService}) : le tarif complet de la
+ * {@link DeliveryZone} correspondant à l'adresse de livraison — déduite par
+ * correspondance de ville/quartier puisque l'`Order` ne mémorise pas encore
+ * quelle zone a été appliquée au moment du checkout — est partagé 25 %
+ * plateforme / 75 % livreur.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,19 +38,48 @@ public class CourierEarningService {
 
     private static final BigDecimal DEFAULT_FEE = new BigDecimal("1000.00");
 
+    /** Part gardée par la plateforme sur le tarif de livraison. */
+    private static final BigDecimal PLATFORM_RATE = new BigDecimal("0.2500");
+
     private final CourierEarningRepository courierEarningRepository;
     private final DeliveryZoneRepository deliveryZoneRepository;
     private final AuditService auditService;
 
+    /** Montant gardé par la plateforme sur un tarif de livraison brut donné. */
+    public BigDecimal platformAmountFor(BigDecimal grossFee) {
+        return grossFee.multiply(PLATFORM_RATE).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Montant net versable au livreur sur un tarif de livraison brut donné. */
+    public BigDecimal courierAmountFor(BigDecimal grossFee) {
+        return grossFee.subtract(platformAmountFor(grossFee));
+    }
+
+    /**
+     * Estimation du gain pour le livreur avant même qu'une livraison ne soit
+     * terminée (affichée dès qu'elle lui est assignée) — même calcul que
+     * {@link #createForDelivery}, sans rien persister.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal estimateCourierAmount(Delivery delivery) {
+        AddressSnapshot address = delivery.getSubOrder().getOrder().getDeliveryAddress();
+        return courierAmountFor(resolveFee(address));
+    }
+
     @Transactional
     public void createForDelivery(Delivery delivery) {
         AddressSnapshot address = delivery.getSubOrder().getOrder().getDeliveryAddress();
-        BigDecimal amount = resolveFee(address);
+        BigDecimal gross = resolveFee(address);
+        BigDecimal commission = platformAmountFor(gross);
+        BigDecimal net = gross.subtract(commission);
 
         CourierEarning earning = CourierEarning.builder()
                 .delivery(delivery)
                 .agent(delivery.getAgent())
-                .amount(amount)
+                .grossAmount(gross)
+                .commissionRate(PLATFORM_RATE)
+                .commissionAmount(commission)
+                .amount(net)
                 .status(CourierEarningStatus.PENDING)
                 .build();
         courierEarningRepository.save(earning);

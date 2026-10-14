@@ -286,15 +286,13 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 
 ## 11. Ce qui est fait / pas fait
 
-**Fait et testé** : auth/2FA, catalogue, panier, commandes/paiement (webhook générique),
-livraison interne, retours, avis, codes promo, reversements, KPI admin, RGPD, audit,
-notifications push, upload médias Cloudinary, messagerie, pages CMS, capture newsletter.
+**Fait et testé** : auth/2FA, catalogue, panier, commandes/**paiement réel FedaPay** (voir
+`CLAUDE.md` §7), livraison interne, messagerie livreur↔client/boutique, documents légaux livreur,
+retours, avis, codes promo, reversements, KPI admin, RGPD, audit, notifications push, upload
+médias Cloudinary, messagerie, pages CMS, capture newsletter, restriction IP/VPN sur l'Admin
+(`AdminIpFilter`), CI GitHub Actions (tests backend + analyze/test frontend sur push/PR).
 
 **Explicitement reporté** (décision assumée avec le porteur du projet) :
-- **Paiement réel FedaPay/Stripe** : le webhook actuel réagit à une confirmation déjà faite par
-  une passerelle externe, mais aucune intégration FedaPay/Stripe n'existe (pas de SDK, pas
-  d'initiation de paiement, pas de split automatique vendeur). `PaymentWebhookController` contient
-  un `TODO` explicite pour remplacer le secret partagé par une vérification HMAC-SHA256 FedaPay.
 - **Transporteur tiers (Colissimo)** : interface `CarrierShippingClient` posée et branchée dans le
   flux vendeur (`POST /api/shops/mine/sub-orders/{id}/shipping/label`), mais désactivée par défaut
   (`COLISSIMO_ENABLED=false`) — répond avec une erreur claire tant qu'un vrai contrat n'est pas
@@ -303,7 +301,6 @@ notifications push, upload médias Cloudinary, messagerie, pages CMS, capture ne
   tard).
 
 **Non commencé** :
-- CI/CD (les tests ne se lancent pas automatiquement sur push/PR)
 - Tests de charge
 
 ---

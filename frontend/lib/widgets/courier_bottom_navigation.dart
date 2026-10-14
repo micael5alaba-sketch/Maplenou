@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_color_scheme.dart';
 
 /// The four destinations reachable from [CourierBottomNavigation].
@@ -18,15 +19,16 @@ class CourierBottomNavigation extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  static const _items = [
-    (tab: CourierTab.dashboard, icon: Icons.space_dashboard_rounded, label: 'Dashboard'),
-    (tab: CourierTab.deliveries, icon: Icons.local_shipping_rounded, label: 'Courses'),
-    (tab: CourierTab.messages, icon: Icons.chat_bubble_outline_rounded, label: 'Messages'),
-    (tab: CourierTab.profile, icon: Icons.person_rounded, label: 'Profil'),
-  ];
+  List<({CourierTab tab, IconData icon, String label})> _items(AppLocalizations l10n) => [
+        (tab: CourierTab.dashboard, icon: Icons.space_dashboard_rounded, label: l10n.navDashboard),
+        (tab: CourierTab.deliveries, icon: Icons.local_shipping_rounded, label: l10n.navDeliveries),
+        (tab: CourierTab.messages, icon: Icons.chat_bubble_outline_rounded, label: l10n.navMessages),
+        (tab: CourierTab.profile, icon: Icons.person_rounded, label: l10n.navProfile),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.surface,
@@ -40,7 +42,7 @@ class CourierBottomNavigation extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [for (final item in _items) _buildItem(context, item)],
+            children: [for (final item in _items(l10n)) _buildItem(context, item)],
           ),
         ),
       ),

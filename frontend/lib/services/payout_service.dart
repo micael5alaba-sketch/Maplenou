@@ -12,6 +12,12 @@ class PayoutService {
     return content.map((json) => WithdrawalModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 
+  /// Détail d'un reversement avec ses sous-commandes — pour la facture PDF.
+  Future<PayoutDetailModel> getPayoutDetail(String payoutId) async {
+    final data = await _client.get('/api/seller/payouts/$payoutId') as Map<String, dynamic>;
+    return PayoutDetailModel.fromJson(data);
+  }
+
   Future<List<PaymentMethodModel>> getPayoutMethods() async {
     final data = await _client.get('/api/seller/payout-methods') as List<dynamic>;
     return data.map((json) => PaymentMethodModel.fromJson(json as Map<String, dynamic>)).toList();

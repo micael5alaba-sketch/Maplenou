@@ -1,3 +1,33 @@
+/// Un article au sein d'une [SubOrderSummaryModel]. Miroir de
+/// `SubOrderItemResponse` (`order/dto/SubOrderItemResponse.java`) —
+/// uniquement présent sur le détail d'une commande (`GET /api/orders/{id}`),
+/// pas sur la liste, pour garder "Mes commandes" léger.
+class OrderItemModel {
+  final String productName;
+  final String variantLabel;
+  final int quantity;
+  final num unitPrice;
+  final num lineTotal;
+
+  const OrderItemModel({
+    required this.productName,
+    required this.variantLabel,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+
+  factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    return OrderItemModel(
+      productName: json['productName'] as String,
+      variantLabel: json['variantLabel'] as String,
+      quantity: json['quantity'] as int,
+      unitPrice: json['unitPrice'] as num,
+      lineTotal: json['lineTotal'] as num,
+    );
+  }
+}
+
 /// Une sous-commande au sein d'une [OrderModel] (une par boutique). Miroir
 /// de `SubOrderSummary` (`order/dto/SubOrderSummary.java`).
 class SubOrderSummaryModel {
@@ -6,6 +36,7 @@ class SubOrderSummaryModel {
   final String shopName;
   final String status;
   final num subtotal;
+  final List<OrderItemModel> items;
   final DateTime createdAt;
 
   const SubOrderSummaryModel({
@@ -14,16 +45,19 @@ class SubOrderSummaryModel {
     required this.shopName,
     required this.status,
     required this.subtotal,
+    this.items = const [],
     required this.createdAt,
   });
 
   factory SubOrderSummaryModel.fromJson(Map<String, dynamic> json) {
+    final items = json['items'] as List<dynamic>?;
     return SubOrderSummaryModel(
       id: json['id'] as String,
       shopId: json['shopId'] as String,
       shopName: json['shopName'] as String,
       status: json['status'] as String,
       subtotal: json['subtotal'] as num,
+      items: items == null ? const [] : items.map((i) => OrderItemModel.fromJson(i as Map<String, dynamic>)).toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -37,8 +71,17 @@ class OrderDeliveryAddressModel {
   final String city;
   final String? district;
   final String? details;
+  final double? latitude;
+  final double? longitude;
 
-  const OrderDeliveryAddressModel({this.label, required this.city, this.district, this.details});
+  const OrderDeliveryAddressModel({
+    this.label,
+    required this.city,
+    this.district,
+    this.details,
+    this.latitude,
+    this.longitude,
+  });
 
   String get summary {
     final parts = [city, if (district != null && district!.isNotEmpty) district!];
@@ -51,6 +94,8 @@ class OrderDeliveryAddressModel {
       city: json['city'] as String,
       district: json['district'] as String?,
       details: json['details'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 }
@@ -71,6 +116,12 @@ class OrderModel {
 
   final String orderNumber;
 
+  /// URL de paiement FedaPay à ouvrir juste après la création de la commande
+  /// (voir `OrderService.placeOrder` côté backend) — null si FedaPay est
+  /// désactivé (`app.fedapay.enabled=false`, cas par défaut hors production)
+  /// ou sur toute relecture ultérieure de la commande (pas régénéré).
+  final String? paymentUrl;
+
   const OrderModel({
     required this.id,
     required this.orderNumber,
@@ -82,6 +133,7 @@ class OrderModel {
     required this.subOrders,
     required this.subOrderCount,
     required this.createdAt,
+    this.paymentUrl,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -100,6 +152,7 @@ class OrderModel {
       subOrders: subOrders,
       subOrderCount: json['subOrderCount'] as int? ?? subOrders.length,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      paymentUrl: json['paymentUrl'] as String?,
     );
   }
 }

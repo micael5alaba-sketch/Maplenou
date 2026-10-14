@@ -38,13 +38,13 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
         String phone = "+22892" + String.format("%07d", rand % 10_000_000L);
 
         JsonNode registered = post("/api/auth/register",
-                new RegisterRequest("Auth Flow User", phone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Auth Flow User", phone, "Passw0rd!", null), null, 201);
         createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
         assertNotNull(registered.get("accessToken").asText());
         assertNotNull(registered.get("refreshToken").asText());
 
         // Doublon de téléphone -> 409
-        post("/api/auth/register", new RegisterRequest("Dup", phone, "Passw0rd!"), null, 409);
+        post("/api/auth/register", new RegisterRequest("Dup", phone, "Passw0rd!", null), null, 409);
 
         // Mauvais mot de passe -> 401
         post("/api/auth/login", new LoginRequest(phone, "WrongPass1"), null, 401);
@@ -66,7 +66,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
     void twoFactorSetupActivateLoginChallengeAndDisable() throws Exception {
         String phone = "+22893" + String.format("%07d", rand % 10_000_000L);
         JsonNode registered = post("/api/auth/register",
-                new RegisterRequest("2FA User", phone, "Passw0rd!"), null, 201);
+                new RegisterRequest("2FA User", phone, "Passw0rd!", null), null, 201);
         createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
         String token = registered.get("accessToken").asText();
 
@@ -103,7 +103,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
     void userProfileAndAddresses() throws Exception {
         String phone = "+22894" + String.format("%07d", rand % 10_000_000L);
         JsonNode registered = post("/api/auth/register",
-                new RegisterRequest("Profile User", phone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Profile User", phone, "Passw0rd!", null), null, 201);
         String token = registered.get("accessToken").asText();
         createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
 
@@ -137,7 +137,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
 
         String phone = "+22895" + String.format("%07d", rand % 10_000_000L);
         JsonNode registered = post("/api/auth/register",
-                new RegisterRequest("Ban Target", phone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Ban Target", phone, "Passw0rd!", null), null, 201);
         UUID banUserId = UUID.fromString(registered.get("user").get("id").asText());
         createdUserIds.add(banUserId);
 
@@ -159,7 +159,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
         // Changement de rôle vers DELIVERY_AGENT
         String rolePhone = "+22896" + String.format("%07d", rand % 10_000_000L);
         JsonNode roleUser = post("/api/auth/register",
-                new RegisterRequest("Role Target", rolePhone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Role Target", rolePhone, "Passw0rd!", null), null, 201);
         UUID roleChangeUserId = UUID.fromString(roleUser.get("user").get("id").asText());
         createdUserIds.add(roleChangeUserId);
 
@@ -180,7 +180,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
 
         String selfPhone = "+22897" + String.format("%07d", rand % 10_000_000L);
         JsonNode self = post("/api/auth/register",
-                new RegisterRequest("Self Delete", selfPhone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Self Delete", selfPhone, "Passw0rd!", null), null, 201);
         String selfToken = self.get("accessToken").asText();
         createdUserIds.add(UUID.fromString(self.get("user").get("id").asText()));
 
@@ -190,7 +190,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
 
         String anonPhone = "+22898" + String.format("%07d", rand % 10_000_000L);
         JsonNode anon = post("/api/auth/register",
-                new RegisterRequest("Anon Target", anonPhone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Anon Target", anonPhone, "Passw0rd!", null), null, 201);
         UUID gdprAnonymizeUserId = UUID.fromString(anon.get("user").get("id").asText());
         createdUserIds.add(gdprAnonymizeUserId);
 
@@ -203,7 +203,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
     void deviceTokenRegistrationLifecycle() throws Exception {
         String phone = "+22899" + String.format("%07d", rand % 10_000_000L);
         JsonNode registered = post("/api/auth/register",
-                new RegisterRequest("Device Token User", phone, "Passw0rd!"), null, 201);
+                new RegisterRequest("Device Token User", phone, "Passw0rd!", null), null, 201);
         String token = registered.get("accessToken").asText();
         createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
 
@@ -238,7 +238,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
 
         // Non-admin refusé
         JsonNode buyer = post("/api/auth/register",
-                new RegisterRequest("KPI Peeker", "+228991" + String.format("%06d", rand % 1_000_000L), "Passw0rd!"),
+                new RegisterRequest("KPI Peeker", "+228991" + String.format("%06d", rand % 1_000_000L), "Passw0rd!", null),
                 null, 201);
         createdUserIds.add(UUID.fromString(buyer.get("user").get("id").asText()));
         get("/api/admin/kpis", buyer.get("accessToken").asText(), 403);

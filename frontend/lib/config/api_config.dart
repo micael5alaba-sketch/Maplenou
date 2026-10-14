@@ -20,12 +20,17 @@ class ApiConfig {
   /// device would hang trying to reach it until the connection times out.
   static const bool _useAndroidEmulator = false;
 
-  /// Flip to true for a physical phone plugged in by USB with
-  /// `adb reverse tcp:8080 tcp:8080` set up (see MANUEL.md §14) — the phone's
-  /// own "localhost" is then tunnelled straight to this machine's backend,
-  /// which survives Wi-Fi changes unlike `_devMachineLanIp` below. Leave
-  /// false to fall back to Wi-Fi, where phone and machine must share the
-  /// same network.
+  /// `adb reverse tcp:8080 tcp:8080` : the phone's own "localhost" is
+  /// tunnelled straight to this machine's backend. Works over *either* a USB
+  /// cable *or* an active wireless-debugging adb session — `adb reverse` only
+  /// needs a live adb connection, not a physical cable. Re-enabled (true) on
+  /// 04/10/2026 : the Wi-Fi/LAN-IP approach below kept breaking because this
+  /// network's DHCP changes the dev machine's IP every so often (3 separate
+  /// incidents in one session), each requiring a manual rebuild. The tunnel
+  /// instead needs `adb reverse tcp:8080 tcp:8080` re-run after any adb
+  /// disconnect (USB re-enumeration or Wi-Fi adb drop) — no rebuild, just a
+  /// 10-second shell command — which is the lesser evil of the two failure
+  /// modes seen so far.
   static const bool _useUsbReverseTunnel = true;
 
   /// LAN IP of the machine running the backend (find it with `ipconfig`,
@@ -34,7 +39,7 @@ class ApiConfig {
   /// Wi-Fi network as this machine to reach it, and Windows Firewall must
   /// allow inbound connections on port 8080. This changes whenever the dev
   /// machine joins a different network.
-  static const String _devMachineLanIp = '10.149.225.251';
+  static const String _devMachineLanIp = '10.5.51.49';
 
   static String get baseUrl {
     if (!kIsWeb && Platform.isAndroid) {

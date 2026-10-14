@@ -10,6 +10,7 @@ import com.maplenou.backend.auth.dto.RegisterRequest;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.security.JwtService;
 import com.maplenou.backend.security.TokenBlacklistService;
+import com.maplenou.backend.user.Role;
 import com.maplenou.backend.user.User;
 import com.maplenou.backend.user.UserRepository;
 import com.maplenou.backend.user.dto.UserResponse;
@@ -49,13 +50,23 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Ce numéro de téléphone est déjà utilisé");
         }
 
-        // role = null : compte acheteur standard. ADMIN/DELIVERY_AGENT sont attribues
-        // separement (creation interne), jamais via cette inscription publique.
+        // role = null par defaut (compte acheteur standard). Seul "DELIVERY_AGENT" peut etre
+        // demande explicitement a l'inscription (livreur independant, cahier des charges §3.3) :
+        // toute autre valeur (y compris "ADMIN", qui ne doit JAMAIS etre auto-attribuable) est
+        // rejetee ici, independamment de ce que l'enum Role accepterait par ailleurs.
+        Role role = null;
+        if (request.accountType() != null && !request.accountType().isBlank()) {
+            if (!"DELIVERY_AGENT".equals(request.accountType())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Type de compte invalide");
+            }
+            role = Role.DELIVERY_AGENT;
+        }
+
         User user = User.builder()
                 .fullName(request.fullName())
                 .phoneNumber(request.phoneNumber())
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .role(null)
+                .role(role)
                 .active(true)
                 .phoneVerified(false)
                 .build();

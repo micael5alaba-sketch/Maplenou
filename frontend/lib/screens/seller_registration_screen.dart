@@ -32,6 +32,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   final _shopNameController = TextEditingController();
   final _applicationService = SellerApplicationService();
 
+  String _feeCategory = 'STANDARD';
   bool _isSubmitting = false;
   bool _isSubmitted = false;
   String? _errorMessage;
@@ -50,7 +51,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       _errorMessage = null;
     });
     try {
-      await _applicationService.apply(shopName: _shopNameController.text.trim());
+      await _applicationService.apply(shopName: _shopNameController.text.trim(), feeCategory: _feeCategory);
       if (!mounted) return;
       setState(() => _isSubmitted = true);
     } on ApiException catch (e) {
@@ -246,7 +247,64 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             validator: (value) =>
                 (value == null || value.trim().length < 2) ? 'Indique le nom de ta boutique.' : null,
           ),
+          const SizedBox(height: 20),
+          _buildLabel(context, 'Catégorie de prix de tes produits *'),
+          const SizedBox(height: 8),
+          _buildCategoryOption(
+            context,
+            value: 'STANDARD',
+            title: 'Standard',
+            subtitle: 'Produits entre 500 et 10 000 FCFA — 500 FCFA/mois',
+          ),
+          const SizedBox(height: 10),
+          _buildCategoryOption(
+            context,
+            value: 'HIGH_PRICE',
+            title: 'Prix élevés',
+            subtitle: 'Au moins un produit à plus de 10 000 FCFA — 2 000 FCFA/mois',
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryOption(
+    BuildContext context, {
+    required String value,
+    required String title,
+    required String subtitle,
+  }) {
+    final colors = context.colors;
+    final isSelected = _feeCategory == value;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => setState(() => _feeCategory = value),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected ? colors.primary.withValues(alpha: 0.08) : colors.inputFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isSelected ? colors.primary : colors.border, width: isSelected ? 1.6 : 1),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: isSelected ? colors.primary : colors.textMuted,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textMuted)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -304,9 +362,10 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Maplenou prélève une commission transparente sur chaque vente réalisée afin '
-                  'de couvrir les frais de transaction, le support client et la mise en avant '
-                  'de votre boutique.',
+                  'Maplenou prélève une commission transparente sur chaque vente réalisée. '
+                  'En plus, tes 3 premières ventes sont sans frais mensuel ; à partir de la 4ᵉ, '
+                  'un petit frais d\'activité (selon ta catégorie ci-dessus) est déduit '
+                  'automatiquement de ton reversement chaque mois où tu as vendu.',
                   style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
                 ),
               ],

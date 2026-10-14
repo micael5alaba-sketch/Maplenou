@@ -6,6 +6,7 @@ class DeliveryStatusModel {
   final String status;
   final String? agentId;
   final String? agentName;
+  final String? agentPhone;
   final String? proofUrl;
   final DateTime? deliveredAt;
 
@@ -14,6 +15,7 @@ class DeliveryStatusModel {
     required this.status,
     this.agentId,
     this.agentName,
+    this.agentPhone,
     this.proofUrl,
     this.deliveredAt,
   });
@@ -24,6 +26,7 @@ class DeliveryStatusModel {
       status: json['status'] as String,
       agentId: json['agentId'] as String?,
       agentName: json['agentName'] as String?,
+      agentPhone: json['agentPhone'] as String?,
       proofUrl: json['proofUrl'] as String?,
       deliveredAt: json['deliveredAt'] != null ? DateTime.parse(json['deliveredAt'] as String) : null,
     );

@@ -9,7 +9,9 @@ plugins {
 
 android {
     namespace = "com.example.frontend"
-    compileSdk = flutter.compileSdkVersion
+    // compileSdk force a 36 : flutter.compileSdkVersion (33 avec ce SDK Flutter) est trop vieux
+    // pour les dependances Android du plugin "geocoding" (androidx.fragment/window exigent >= 34).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

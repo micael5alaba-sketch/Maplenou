@@ -10,6 +10,7 @@ import '../widgets/courier_bottom_navigation.dart';
 import 'courier_conversation_screen.dart';
 import 'courier_deliveries_screen.dart';
 import 'courier_profile_screen.dart';
+import 'notifications_screen.dart';
 
 /// Courier's conversation list, split into "Clients" (BUYER_COURIER),
 /// "Vendeurs" (SELLER_COURIER) and "Support" — backed by
@@ -150,7 +151,7 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
           const Expanded(child: Center(child: AppLogo(variant: AppLogoVariant.horizontalColor, size: 34))),
           IconButton(
             icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
           ),
         ],
       ),

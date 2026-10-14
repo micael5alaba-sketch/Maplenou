@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/app_router.dart';
+import '../services/push_notification_service.dart';
 import '../services/token_storage.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
@@ -54,6 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     try {
       final user = await UserService().getCurrentUser();
+      PushNotificationService().initialize();
       return await AppRouter.resolveHomeScreen(user);
     } catch (_) {
       // Token expiré/révoqué et rafraîchissement impossible : repart de zéro.

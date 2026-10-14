@@ -16,5 +16,13 @@ public record PlaceOrderRequest(
         String promoCode,
 
         /** ID de la boutique visée par le code promo (null pour un code PLATFORM). */
-        UUID promoShopId
+        UUID promoShopId,
+
+        /**
+         * Pays choisi par l'acheteur pour le paiement Mobile Money (ex: "tg", "bj", "ci") —
+         * transmis à FedaPay pour présélectionner le bon pays sur sa page hébergée plutôt que de
+         * deviner depuis l'indicatif du numéro de téléphone du compte. Optionnel : si absent,
+         * on retombe sur l'ancienne détection par indicatif (voir FedaPayCheckoutService).
+         */
+        String paymentCountry
 ) {}

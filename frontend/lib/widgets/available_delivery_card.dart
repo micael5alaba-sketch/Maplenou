@@ -39,19 +39,39 @@ class AvailableDeliveryCard extends StatelessWidget {
           _buildPoint(colors, colors.accentOrange, 'Point de collecte', delivery.pickupLabel, delivery.pickupAddress),
           const SizedBox(height: 10),
           _buildPoint(colors, colors.primary, 'Point de livraison', delivery.dropoffLabel, delivery.dropoffAddress),
-          if (delivery.distanceKm != null) ...[
+          if (delivery.distanceKm != null || delivery.estimatedEarning != null) ...[
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(10)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.straighten_rounded, size: 14, color: colors.textMuted),
-                  const SizedBox(width: 6),
-                  Text('${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau', style: TextStyle(fontSize: 12, color: colors.textDark)),
-                ],
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (delivery.distanceKm != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.straighten_rounded, size: 14, color: colors.textMuted),
+                        const SizedBox(width: 6),
+                        Text('${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau', style: TextStyle(fontSize: 12, color: colors.textDark)),
+                      ],
+                    ),
+                  ),
+                if (delivery.estimatedEarning != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.payments_outlined, size: 14, color: colors.primary),
+                        const SizedBox(width: 6),
+                        Text(formatFcfa(delivery.estimatedEarning!), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 14),

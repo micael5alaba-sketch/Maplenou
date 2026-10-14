@@ -30,6 +30,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Traduction Français/Anglais (voir lib/l10n/) — l'app reste 100% en
+  # français là où elle n'a pas encore été convertie, voir locale_controller.dart.
+  intl: any
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -62,6 +68,12 @@ dependencies:
   geolocator: ^13.0.2
   permission_handler: ^11.3.1
 
+  # Géocodage inverse (position GPS -> ville/quartier) pour pré-remplir le
+  # formulaire d'adresse — géocodeur natif de l'appareil (Android Geocoder),
+  # pas de compte Google Maps Platform payant (voir INVENTAIRE_ABONNEMENTS.md
+  # §3 : explicitement pas nécessaire pour le lancement).
+  geocoding: ^3.0.0
+
   # Tracking GPS temps réel du livreur pendant une livraison en cours —
   # écriture/lecture directe sur Firebase Realtime Database depuis le
   # client, voir `notification/FirebaseRealtimeDbStructure.java` côté
@@ -69,6 +81,25 @@ dependencies:
   firebase_core: ^3.8.0
   firebase_database: ^11.1.6
   firebase_auth: ^5.3.3
+  firebase_messaging: ^15.1.3
+
+  # Ouvre la page de paiement hébergée FedaPay dans le navigateur.
+  url_launcher: ^6.3.1
+
+  # Génération du reçu de commande en PDF (pur Dart, pas de plugin natif Android
+  # — voir OrderReceiptScreen/WalletScreen). `printing` a été essayé en premier
+  # pour le partage mais son plugin Android est incompatible avec AGP 9 de ce
+  # projet (échec de build `bundletool`) : on écrit le PDF dans un fichier
+  # temporaire (path_provider) et on le partage via share_plus à la place.
+  pdf: ^3.11.1
+  path_provider: ^2.1.4
+  share_plus: ^10.1.2
+
+  # Carte en direct (suivi livreur + navigation) avec tuiles OpenStreetMap —
+  # gratuit, pas de clé ni de compte Google Maps Platform (voir
+  # INVENTAIRE_ABONNEMENTS.md §3).
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:
@@ -86,6 +117,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

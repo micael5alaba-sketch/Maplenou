@@ -11,6 +11,7 @@ import '../widgets/empty_orders_widget.dart';
 import '../widgets/order_card.dart';
 import '../widgets/orders_filter_bar.dart';
 import '../widgets/seller_bottom_navigation.dart';
+import 'order_detail_screen.dart';
 import 'seller_conversation_screen.dart';
 import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
@@ -289,7 +290,10 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
           final order = _orders[index];
           return OrderCard(
             order: order,
-            onViewDetails: () => _showComingSoon('Le détail de la commande ${order.orderNumber}'),
+            onViewDetails: () async {
+              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderDetailScreen(subOrderId: order.id)));
+              _loadPage(reset: true);
+            },
             onPrimaryAction: order.canAdvance ? () => _handlePrimaryAction(order) : null,
             onContactCourier: order.status == VendorOrderStatus.shipping ? () => _contactCourier(order) : null,
           );

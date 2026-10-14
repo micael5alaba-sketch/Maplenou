@@ -23,6 +23,10 @@ public interface SubOrderRepository extends JpaRepository<SubOrder, UUID> {
     @EntityGraph(attributePaths = {"shop", "order"})
     Page<SubOrder> findByShopIdAndStatusOrderByCreatedAtDesc(UUID shopId, SubOrderStatus status, Pageable pageable);
 
+    /** Sous-commandes incluses dans un reversement donné — pour la facture détaillée vendeur. */
+    @EntityGraph(attributePaths = {"shop", "order"})
+    List<SubOrder> findByPayoutId(UUID payoutId);
+
     /** Détail complet d'un sous-ordre avec ses articles. */
     @Query("""
             SELECT so FROM SubOrder so
@@ -61,6 +65,24 @@ public interface SubOrderRepository extends JpaRepository<SubOrder, UUID> {
     long countOngoingByShopId(@Param("shopId") UUID shopId);
 
     long countByShopIdAndStatus(UUID shopId, SubOrderStatus status);
+
+    /**
+     * Ventes éligibles (DELIVERED) d'une boutique dont la livraison est tombée dans une période
+     * donnée — utilisé pour vérifier si un mois de facturation a encore au moins une vente
+     * éligible après le retour de l'une d'elles (voir {@code SellerFeeService}).
+     */
+    @Query("""
+            SELECT COUNT(so) FROM SubOrder so
+            JOIN Delivery d ON d.subOrder = so
+            WHERE so.shop.id = :shopId
+            AND so.status = com.maplenou.backend.order.SubOrderStatus.DELIVERED
+            AND d.deliveredAt >= :from
+            AND d.deliveredAt < :to
+            """)
+    long countEligibleByShopIdAndDeliveredAtBetween(
+            @Param("shopId") UUID shopId,
+            @Param("from") Instant from,
+            @Param("to") Instant to);
 
     /** Solde disponible : livré mais pas encore rattaché à un `Payout` (voir `PayoutService`). */
     @Query("""

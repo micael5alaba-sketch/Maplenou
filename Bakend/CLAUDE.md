@@ -55,6 +55,24 @@ Pas de compte séparé par rôle. Concrètement :
 **Ne jamais réintroduire `BUYER`/`SELLER` comme valeurs de l'enum `Role`** — c'est l'ancien modèle,
 explicitement abandonné.
 
+### 3.bis Onboarding Livreur (décidé le 01/10/2026, voir cahier des charges §3.3/§3.4)
+
+Deux façons distinctes de devenir Livreur, toutes deux donnant `role = DELIVERY_AGENT` :
+
+1. **Auto-inscription** (livreur indépendant) : `POST /api/auth/register` accepte un champ
+   optionnel `accountType`, **seule valeur acceptée : `"DELIVERY_AGENT"`** (toute autre valeur,
+   y compris `"ADMIN"`, est rejetée en 400 — `ADMIN` ne doit **jamais** être auto-attribuable).
+   Le compte est créé immédiatement avec ce rôle, mais reste **sans aucune livraison tant que ses
+   4 documents obligatoires ne sont pas tous `VALID`** (voir `CourierDocumentType` :
+   `DRIVING_LICENSE`, `ID_CARD`, `VEHICLE_INSURANCE`, `VEHICLE_REGISTRATION`).
+2. **Création directe par l'admin** (livreur interne à l'entreprise, coordonnées transmises hors
+   application) : `POST /api/admin/delivery-agents` (`CourierAdminService`), l'admin choisit le
+   mot de passe et le communique lui-même.
+
+**Verrou de sécurité appliqué dans `DeliveryService.assignAgent`** : affecter une livraison à un
+livreur dont `CourierDocumentService.isFullyVerified()` est faux lève une 409 — impossible de
+contourner ce verrou même en passant directement par l'API, pas seulement une restriction d'UI.
+
 ---
 
 ## 4. Décision structurante n°2 : commande multi-vendeurs
@@ -130,18 +148,26 @@ implémentée — voir §8.)*
 
 ## 7. Paiement — état réel (mis à jour)
 
-Le point bloquant Stripe (compte marchand indisponible au Togo) n'a pas été résolu — la décision
-prise a été de **reporter l'intégration de paiement dans son ensemble**, pas seulement Stripe.
-Concrètement aujourd'hui :
+**FedaPay est intégré et fonctionnel** (Mobile Money T-Money/Flooz + carte) — décision tranchée
+avec le porteur du projet, clés sandbox obtenues et testées en conditions réelles le 28/09/2026.
+Stripe reste hors sujet (compte marchand togolais toujours bloqué, pas revisité).
 
-- Aucun SDK FedaPay ni Stripe dans `pom.xml`, aucune initiation de paiement, aucun split
-  automatique vendeur.
-- `PaymentWebhookController`/`PaymentWebhookService` ne font que **réagir à un webhook générique
-  déjà confirmé** par une passerelle externe hypothétique (signature vérifiée via un secret
-  partagé, `MessageDigest.isEqual` pour éviter les attaques par timing) — il n'y a rien en amont
-  qui déclenche un vrai paiement.
-- **Ne pas commencer l'intégration réelle tant que le porteur du projet n'a pas retranché la
-  question Stripe vs agrégateur local (FedaPay ou autre) sur ce point précis.**
+- Package `payment` : `FedaPayClient` (client HTTP JDK, pas de SDK Java officiel FedaPay),
+  `FedaPayCheckoutService` (construit la requête depuis un `Order`), `FedaPayWebhookController`
+  (`POST /api/webhooks/fedapay`, signature HMAC-SHA256 vérifiée selon l'algorithme officiel du
+  SDK PHP FedaPay — voir le code pour les détails, non documentés publiquement dans le détail).
+- `OrderService.placeOrder` crée la transaction FedaPay et renvoie `paymentUrl` (page de paiement
+  hébergée) dans la réponse dès que la commande est créée.
+- Le webhook ne fait **jamais confiance au contenu du corps reçu** pour le statut : il relit
+  systématiquement l'état réel de la transaction via l'API FedaPay avant de toucher à la commande.
+- **Flag `app.fedapay.enabled` (`FEDAPAY_ENABLED`), désactivé par défaut** — comme
+  `COLISSIMO_ENABLED` : sans clés réelles (dev local, CI), une commande reste créée sans paiement
+  réel plutôt que d'échouer, et la suite de tests (`OrderLifecycleIntegrationTest`) continue de
+  simuler le paiement via l'ancien webhook générique à secret partagé (`PaymentWebhookController`,
+  toujours en place, usage interne/tests uniquement désormais).
+- **Ne jamais commiter les vraies clés FedaPay** (même sandbox) : uniquement via
+  `FEDAPAY_SECRET_KEY`/`FEDAPAY_WEBHOOK_SECRET` en variables d'environnement, jamais dans
+  `application.properties` (qui ne contient qu'un défaut vide).
 
 ---
 

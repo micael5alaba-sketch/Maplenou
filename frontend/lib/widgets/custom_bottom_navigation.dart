@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_color_scheme.dart';
 
 /// The four destinations reachable from [CustomBottomNavigation].
@@ -18,15 +19,16 @@ class CustomBottomNavigation extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  static const _items = [
-    (tab: HomeTab.home, icon: Icons.home_rounded, label: 'Home'),
-    (tab: HomeTab.categories, icon: Icons.grid_view_rounded, label: 'Catégories'),
-    (tab: HomeTab.cart, icon: Icons.shopping_cart_rounded, label: 'Panier'),
-    (tab: HomeTab.profile, icon: Icons.person_rounded, label: 'Profil'),
-  ];
+  List<({HomeTab tab, IconData icon, String label})> _items(AppLocalizations l10n) => [
+        (tab: HomeTab.home, icon: Icons.home_rounded, label: l10n.navHome),
+        (tab: HomeTab.categories, icon: Icons.grid_view_rounded, label: l10n.navCategories),
+        (tab: HomeTab.cart, icon: Icons.shopping_cart_rounded, label: l10n.navCart),
+        (tab: HomeTab.profile, icon: Icons.person_rounded, label: l10n.navProfile),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.surface,
@@ -44,7 +46,7 @@ class CustomBottomNavigation extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [for (final item in _items) _buildItem(context, item)],
+            children: [for (final item in _items(l10n)) _buildItem(context, item)],
           ),
         ),
       ),

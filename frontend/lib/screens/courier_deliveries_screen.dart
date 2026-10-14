@@ -11,6 +11,7 @@ import '../widgets/courier_bottom_navigation.dart';
 import 'courier_delivery_detail_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_profile_screen.dart';
+import 'notifications_screen.dart';
 
 /// "Courses" tab: deliveries assigned to this courier by an admin, not yet
 /// started (`ASSIGNED`) — voir `CLAUDE.md` §3 : un admin affecte le
@@ -127,7 +128,7 @@ class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
           const Expanded(child: Center(child: AppLogo(variant: AppLogoVariant.horizontalColor, size: 34))),
           IconButton(
             icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
           ),
         ],
       ),

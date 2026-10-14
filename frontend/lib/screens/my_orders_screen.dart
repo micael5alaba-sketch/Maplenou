@@ -5,7 +5,7 @@ import '../services/api_client.dart';
 import '../services/my_orders_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/my_order_card.dart';
-import 'order_tracking_screen.dart';
+import 'order_receipt_screen.dart';
 
 /// "Mes Commandes" — reached from [ProfileScreen]'s activity section.
 ///
@@ -61,12 +61,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       final order = orders[index];
                       return MyOrderCard(
                         order: order,
-                        onTap: () {
-                          if (order.status != MyOrderStatus.inProgress) return;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: order.orderId)),
-                          );
-                        },
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => OrderReceiptScreen(orderId: order.orderId)),
+                        ),
                       );
                     },
                   );

@@ -200,6 +200,22 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- app.jwt.secret/app.webhook.secret n'ont plus de valeur de secours dans
+					     application.properties (une vraie cle commitee permettrait de forger un JWT
+					     valide pour n'importe quel compte) : l'app refuse de demarrer sans ces
+					     variables d'environnement. Ici, valeurs fixes UNIQUEMENT pour que la suite
+					     de tests tourne contre une base locale jetable, sans jamais toucher à un
+					     environnement réel — à ne jamais utiliser en production. -->
+					<environmentVariables>
+						<JWT_SECRET>test-only-jwt-secret-never-use-in-production-0123456789abcdef</JWT_SECRET>
+						<WEBHOOK_SECRET>test-only-webhook-secret-never-use-in-production</WEBHOOK_SECRET>
+					</environmentVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

@@ -32,6 +32,7 @@ public class SellerProfileService {
                 .user(currentUser)
                 .shopName(request.shopName())
                 .status(SellerStatus.PENDING)
+                .feeCategory(request.feeCategory() != null ? request.feeCategory() : SellerFeeCategory.STANDARD)
                 .build();
 
         return sellerProfileRepository.save(profile);

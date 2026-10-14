@@ -11,6 +11,7 @@ import com.maplenou.backend.notification.NotificationService;
 import com.maplenou.backend.order.SubOrder;
 import com.maplenou.backend.order.SubOrderRepository;
 import com.maplenou.backend.order.SubOrderStatus;
+import com.maplenou.backend.sellerfee.SellerFeeService;
 import com.maplenou.backend.returns.dto.CreateReturnRequest;
 import com.maplenou.backend.returns.dto.DecideReturnRequest;
 import com.maplenou.backend.returns.dto.ReturnRequestResponse;
@@ -37,6 +38,7 @@ public class ReturnRequestService {
     private final ShopRepository shopRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final SellerFeeService sellerFeeService;
 
     private static final int RETURN_WINDOW_DAYS = 30;
 
@@ -219,6 +221,11 @@ public class ReturnRequestService {
 
         subOrderRepository.save(subOrder);
         returnRepository.save(returnRequest);
+
+        if (request.decision() == ReturnDecision.APPROVED) {
+            sellerFeeService.onSubOrderReturned(subOrder);
+        }
+
         notificationService.returnDecided(
                 returnRequest.getBuyer().getId(),
                 returnRequest.getId(),

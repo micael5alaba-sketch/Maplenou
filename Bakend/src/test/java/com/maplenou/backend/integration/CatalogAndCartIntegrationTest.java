@@ -58,14 +58,14 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         String buyerPhone = "+22899" + String.format("%07d", rand % 10_000_000L);
         String sellerPhone = "+22881" + String.format("%07d", rand % 10_000_000L);
 
-        JsonNode buyerAuth = post("/api/auth/register", new RegisterRequest("Cart Buyer", buyerPhone, "Passw0rd!"), null, 201);
+        JsonNode buyerAuth = post("/api/auth/register", new RegisterRequest("Cart Buyer", buyerPhone, "Passw0rd!", null), null, 201);
         buyerId = UUID.fromString(buyerAuth.get("user").get("id").asText());
         buyerToken = buyerAuth.get("accessToken").asText();
 
-        JsonNode sellerAuth = post("/api/auth/register", new RegisterRequest("Catalog Seller", sellerPhone, "Passw0rd!"), null, 201);
+        JsonNode sellerAuth = post("/api/auth/register", new RegisterRequest("Catalog Seller", sellerPhone, "Passw0rd!", null), null, 201);
         sellerId = UUID.fromString(sellerAuth.get("user").get("id").asText());
 
-        JsonNode apply = post("/api/sellers/apply", new ApplySellerRequest("Boutique Catalogue " + rand),
+        JsonNode apply = post("/api/sellers/apply", new ApplySellerRequest("Boutique Catalogue " + rand, null),
                 sellerAuth.get("accessToken").asText(), 201);
         sellerProfileId = UUID.fromString(apply.get("id").asText());
         patch("/api/sellers/admin/" + sellerProfileId + "/status",

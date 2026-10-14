@@ -20,8 +20,11 @@ class OrderTrackingModel {
   final String orderNumber;
   final String? deliveryId;
   final String? courierName;
+  final String? courierPhone;
   final String deliveryAddress;
   final String? addressNote;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final List<OrderTrackingStep> steps;
   final bool isDelivered;
 
@@ -29,8 +32,11 @@ class OrderTrackingModel {
     required this.orderNumber,
     this.deliveryId,
     this.courierName,
+    this.courierPhone,
     required this.deliveryAddress,
     this.addressNote,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     required this.steps,
     this.isDelivered = false,
   });

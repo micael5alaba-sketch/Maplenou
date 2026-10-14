@@ -12,7 +12,9 @@ import java.util.UUID;
 public record NavigationResponse(
         UUID deliveryId,
         PickupPoint pickup,
-        DropoffPoint dropoff
+        DropoffPoint dropoff,
+        /** Estimation du gain net livreur (75% du tarif de la zone) — affichée avant même la fin de la course. */
+        BigDecimal estimatedEarning
 ) {
     public record PickupPoint(
             UUID shopId,

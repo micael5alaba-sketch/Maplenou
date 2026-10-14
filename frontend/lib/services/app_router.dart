@@ -16,9 +16,10 @@ import 'shop_service.dart';
 ///
 /// Le compte est unique (voir `CLAUDE.md` §3) : la même personne peut être
 /// Acheteur et Vendeur, jamais Livreur en plus (compte `DELIVERY_AGENT`
-/// dédié, attribué par un admin). Un livreur n'a donc qu'une seule
-/// interface possible ; un acheteur devenu vendeur approuvé peut basculer
-/// entre les deux, et son dernier choix est mémorisé par [SessionService].
+/// dédié, soit auto-inscrit comme tel — cahier des charges §3.3 — soit créé
+/// directement par l'admin). Un livreur n'a donc qu'une seule interface
+/// possible ; un acheteur devenu vendeur approuvé peut basculer entre les
+/// deux, et son dernier choix est mémorisé par [SessionService].
 class AppRouter {
   static Future<Widget> resolveHomeScreen(UserModel user) async {
     if (user.isDeliveryAgent) {

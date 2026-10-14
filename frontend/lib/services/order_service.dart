@@ -9,10 +9,13 @@ class OrderService {
   /// Passe une commande à partir du panier courant. Le paiement réel
   /// (FedaPay/Stripe) est explicitement reporté (`CLAUDE.md` §7) : la
   /// commande est créée avec le statut `CREATED`, pas encore `PAID`.
-  Future<OrderModel> placeOrder({required String addressId}) async {
+  Future<OrderModel> placeOrder({required String addressId, String? paymentCountry}) async {
     final data = await _client.post(
       '/api/orders',
-      body: {'addressId': addressId},
+      body: {
+        'addressId': addressId,
+        if (paymentCountry != null) 'paymentCountry': paymentCountry,
+      },
     ) as Map<String, dynamic>;
     return OrderModel.fromJson(data);
   }

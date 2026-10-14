@@ -1,13 +1,25 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../models/seller_fee_model.dart';
 import '../models/wallet_model.dart';
 import '../services/api_client.dart';
+import '../services/payout_service.dart';
+import '../services/seller_fee_service.dart';
 import '../services/wallet_service.dart';
 import '../theme/app_color_scheme.dart';
+import '../utils/formatters.dart';
+import '../utils/payout_invoice.dart';
 import '../widgets/payment_method_tile.dart';
 import '../widgets/wallet_balance_card.dart';
 import '../widgets/wallet_stats_grid.dart';
 import '../widgets/withdrawal_history_section.dart';
+import 'notifications_screen.dart';
+import 'payout_history_screen.dart';
+import 'seller_fee_history_screen.dart';
 
 /// Seller's wallet: available balance, registered payout methods, quick
 /// stats and withdrawal history.
@@ -26,17 +38,192 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   late Future<WalletModel> _walletFuture;
+  late Future<SellerFeeSummaryModel> _feeSummaryFuture;
 
   @override
   void initState() {
     super.initState();
     _walletFuture = WalletService().getWallet();
+    _feeSummaryFuture = SellerFeeService().getSummary();
   }
 
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  void _reload() {
+    setState(() {
+      _walletFuture = WalletService().getWallet();
+      _feeSummaryFuture = SellerFeeService().getSummary();
+    });
+  }
+
+  Future<void> _requestCategoryChange(String currentCategory) async {
+    String selected = currentCategory == 'HIGH_PRICE' ? 'STANDARD' : 'HIGH_PRICE';
+    final colors = context.colors;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Changer de catégorie', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Effectif au 1er jour du mois suivant l'approbation par l'équipe Maplenou.",
+                        style: TextStyle(fontSize: 12, color: colors.textMuted),
+                      ),
+                      const SizedBox(height: 16),
+                      RadioListTile<String>(
+                        value: 'STANDARD',
+                        groupValue: selected,
+                        title: const Text('Standard — 500 FCFA/mois'),
+                        onChanged: (v) => setSheetState(() => selected = v!),
+                      ),
+                      RadioListTile<String>(
+                        value: 'HIGH_PRICE',
+                        groupValue: selected,
+                        title: const Text('Prix élevés — 2 000 FCFA/mois'),
+                        onChanged: (v) => setSheetState(() => selected = v!),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
+                          onPressed: () => Navigator.of(sheetContext).pop(true),
+                          child: const Text('Envoyer la demande'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+    try {
+      await SellerFeeService().requestCategoryChange(selected);
+      _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Demande envoyée — en attente de validation.')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _addPaymentMethod() async {
+    const typeLabels = {'T_MONEY': 'T-Money', 'FLOOZ': 'Flooz', 'BANK_TRANSFER': 'Virement bancaire'};
+    String selectedType = 'T_MONEY';
+    final accountController = TextEditingController();
+    final colors = context.colors;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nouveau moyen de paiement', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedType,
+                        decoration: const InputDecoration(labelText: 'Type'),
+                        items: [
+                          for (final entry in typeLabels.entries) DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+                        ],
+                        onChanged: (value) => setSheetState(() => selectedType = value!),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: accountController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(labelText: 'Numéro de compte / téléphone'),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
+                          onPressed: () => Navigator.of(sheetContext).pop(true),
+                          child: const Text('Enregistrer'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true || accountController.text.trim().isEmpty || !mounted) return;
+    try {
+      await PayoutService().addPayoutMethod(type: selectedType, accountNumber: accountController.text.trim());
+      _reload();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  bool _isExportingInvoice = false;
+
+  Future<void> _downloadInvoice(WithdrawalModel withdrawal) async {
+    setState(() => _isExportingInvoice = true);
+    try {
+      final detail = await PayoutService().getPayoutDetail(withdrawal.id);
+      final bytes = await buildPayoutInvoicePdf(detail);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/facture-reversement-${detail.id.substring(0, 8)}.pdf');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'Facture reversement');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _isExportingInvoice = false);
+    }
   }
 
   @override
@@ -103,6 +290,8 @@ class _WalletScreenState extends State<WalletScreen> {
           onWithdraw: () => _showComingSoon('La demande de retrait'),
         ),
         const SizedBox(height: 16),
+        _buildFeeSummaryCard(),
+        const SizedBox(height: 16),
         _buildPaymentMethodsSection(wallet),
         const SizedBox(height: 16),
         WalletStatsGrid(
@@ -114,7 +303,8 @@ class _WalletScreenState extends State<WalletScreen> {
         const SizedBox(height: 16),
         WithdrawalHistorySection(
           withdrawals: wallet.withdrawals,
-          onSeeAll: () => _showComingSoon("L'historique complet des retraits"),
+          onSeeAll: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PayoutHistoryScreen())),
+          onDownloadInvoice: _isExportingInvoice ? (_) {} : _downloadInvoice,
         ),
       ],
     );
@@ -140,10 +330,91 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           IconButton(
             icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
-            onPressed: () => _showComingSoon('Notifications'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFeeSummaryCard() {
+    final colors = context.colors;
+
+    return FutureBuilder<SellerFeeSummaryModel>(
+      future: _feeSummaryFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        final fee = snapshot.data!;
+
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Frais d\'activité', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textDark)),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerFeeHistoryScreen())),
+                    child: Text('Historique', style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Catégorie', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+                        Text(fee.categoryLabel, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
+                        Text('${formatFcfa(fee.monthlyFeeAmount)}/mois', style: TextStyle(fontSize: 12, color: colors.textMuted)),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: fee.pendingCategoryChangeRequested != null ? null : () => _requestCategoryChange(fee.category),
+                    child: Text(
+                      fee.pendingCategoryChangeRequested != null ? 'Demande en attente' : 'Changer',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              if (fee.unpaidFeesTotal > 0) ...[
+                const Divider(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Frais à recouvrer', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                    Text(formatFcfa(fee.unpaidFeesTotal), style: TextStyle(fontWeight: FontWeight.w600, color: colors.error)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Net estimé au prochain reversement', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                    Text(formatFcfa(fee.estimatedNetPayout), style: TextStyle(fontWeight: FontWeight.bold, color: colors.primary)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -168,7 +439,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Text('Moyens de paiement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textDark)),
               IconButton(
                 icon: Icon(Icons.add_circle_outline_rounded, color: colors.primary),
-                onPressed: () => _showComingSoon("L'ajout d'un moyen de paiement"),
+                onPressed: _addPaymentMethod,
               ),
             ],
           ),

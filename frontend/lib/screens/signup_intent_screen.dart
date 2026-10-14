@@ -10,13 +10,16 @@ import '../widgets/role_card.dart';
 import 'register_screen.dart';
 
 /// Première étape de l'inscription : la personne indique si elle vient
-/// acheter ou vendre — dans les deux cas un seul et même compte est créé
-/// ensuite sur [RegisterScreen] (voir `CLAUDE.md` §3), ce choix ne fait que
-/// décider ce qui se passe juste après l'inscription (accueil Acheteur, ou
-/// enchaînement direct sur la candidature Vendeur).
+/// acheter, vendre ou livrer — dans les trois cas un compte est créé
+/// ensuite sur [RegisterScreen], ce choix décide ce qui se passe juste après
+/// l'inscription (accueil Acheteur, candidature Vendeur, ou dashboard
+/// Livreur en attente de validation de ses documents).
 ///
-/// Le rôle Livreur n'apparaît jamais ici, comme sur [ProfileSelectionScreen]
-/// : c'est un compte dédié, attribué par un admin, jamais une auto-inscription.
+/// Un livreur indépendant peut donc s'inscrire lui-même ici (cahier des
+/// charges §3.3) — ce n'est qu'une fois ses documents validés par l'admin
+/// qu'il reçoit de vraies livraisons (voir `CourierDashboardScreen`). Les
+/// livreurs internes à l'entreprise restent créés directement par l'admin
+/// (back-office), sans passer par cet écran.
 class SignupIntentScreen extends StatefulWidget {
   const SignupIntentScreen({super.key});
 
@@ -25,8 +28,7 @@ class SignupIntentScreen extends StatefulWidget {
 }
 
 class _SignupIntentScreenState extends State<SignupIntentScreen> {
-  late final List<RoleModel> _roles =
-      RoleService().getRoles().where((role) => role.id == 'buyer' || role.id == 'seller').toList();
+  late final List<RoleModel> _roles = RoleService().getRoles();
 
   String? _selectedRoleId;
 

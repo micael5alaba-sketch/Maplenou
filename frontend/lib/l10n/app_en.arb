@@ -1,0 +1,40 @@
+{
+  "@@locale": "en",
+
+  "navHome": "Home",
+  "navCategories": "Categories",
+  "navCart": "Cart",
+  "navProfile": "Profile",
+
+  "navDashboard": "Dashboard",
+  "navDeliveries": "Deliveries",
+  "navMessages": "Messages",
+  "navOrders": "Orders",
+  "navProducts": "Products",
+
+  "drawerMyOrders": "My orders",
+  "drawerSettings": "Settings",
+  "drawerLogout": "Log out",
+
+  "loginTitle": "Login",
+  "loginMfaTitle": "Two-step verification",
+  "loginSubtitle": "Sign in with your phone number.",
+  "loginMfaSubtitle": "Enter the 6-digit code from your authenticator app.",
+  "phoneNumberHint": "Phone number",
+  "phoneNumberRequired": "Phone number required.",
+  "passwordHint": "Password",
+  "passwordRequired": "Password required.",
+  "totpCodeHint": "6-digit code",
+  "loginButton": "Sign in",
+  "verifyButton": "Verify",
+  "noAccountYet": "Don't have an account yet? ",
+  "signUpLink": "Sign up",
+
+  "registerTitle": "Create an account",
+  "registerSubtitle": "Join Maplenou in a few seconds.",
+  "fullNameHint": "Full name",
+  "fullNameRequired": "Full name required.",
+  "phoneNumberInvalid": "Invalid phone number.",
+  "passwordRule": "At least 8 characters, one uppercase letter and one digit.",
+  "registerButton": "Sign up"
+}

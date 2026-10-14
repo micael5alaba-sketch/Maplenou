@@ -1,33 +1,34 @@
-import 'conversation_service.dart';
+import '../models/support_ticket_model.dart';
+import 'api_client.dart';
 
-/// Envoie un "ticket" support via la messagerie déjà existante
-/// (`POST /api/conversations/support` + premier message) — le backend n'a
-/// pas d'entité "ticket" dédiée (catégorie, commande liée, numéro de
-/// suivi), seulement une `Conversation` de type `SUPPORT` générique. La
-/// référence retournée est donc générée côté app, pas un vrai numéro de
-/// ticket backend.
+/// `support/SupportTicketController.java` — tickets de support structurés
+/// (livreur/acheteur), avec un vrai numéro de suivi généré côté backend
+/// (`support_ticket_seq`) : remplace l'ancien système qui envoyait juste un
+/// message de messagerie avec un numéro inventé côté app, jamais
+/// retrouvable ensuite.
 class SupportTicketService {
-  final _conversationService = ConversationService();
+  final _client = ApiClient();
 
-  Future<String> submitTicket({
+  Future<SupportTicketModel> submitTicket({
     required String category,
-    String? relatedOrder,
+    String? relatedDeliveryId,
     required String subject,
     required String description,
+    String? photoUrl,
   }) async {
-    final conversationId = await _conversationService.startSupportConversation();
+    final data = await _client.post('/api/support-tickets', body: {
+      'category': category,
+      'subject': subject,
+      'description': description,
+      if (relatedDeliveryId != null) 'relatedDeliveryId': relatedDeliveryId,
+      if (photoUrl != null) 'photoUrl': photoUrl,
+    }) as Map<String, dynamic>;
+    return SupportTicketModel.fromJson(data);
+  }
 
-    final messageParts = [
-      'Catégorie : $category',
-      if (relatedOrder != null && relatedOrder.isNotEmpty) 'Commande concernée : $relatedOrder',
-      'Sujet : $subject',
-      '',
-      description,
-    ];
-    await _conversationService.sendMessage(conversationId, messageParts.join('\n'));
-
-    final year = DateTime.now().year;
-    final sequence = (DateTime.now().millisecondsSinceEpoch % 9000) + 1000;
-    return 'TKT-$year-$sequence';
+  Future<List<SupportTicketModel>> getMyTickets({int size = 50}) async {
+    final data = await _client.get('/api/support-tickets/mine', query: {'size': '$size'}) as Map<String, dynamic>;
+    final content = data['content'] as List<dynamic>? ?? [];
+    return content.map((json) => SupportTicketModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 }

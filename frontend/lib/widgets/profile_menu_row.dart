@@ -10,6 +10,7 @@ class ProfileMenuRow extends StatelessWidget {
   final String? subtitle;
   final String? badgeLabel;
   final Color? badgeColor;
+  final Color? accentColor;
   final VoidCallback? onTap;
 
   const ProfileMenuRow({
@@ -19,6 +20,7 @@ class ProfileMenuRow extends StatelessWidget {
     this.subtitle,
     this.badgeLabel,
     this.badgeColor,
+    this.accentColor,
     this.onTap,
   });
 
@@ -26,6 +28,7 @@ class ProfileMenuRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final resolvedBadgeColor = badgeColor ?? colors.accentOrange;
+    final resolvedAccentColor = accentColor ?? colors.primary;
 
     return InkWell(
       onTap: onTap,
@@ -33,13 +36,13 @@ class ProfileMenuRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Icon(icon, color: colors.primary, size: 22),
+            Icon(icon, color: resolvedAccentColor, size: 22),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: accentColor ?? colors.textDark)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(subtitle!, style: TextStyle(fontSize: 12, color: colors.textMuted)),

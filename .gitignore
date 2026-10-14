@@ -1,0 +1,5 @@
+# Artefacts de crash JVM (apparaissent à la racine du repo si le process Java plante) —
+# jamais utiles à committer, régénérés automatiquement si besoin.
+hs_err_pid*.log
+replay_pid*.log
+*.log

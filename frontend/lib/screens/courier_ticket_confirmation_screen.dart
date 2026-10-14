@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/primary_button.dart';
 import 'courier_dashboard_screen.dart';
+import 'my_support_tickets_screen.dart';
 
 /// "Ticket envoyé avec succès" — shown after
 /// [CourierSupportTicketScreen] submits.
@@ -10,12 +11,6 @@ class CourierTicketConfirmationScreen extends StatelessWidget {
   final String ticketNumber;
 
   const CourierTicketConfirmationScreen({super.key, required this.ticketNumber});
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +60,7 @@ class CourierTicketConfirmationScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => _showComingSoon(context, 'La liste de mes tickets'),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MySupportTicketsScreen())),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.textDark,
                       side: BorderSide(color: colors.border),

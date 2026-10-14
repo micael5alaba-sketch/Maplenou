@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
@@ -71,12 +72,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     FavoritesService().isFavorite(widget.product.id).then((value) {
       if (mounted) setState(() => _isFavorite = value);
     });
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
   void _showMessage(String message) {
@@ -166,7 +161,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            onPressed: () => _showComingSoon('Le partage'),
+            onPressed: () => Share.share(
+              '${widget.product.name} — ${formatFcfa(widget.product.price)} sur Maplenou',
+            ),
           ),
           IconButton(
             icon: Icon(

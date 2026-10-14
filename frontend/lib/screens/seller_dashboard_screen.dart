@@ -12,6 +12,8 @@ import '../widgets/orders_card.dart';
 import '../widgets/revenue_card.dart';
 import '../widgets/sales_chart_widget.dart';
 import '../widgets/seller_bottom_navigation.dart';
+import 'add_product_screen.dart';
+import 'notifications_screen.dart';
 import 'orders_management_screen.dart';
 import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
@@ -75,7 +77,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
           children: [
             DashboardHeader(
               onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
-              onNotificationTap: () => _showComingSoon('Notifications'),
+              onNotificationTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
             ),
             Expanded(
               child: FutureBuilder<SellerDashboardModel>(
@@ -93,6 +95,14 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final added = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const AddProductScreen()));
+          if (added == true) setState(() => _dashboardFuture = SellerDashboardService().getDashboard());
+        },
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Ajouter un produit'),
       ),
       bottomNavigationBar: SellerBottomNavigation(
         currentTab: _currentTab,

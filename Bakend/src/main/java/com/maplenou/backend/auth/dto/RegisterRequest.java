@@ -4,8 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-// Plus de champ "role" : tout compte s'inscrit acheteur par defaut.
-// Le profil vendeur s'active ensuite via POST /api/sellers/apply, sur le meme compte.
+// Compte acheteur par defaut. Le profil vendeur s'active ensuite via POST /api/sellers/apply,
+// sur le meme compte. Un livreur independant peut en revanche choisir ce role des l'inscription
+// (accountType="DELIVERY_AGENT") : seule cette valeur est acceptee ici, jamais "ADMIN" (voir
+// AuthService.register - l'enum Role existe cote serveur mais ce champ n'autorise qu'un sous-
+// ensemble volontairement restreint, verifie explicitement, independamment de ce que l'enum
+// accepterait par ailleurs).
 public record RegisterRequest(
         @NotBlank @Size(min = 2, max = 100) String fullName,
 
@@ -19,6 +23,10 @@ public record RegisterRequest(
                 regexp = "^(?=.*[A-Z])(?=.*[0-9]).{8,}$",
                 message = "Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre"
         )
-        String password
+        String password,
+
+        // Optionnel. Seule valeur acceptee : "DELIVERY_AGENT". Toute autre valeur (y compris
+        // "ADMIN") est rejetee par AuthService.register, quelle que soit l'enum Role cote serveur.
+        String accountType
 ) {
 }

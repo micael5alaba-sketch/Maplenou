@@ -20,8 +20,9 @@ import 'seller_registration_screen.dart';
 /// [AppRouter]).
 ///
 /// Le rôle Livreur n'apparaît jamais ici : c'est un compte dédié
-/// (`role = DELIVERY_AGENT`, attribué par un admin), jamais une bascule sur
-/// un compte acheteur/vendeur (voir `CLAUDE.md` §3).
+/// (`role = DELIVERY_AGENT`), jamais une bascule sur un compte
+/// acheteur/vendeur (voir `CLAUDE.md` §3) — [AppRouter] route un livreur
+/// directement sur son dashboard, sans jamais passer par cet écran.
 class ProfileSelectionScreen extends StatefulWidget {
   final UserModel user;
 

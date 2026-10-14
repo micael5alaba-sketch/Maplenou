@@ -54,4 +54,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /** Prochaine valeur de order_number_seq (V41), pour générer une référence "CMD-000123". */
     @Query(value = "SELECT nextval('order_number_seq')", nativeQuery = true)
     long nextOrderNumberSequenceValue();
+
+    /** Retrouve la commande depuis l'id de transaction FedaPay reçu dans le webhook. */
+    @Query("""
+            SELECT o FROM Order o
+            LEFT JOIN FETCH o.subOrders so
+            LEFT JOIN FETCH so.shop
+            WHERE o.fedapayTransactionId = :transactionId
+            """)
+    Optional<Order> findByFedapayTransactionId(@Param("transactionId") Long transactionId);
 }

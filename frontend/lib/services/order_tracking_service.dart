@@ -28,12 +28,16 @@ class OrderTrackingService {
 
     final deliveryAddress = order.deliveryAddress?.summary ?? 'Adresse de livraison de la commande';
     final addressNote = order.deliveryAddress?.details;
+    final deliveryLatitude = order.deliveryAddress?.latitude;
+    final deliveryLongitude = order.deliveryAddress?.longitude;
 
     if (order.subOrders.isEmpty) {
       return OrderTrackingModel(
         orderNumber: order.orderNumber,
         deliveryAddress: deliveryAddress,
         addressNote: addressNote,
+        deliveryLatitude: deliveryLatitude,
+        deliveryLongitude: deliveryLongitude,
         steps: const [OrderTrackingStep(label: 'Commande reçue', timeLabel: '', isDone: true, isCurrent: true)],
       );
     }
@@ -46,6 +50,8 @@ class OrderTrackingService {
         orderNumber: order.orderNumber,
         deliveryAddress: deliveryAddress,
         addressNote: addressNote,
+        deliveryLatitude: deliveryLatitude,
+        deliveryLongitude: deliveryLongitude,
         steps: [OrderTrackingStep(label: _cancelledLabel(currentStatus), timeLabel: '', isDone: true, isCurrent: true)],
       );
     }
@@ -62,10 +68,12 @@ class OrderTrackingService {
     ];
 
     String? courierName;
+    String? courierPhone;
     String? deliveryId;
     if (currentStatus == 'IN_DELIVERY' || currentStatus == 'DELIVERED') {
       final delivery = await _deliveryStatusService.getForSubOrder(subOrder.id);
       courierName = delivery?.agentName;
+      courierPhone = delivery?.agentPhone;
       deliveryId = delivery?.id;
     }
 
@@ -73,8 +81,11 @@ class OrderTrackingService {
       orderNumber: order.orderNumber,
       deliveryId: deliveryId,
       courierName: courierName,
+      courierPhone: courierPhone,
       deliveryAddress: deliveryAddress,
       addressNote: addressNote,
+      deliveryLatitude: deliveryLatitude,
+      deliveryLongitude: deliveryLongitude,
       steps: steps,
       isDelivered: currentStatus == 'DELIVERED',
     );

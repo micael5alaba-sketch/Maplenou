@@ -1,6 +1,7 @@
 package com.maplenou.backend.delivery;
 
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.courier.CourierDocumentService;
 import com.maplenou.backend.delivery.dto.AssignAgentRequest;
 import com.maplenou.backend.delivery.dto.DeliveryResponse;
 import com.maplenou.backend.delivery.dto.NavigationResponse;
@@ -9,6 +10,7 @@ import com.maplenou.backend.notification.NotificationService;
 import com.maplenou.backend.order.SubOrder;
 import com.maplenou.backend.order.SubOrderRepository;
 import com.maplenou.backend.order.SubOrderStatus;
+import com.maplenou.backend.sellerfee.SellerFeeService;
 import com.maplenou.backend.user.Role;
 import com.maplenou.backend.user.User;
 import com.maplenou.backend.user.UserRepository;
@@ -31,6 +33,8 @@ public class DeliveryService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final CourierEarningService courierEarningService;
+    private final CourierDocumentService courierDocumentService;
+    private final SellerFeeService sellerFeeService;
 
     // ----- Admin -----
 
@@ -72,6 +76,12 @@ public class DeliveryService {
         if (agent.getRole() != Role.DELIVERY_AGENT) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Cet utilisateur n'est pas un livreur (DELIVERY_AGENT)");
+        }
+
+        if (!courierDocumentService.isFullyVerified(agent.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Ce livreur n'a pas encore tous ses documents validés par l'admin — "
+                            + "impossible de lui affecter une livraison.");
         }
 
         if (delivery.getStatus() != DeliveryStatus.PENDING && delivery.getStatus() != DeliveryStatus.FAILED) {
@@ -165,7 +175,7 @@ public class DeliveryService {
                 addrSnapshot.getLongitude()
         );
 
-        return new NavigationResponse(deliveryId, pickup, dropoff);
+        return new NavigationResponse(deliveryId, pickup, dropoff, courierEarningService.estimateCourierAmount(delivery));
     }
 
     /**
@@ -225,6 +235,7 @@ public class DeliveryService {
 
         if (request.status() == DeliveryStatus.DELIVERED) {
             courierEarningService.createForDelivery(delivery);
+            sellerFeeService.onSubOrderDelivered(subOrder);
         }
 
         return reload(delivery.getId());

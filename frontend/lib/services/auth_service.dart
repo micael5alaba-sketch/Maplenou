@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../models/user_model.dart';
 import 'api_client.dart';
 import 'firebase_auth_bridge.dart';
+import 'push_notification_service.dart';
 import 'token_storage.dart';
 
 /// Résultat d'une tentative de connexion : soit une session complète, soit
@@ -33,11 +34,13 @@ class AuthService {
     required String fullName,
     required String phoneNumber,
     required String password,
+    String? accountType,
   }) async {
     final data = await _post('/api/auth/register', {
       'fullName': fullName,
       'phoneNumber': phoneNumber,
       'password': password,
+      if (accountType != null) 'accountType': accountType,
     });
     return _storeSessionAndReturnUser(data);
   }
@@ -64,6 +67,7 @@ class AuthService {
     final tokenStorage = TokenStorage();
     final refreshToken = await tokenStorage.getRefreshToken();
     final accessToken = await tokenStorage.getAccessToken();
+    await PushNotificationService().unregisterAll();
     if (refreshToken != null) {
       try {
         await _post('/api/auth/logout', {
@@ -83,6 +87,7 @@ class AuthService {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
+    PushNotificationService().initialize();
     return UserModel.fromJson(data['user'] as Map<String, dynamic>);
   }
 

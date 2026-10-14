@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/courier_live_location_model.dart';
 import '../models/order_tracking_model.dart';
@@ -6,9 +8,13 @@ import '../services/api_client.dart';
 import '../services/buyer_courier_tracking_service.dart';
 import '../services/conversation_service.dart';
 import '../services/order_tracking_service.dart';
+import '../services/support_ticket_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/courier_rating_dialog.dart';
+import '../widgets/live_tracking_map.dart';
 import 'courier_conversation_screen.dart';
+import 'order_receipt_screen.dart';
+import 'seller_conversation_screen.dart';
 
 /// "Suivi de commande" — statut réel de la sous-commande, adresse de
 /// livraison réelle, nom du livreur une fois assigné, et sa position GPS en
@@ -35,18 +41,110 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     _trackingFuture = OrderTrackingService().getTracking(widget.orderId);
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
-  }
-
   Future<void> _contactCourier(String deliveryId, String courierName) async {
     try {
       final conversationId = await ConversationService().startCourierConversation(deliveryId);
       if (!mounted) return;
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => CourierConversationScreen(conversationId: conversationId, participantName: courierName),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _callCourier(String? phone) async {
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Numéro du livreur indisponible.')));
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    final opened = await launchUrl(uri);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text("Impossible de lancer l'appel.")));
+    }
+  }
+
+  Future<void> _reportProblem(OrderTrackingModel tracking) async {
+    final descriptionController = TextEditingController();
+    final colors = context.colors;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Signaler un problème', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+                  const SizedBox(height: 4),
+                  Text('Commande #${tracking.orderNumber}', style: TextStyle(fontSize: 12, color: colors.textMuted)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Décris le problème',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
+                      onPressed: () => Navigator.of(sheetContext).pop(true),
+                      child: const Text('Envoyer'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true || descriptionController.text.trim().isEmpty || !mounted) return;
+    try {
+      await SupportTicketService().submitTicket(
+        category: 'Problème de commande',
+        subject: 'Commande #${tracking.orderNumber}',
+        description: descriptionController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Signalement envoyé — notre support va te répondre.')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _contactSupport() async {
+    try {
+      final conversationId = await ConversationService().startSupportConversation();
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SellerConversationScreen(conversationId: conversationId, participantName: 'Support Maplenou'),
       ));
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -138,7 +236,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         const SizedBox(height: 16),
         _buildAddressCard(colors, tracking),
         const SizedBox(height: 16),
-        _buildSupportCard(context, colors),
+        _buildSupportCard(context, colors, tracking),
       ],
     );
   }
@@ -151,7 +249,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         children: [
           IconButton(icon: Icon(Icons.arrow_back_rounded, color: colors.textDark), onPressed: () => Navigator.of(context).pop()),
           Expanded(child: Text('Suivi de Livraison', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark))),
-          const SizedBox(width: 48),
+          IconButton(
+            icon: Icon(Icons.receipt_long_outlined, color: colors.textDark),
+            tooltip: 'Voir le reçu',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderReceiptScreen(orderId: widget.orderId))),
+          ),
         ],
       ),
     );
@@ -207,32 +309,48 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 stream: BuyerCourierTrackingService().watch(tracking.deliveryId!),
                 builder: (context, snapshot) {
                   final location = snapshot.data;
+                  final points = <TrackedPoint>[
+                    if (location != null)
+                      TrackedPoint(
+                        position: ll.LatLng(location.lat, location.lng),
+                        icon: Icons.delivery_dining_rounded,
+                        color: colors.primary,
+                      ),
+                    if (tracking.deliveryLatitude != null && tracking.deliveryLongitude != null)
+                      TrackedPoint(
+                        position: ll.LatLng(tracking.deliveryLatitude!, tracking.deliveryLongitude!),
+                        icon: Icons.location_on_rounded,
+                        color: colors.accentOrange,
+                      ),
+                  ];
                   return Stack(
                     alignment: Alignment.center,
                     children: [
-                      Icon(Icons.map_outlined, size: 48, color: colors.textMuted),
+                      LiveTrackingMap(points: points, height: 180),
                       Positioned(
                         top: 12,
                         left: 0,
                         right: 0,
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.circle,
-                                  size: 8,
-                                  color: location != null ? Colors.green : colors.textMuted,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  location != null ? 'Livreur en direct' : 'En attente de la position du livreur…',
-                                  style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 12),
-                                ),
-                              ],
+                        child: IgnorePointer(
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.circle,
+                                    size: 8,
+                                    color: location != null ? Colors.green : colors.textMuted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    location != null ? 'Livreur en direct' : 'En attente de la position du livreur…',
+                                    style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 12),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -242,10 +360,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           bottom: 12,
                           left: 0,
                           right: 0,
-                          child: Center(
-                            child: Text(
-                              'Position mise à jour ${_formatFreshness(location.updatedAt)}',
-                              style: TextStyle(fontSize: 11, color: colors.textMuted),
+                          child: IgnorePointer(
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
+                                child: Text(
+                                  'Position mise à jour ${_formatFreshness(location.updatedAt)}',
+                                  style: TextStyle(fontSize: 11, color: colors.textMuted),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -306,7 +430,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 IconButton(
                   icon: Icon(Icons.phone_rounded, color: Colors.white),
                   style: IconButton.styleFrom(backgroundColor: colors.primary),
-                  onPressed: () => _showComingSoon("L'appel"),
+                  onPressed: () => _callCourier(tracking.courierPhone),
                 ),
               ],
             ],
@@ -431,7 +555,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildSupportCard(BuildContext context, AppColorScheme colors) {
+  Widget _buildSupportCard(BuildContext context, AppColorScheme colors, OrderTrackingModel tracking) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -447,7 +571,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => _showComingSoon('Le support'),
+              onPressed: _contactSupport,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.primary,
                 foregroundColor: Colors.white,
@@ -463,7 +587,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _showComingSoon('Le signalement de problème'),
+              onPressed: () => _reportProblem(tracking),
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.textDark,
                 side: BorderSide(color: colors.border),
