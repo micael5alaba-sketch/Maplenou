@@ -41,8 +41,20 @@ class ApiConfig {
   /// machine joins a different network.
   static const String _devMachineLanIp = '10.5.51.49';
 
+  /// URL du backend en production (voir Bakend/ABONNEMENTS_A_SOUSCRIRE.md) — utilisée par
+  /// défaut pour la version web, puisqu'un site hébergé ne peut jamais atteindre "localhost"
+  /// (celui du visiteur, pas celui du développeur). Remplaçable à la compilation via
+  /// `--dart-define=API_BASE_URL=...` si besoin de pointer ailleurs (ex: tester le web en
+  /// local contre un backend local).
+  static const String _productionBaseUrl = 'https://maplenou-backend.onrender.com';
+
   static String get baseUrl {
-    if (!kIsWeb && Platform.isAndroid) {
+    const envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+
+    if (kIsWeb) return _productionBaseUrl;
+
+    if (Platform.isAndroid) {
       if (_useAndroidEmulator) return 'http://10.0.2.2:$_port';
       if (_useUsbReverseTunnel) return 'http://localhost:$_port';
       return 'http://$_devMachineLanIp:$_port';
