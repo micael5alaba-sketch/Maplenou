@@ -82,11 +82,11 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         {NAV_GROUPS.map((group) => (
-          <div key={group.title} className="mb-5">
-            <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wide text-muted">
+          <div key={group.title} className="mb-7">
+            <p className="mb-2.5 px-3 text-[11px] font-bold uppercase tracking-wide text-muted">
               {group.title}
             </p>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1.5">
               {group.items.map((item) => {
                 const active = pathname === item.href;
                 const danger = item.href === "/maintenance";
@@ -94,7 +94,7 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                       active
                         ? danger
                           ? "bg-error text-white"

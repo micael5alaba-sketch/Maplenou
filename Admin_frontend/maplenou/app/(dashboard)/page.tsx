@@ -1,9 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { DashboardKpiResponse } from "@/lib/types";
 import { Card, ErrorState, LoadingState, PageHeader, formatFcfa } from "@/components/ui";
+
+const CHART_COLORS = {
+  primary: "var(--color-primary)",
+  accent: "var(--color-accent)",
+  sage: "var(--color-sage)",
+  error: "var(--color-error)",
+  muted: "var(--color-muted)",
+};
 
 const PERIODS = [
   { value: "TODAY", label: "Aujourd'hui" },
@@ -65,6 +85,82 @@ export default function DashboardHomePage() {
             <KpiCard label="Boutiques approuvées" value={String(data.shops?.approved ?? 0)} />
             <KpiCard label="Livraisons en attente" value={String(data.deliveries?.pending ?? 0)} accent />
             <KpiCard label="Livraisons livrées" value={String(data.deliveries?.delivered ?? 0)} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Card className="lg:col-span-1">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Revenu vs commission
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={[
+                    {
+                      name: "Période",
+                      Revenu: data.revenue?.periodRevenue ?? 0,
+                      Commission: data.revenue?.totalCommission ?? 0,
+                    },
+                  ]}
+                >
+                  <XAxis dataKey="name" stroke={CHART_COLORS.muted} fontSize={12} />
+                  <YAxis stroke={CHART_COLORS.muted} fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
+                  <Tooltip formatter={(v) => formatFcfa(typeof v === "number" ? v : Number(v))} />
+                  <Legend />
+                  <Bar dataKey="Revenu" fill={CHART_COLORS.primary} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="Commission" fill={CHART_COLORS.accent} radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card className="lg:col-span-1">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Répartition des boutiques
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "En attente", value: data.shops?.pending ?? 0, fill: CHART_COLORS.accent },
+                      { name: "Approuvées", value: data.shops?.approved ?? 0, fill: CHART_COLORS.primary },
+                      { name: "Suspendues", value: data.shops?.suspended ?? 0, fill: CHART_COLORS.error },
+                    ]}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={45}
+                    outerRadius={75}
+                    paddingAngle={2}
+                  >
+                    {[CHART_COLORS.accent, CHART_COLORS.primary, CHART_COLORS.error].map((color) => (
+                      <Cell key={color} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card className="lg:col-span-1">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Statut des livraisons
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  layout="vertical"
+                  data={[
+                    { name: "En attente", value: data.deliveries?.pending ?? 0 },
+                    { name: "En cours", value: data.deliveries?.inTransit ?? 0 },
+                    { name: "Livrées", value: data.deliveries?.delivered ?? 0 },
+                    { name: "Échouées", value: data.deliveries?.failed ?? 0 },
+                  ]}
+                >
+                  <XAxis type="number" stroke={CHART_COLORS.muted} fontSize={12} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" stroke={CHART_COLORS.muted} fontSize={12} width={80} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill={CHART_COLORS.sage} radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
           </div>
         </div>
       )}
