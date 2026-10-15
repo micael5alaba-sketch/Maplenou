@@ -19,5 +19,10 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
+# N'exécute jamais le process applicatif en root à l'intérieur du conteneur : limite ce qu'un
+# attaquant pourrait faire s'il obtenait une exécution de code via une autre faille.
+RUN addgroup --system maplenou && adduser --system --ingroup maplenou maplenou
+USER maplenou
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
