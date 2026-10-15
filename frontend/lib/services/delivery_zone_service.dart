@@ -39,4 +39,24 @@ class DeliveryZoneService {
     final cheapest = [...zones]..sort((a, b) => a.deliveryFee.compareTo(b.deliveryFee));
     return matchByName(district) ?? matchByName(city) ?? cheapest.first;
   }
+
+  /// `GET /api/delivery-zones/quote` — même calcul (zone + distance réelle) que celui figé
+  /// côté backend au moment de la commande, pour que le checkout affiche exactement ce qui
+  /// sera facturé plutôt qu'une estimation qui peut diverger.
+  Future<DeliveryFeeQuoteModel> getQuote({
+    required String shopId,
+    String? city,
+    String? district,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final data = await ApiClient().get('/api/delivery-zones/quote', query: {
+      'shopId': shopId,
+      if (city != null) 'city': city,
+      if (district != null) 'district': district,
+      if (latitude != null) 'latitude': '$latitude',
+      if (longitude != null) 'longitude': '$longitude',
+    }) as Map<String, dynamic>;
+    return DeliveryFeeQuoteModel.fromJson(data);
+  }
 }

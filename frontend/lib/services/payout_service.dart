@@ -30,4 +30,10 @@ class PayoutService {
   Future<void> setDefaultPayoutMethod(String id) => _client.patch('/api/seller/payout-methods/$id/default');
 
   Future<void> deletePayoutMethod(String id) => _client.delete('/api/seller/payout-methods/$id');
+
+  /// Retrait à la demande (`POST /api/seller/payouts/withdraw`) : pas d'attente du
+  /// cron hebdomadaire ni de validation admin préalable — déclenche immédiatement
+  /// un reversement pour le solde disponible (frais d'activité déduits comme pour
+  /// le reversement automatique).
+  Future<void> requestWithdrawal() => _client.post('/api/seller/payouts/withdraw');
 }

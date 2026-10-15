@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/conversation_service.dart';
 import '../services/seller_profile_service.dart';
+import '../services/session_service.dart';
 import '../services/shop_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/account_section_card.dart';
@@ -24,6 +25,7 @@ import 'seller_dashboard_screen.dart';
 import 'seller_messages_screen.dart';
 import 'vendor_catalog_screen.dart';
 import 'wallet_screen.dart';
+import 'home_screen.dart';
 
 /// "Profil" tab of the seller space: shop identity, wallet shortcut,
 /// editable shop settings, help and logout.
@@ -116,6 +118,18 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  /// L'écran de sélection de profil ne s'affiche qu'une seule fois, à la toute
+  /// première connexion (voir `AppRouter`/`ProfileSelectionScreen`) — ce bouton
+  /// est le seul moyen de rebasculer ensuite, malgré ce qu'annonce ce premier écran.
+  Future<void> _switchToBuyer() async {
+    await SessionService().saveSelectedRoleId('buyer');
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _handleLogout() async {
@@ -229,6 +243,12 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
               subtitle: 'Discuter avec vos clients',
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
+            ),
+            ProfileMenuRow(
+              icon: Icons.swap_horiz_rounded,
+              title: 'Passer en mode Acheteur',
+              subtitle: 'Votre compte reste vendeur, juste un autre affichage',
+              onTap: _switchToBuyer,
             ),
           ],
         ),

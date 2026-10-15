@@ -157,6 +157,30 @@ public class PayoutService {
 
     // ----- Vendeur -----
 
+    /**
+     * Vendeur : retrait à la demande — pas d'attente du lundi ni de validation admin
+     * préalable (décision produit : le vendeur doit pouvoir récupérer son solde disponible
+     * à tout moment). Mêmes règles que la génération automatique : frais d'activité impayés
+     * déduits en premier (voir {@link #generatePayoutsForPeriod}), montant net restant.
+     * L'admin garde la main sur l'exécution réelle du virement (passage PROCESSING → PAID),
+     * seule la création de la demande est instantanée.
+     */
+    @Transactional
+    public PayoutResponse requestWithdrawal(com.maplenou.backend.catalog.Shop shop) {
+        Instant from = Instant.EPOCH;
+        Instant to = Instant.now();
+
+        List<SubOrder> subOrders = subOrderRepository.findDeliveredUnpaidByShopIdAndPeriod(shop.getId(), from, to);
+        if (subOrders.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Aucun montant disponible pour le retrait pour le moment");
+        }
+
+        Payout payout = createPayoutFromSubOrders(shop.getId(), subOrders, from, to);
+        auditService.log(shop.getOwner().getId(), AuditAction.PAYOUT_GENERATED, "PAYOUT", payout.getId(),
+                "Retrait demandé par le vendeur : " + payout.getAmount() + " FCFA", null);
+        return PayoutResponse.from(payout);
+    }
+
     /** Vendeur : ses payouts (par shopId, vérifié en amont dans le contrôleur). */
     @Transactional(readOnly = true)
     public Page<PayoutResponse> listForShop(UUID shopId, Pageable pageable) {
@@ -207,45 +231,51 @@ public class PayoutService {
                     subOrderRepository.findDeliveredUnpaidByShopIdAndPeriod(shopId, from, to);
             if (subOrders.isEmpty()) continue;
 
-            BigDecimal netTotal = subOrders.stream()
-                    .map(SubOrder::getNetAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal commTotal = subOrders.stream()
-                    .map(SubOrder::getCommissionAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            // Frais mensuels d'activité (voir SellerFeeService) déduits AVANT tout versement —
-            // jamais au-delà du solde disponible, le reliquat reste dû pour le prochain reversement.
-            BigDecimal unpaidFees = sellerFeeService.getUnpaidFeesTotal(shopId);
-            BigDecimal feesToDeduct = unpaidFees.min(netTotal);
-            BigDecimal netAfterFees = netTotal.subtract(feesToDeduct);
-
-            Payout payout = Payout.builder()
-                    .shop(subOrders.get(0).getShop())
-                    .periodStart(from)
-                    .periodEnd(to)
-                    .amount(netAfterFees)
-                    .commissionTotal(commTotal)
-                    .feesDeducted(feesToDeduct)
-                    .status(PayoutStatus.PENDING)
-                    .build();
-            payout = payoutRepository.save(payout);
-
-            if (feesToDeduct.signum() > 0) {
-                sellerFeeService.applyDeduction(shopId, feesToDeduct, payout);
-            }
-
-            // Lier les SubOrders au payout pour éviter de les réinclure la semaine suivante
-            for (SubOrder so : subOrders) {
-                so.setPayout(payout);
-                subOrderRepository.save(so);
-            }
-
-            log.info("[Payout] Créé payout {} pour shop {} : {} FCFA net ({} sous-ordres, {} FCFA de frais déduits)",
-                    payout.getId(), shopId, netAfterFees, subOrders.size(), feesToDeduct);
+            createPayoutFromSubOrders(shopId, subOrders, from, to);
             created++;
         }
         return created;
+    }
+
+    /** Cœur commun à la génération hebdomadaire et au retrait à la demande du vendeur. */
+    private Payout createPayoutFromSubOrders(UUID shopId, List<SubOrder> subOrders, Instant from, Instant to) {
+        BigDecimal netTotal = subOrders.stream()
+                .map(SubOrder::getNetAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal commTotal = subOrders.stream()
+                .map(SubOrder::getCommissionAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Frais mensuels d'activité (voir SellerFeeService) déduits AVANT tout versement —
+        // jamais au-delà du solde disponible, le reliquat reste dû pour le prochain reversement.
+        BigDecimal unpaidFees = sellerFeeService.getUnpaidFeesTotal(shopId);
+        BigDecimal feesToDeduct = unpaidFees.min(netTotal);
+        BigDecimal netAfterFees = netTotal.subtract(feesToDeduct);
+
+        Payout payout = Payout.builder()
+                .shop(subOrders.get(0).getShop())
+                .periodStart(from)
+                .periodEnd(to)
+                .amount(netAfterFees)
+                .commissionTotal(commTotal)
+                .feesDeducted(feesToDeduct)
+                .status(PayoutStatus.PENDING)
+                .build();
+        payout = payoutRepository.save(payout);
+
+        if (feesToDeduct.signum() > 0) {
+            sellerFeeService.applyDeduction(shopId, feesToDeduct, payout);
+        }
+
+        // Lier les SubOrders au payout pour éviter de les réinclure la prochaine fois
+        for (SubOrder so : subOrders) {
+            so.setPayout(payout);
+            subOrderRepository.save(so);
+        }
+
+        log.info("[Payout] Créé payout {} pour shop {} : {} FCFA net ({} sous-ordres, {} FCFA de frais déduits)",
+                payout.getId(), shopId, netAfterFees, subOrders.size(), feesToDeduct);
+        return payout;
     }
 
     private Payout getOrThrow(UUID id) {

@@ -15,6 +15,11 @@ public record CreateDeliveryZoneRequest(
         @DecimalMin(value = "0", message = "Le tarif ne peut pas être négatif")
         BigDecimal deliveryFee,
 
+        /** Prix au km au-delà du tarif de base, pour un calcul dynamique (type Gozem).
+         * Optionnel : 0 = tarif fixe, comportement historique. */
+        @DecimalMin(value = "0", message = "Le prix au km ne peut pas être négatif")
+        BigDecimal pricePerKm,
+
         @Min(value = 1, message = "Le délai minimum est 1 minute")
         int estimatedTimeMinutes
 ) {}

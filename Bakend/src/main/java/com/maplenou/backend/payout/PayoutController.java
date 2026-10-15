@@ -52,6 +52,21 @@ public class PayoutController {
     }
 
     /**
+     * POST /api/seller/payouts/withdraw
+     * Vendeur : retrait à la demande de son solde disponible — pas d'attente du cron
+     * hebdomadaire, pas de validation admin préalable (décision produit). L'admin garde
+     * la main sur l'exécution réelle du virement (PayoutController admin, markAsPaid).
+     */
+    @PostMapping("/api/seller/payouts/withdraw")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<PayoutResponse> requestWithdrawal(@AuthenticationPrincipal User currentUser) {
+        Shop shop = shopRepository.findByOwnerId(currentUser.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                        "Aucune boutique associée à ce compte"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(payoutService.requestWithdrawal(shop));
+    }
+
+    /**
      * GET /api/seller/payouts/{id}
      * Vendeur : détail d'un de ses reversements, avec le détail des sous-commandes incluses
      * (pour générer une facture téléchargeable côté app).

@@ -4,7 +4,6 @@ import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.delivery.dto.CourierEarningResponse;
-import com.maplenou.backend.order.AddressSnapshot;
 import com.maplenou.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,24 +22,22 @@ import java.util.UUID;
  * quand une {@link Delivery} passe à DELIVERED (voir {@link DeliveryService#updateStatus}).
  *
  * Barème décidé avec le porteur du projet (même logique que la commission
- * vendeur, {@code CommissionService}) : le tarif complet de la
- * {@link DeliveryZone} correspondant à l'adresse de livraison — déduite par
- * correspondance de ville/quartier puisque l'`Order` ne mémorise pas encore
- * quelle zone a été appliquée au moment du checkout — est partagé 25 %
- * plateforme / 75 % livreur.
+ * vendeur, {@code CommissionService}) : le frais de livraison réel du sous-ordre
+ * ({@link com.maplenou.backend.order.SubOrder#getDeliveryFee()}, calculé et figé au moment
+ * de la commande par {@link DeliveryPricingService} — zone + distance réelle) est partagé
+ * 25 % plateforme / 75 % livreur. Avant l'ajout de la tarification dynamique, ce montant
+ * était déduit après coup par correspondance approximative de ville/quartier puisque
+ * l'Order ne mémorisait aucun frais de livraison réel ; ce n'est plus le cas.
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CourierEarningService {
 
-    private static final BigDecimal DEFAULT_FEE = new BigDecimal("1000.00");
-
     /** Part gardée par la plateforme sur le tarif de livraison. */
     private static final BigDecimal PLATFORM_RATE = new BigDecimal("0.2500");
 
     private final CourierEarningRepository courierEarningRepository;
-    private final DeliveryZoneRepository deliveryZoneRepository;
     private final AuditService auditService;
 
     /** Montant gardé par la plateforme sur un tarif de livraison brut donné. */
@@ -62,14 +57,12 @@ public class CourierEarningService {
      */
     @Transactional(readOnly = true)
     public BigDecimal estimateCourierAmount(Delivery delivery) {
-        AddressSnapshot address = delivery.getSubOrder().getOrder().getDeliveryAddress();
-        return courierAmountFor(resolveFee(address));
+        return courierAmountFor(delivery.getSubOrder().getDeliveryFee());
     }
 
     @Transactional
     public void createForDelivery(Delivery delivery) {
-        AddressSnapshot address = delivery.getSubOrder().getOrder().getDeliveryAddress();
-        BigDecimal gross = resolveFee(address);
+        BigDecimal gross = delivery.getSubOrder().getDeliveryFee();
         BigDecimal commission = platformAmountFor(gross);
         BigDecimal net = gross.subtract(commission);
 
@@ -124,29 +117,5 @@ public class CourierEarningService {
                 " | Montant : " + earning.getAmount() + " FCFA", ip);
 
         return CourierEarningResponse.from(earning);
-    }
-
-    private BigDecimal resolveFee(AddressSnapshot address) {
-        Optional<DeliveryZone> zone = Optional.<DeliveryZone>empty()
-                .or(() -> address.getCity() != null
-                        ? deliveryZoneRepository.findByNameIgnoreCase(address.getCity())
-                        : Optional.empty())
-                .or(() -> address.getDistrict() != null
-                        ? deliveryZoneRepository.findByNameIgnoreCase(address.getDistrict())
-                        : Optional.empty());
-
-        if (zone.isPresent()) {
-            return zone.get().getDeliveryFee();
-        }
-
-        // Aucune correspondance exacte (ex. orthographe différente) : la zone
-        // phare du lancement sert de repli, sinon la première zone active.
-        List<DeliveryZone> activeZones = deliveryZoneRepository.findByActiveTrueOrderByNameAsc();
-        return activeZones.stream()
-                .filter(z -> z.getName().equalsIgnoreCase("Grand Lomé"))
-                .findFirst()
-                .or(() -> activeZones.stream().findFirst())
-                .map(DeliveryZone::getDeliveryFee)
-                .orElse(DEFAULT_FEE);
     }
 }

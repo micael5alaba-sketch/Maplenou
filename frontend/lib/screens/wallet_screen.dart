@@ -47,10 +47,38 @@ class _WalletScreenState extends State<WalletScreen> {
     _feeSummaryFuture = SellerFeeService().getSummary();
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  /// `POST /api/seller/payouts/withdraw` — retrait à la demande, sans attendre le
+  /// reversement hebdomadaire ni passer par une validation admin (voir PayoutService.java).
+  Future<void> _handleWithdraw(num availableBalance) async {
+    final colors = context.colors;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: const Text('Demander un retrait'),
+        content: Text('Retirer ${formatFcfa(availableBalance)} ? Les frais d\'activité non payés seront déduits.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Confirmer')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await PayoutService().requestWithdrawal();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Retrait demandé — en cours de traitement.')));
+      _reload();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _reload() {
@@ -287,7 +315,7 @@ class _WalletScreenState extends State<WalletScreen> {
       children: [
         WalletBalanceCard(
           availableBalance: wallet.availableBalance,
-          onWithdraw: () => _showComingSoon('La demande de retrait'),
+          onWithdraw: () => _handleWithdraw(wallet.availableBalance),
         ),
         const SizedBox(height: 16),
         _buildFeeSummaryCard(),

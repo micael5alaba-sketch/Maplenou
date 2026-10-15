@@ -20,6 +20,8 @@ public record SubOrderResponse(
         BigDecimal commissionRate,
         BigDecimal commissionAmount,
         BigDecimal netAmount,
+        BigDecimal deliveryFee,
+        BigDecimal deliveryDistanceKm,
         List<SubOrderItemResponse> items,
         Instant createdAt,
         Instant updatedAt
@@ -37,6 +39,8 @@ public record SubOrderResponse(
                 so.getCommissionRate(),
                 so.getCommissionAmount(),
                 so.getNetAmount(),
+                so.getDeliveryFee(),
+                so.getDeliveryDistanceKm(),
                 so.getItems().stream().map(SubOrderItemResponse::from).toList(),
                 so.getCreatedAt(),
                 so.getUpdatedAt()

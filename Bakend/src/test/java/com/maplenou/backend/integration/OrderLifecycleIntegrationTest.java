@@ -263,7 +263,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Order(6)
     void deliveryZoneCrud() throws Exception {
         JsonNode zone = post("/api/delivery-zones",
-                new CreateDeliveryZoneRequest("Zone Test " + rand, new BigDecimal("1000.00"), 45), adminToken, 201);
+                new CreateDeliveryZoneRequest("Zone Test " + rand, new BigDecimal("1000.00"), BigDecimal.ZERO, 45), adminToken, 201);
         deliveryZoneId = UUID.fromString(zone.get("id").asText());
         assertTrue(zone.get("active").asBoolean());
 

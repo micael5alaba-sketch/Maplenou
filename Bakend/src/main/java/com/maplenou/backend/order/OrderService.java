@@ -8,6 +8,8 @@ import com.maplenou.backend.catalog.ProductStatus;
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ProductVariant;
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.delivery.DeliveryPricingService;
+import com.maplenou.backend.delivery.dto.DeliveryFeeQuote;
 import com.maplenou.backend.order.dto.OrderResponse;
 import com.maplenou.backend.order.dto.OrderSummaryResponse;
 import com.maplenou.backend.order.dto.OrdersSummaryResponse;
@@ -42,6 +44,7 @@ public class OrderService {
     private final CommissionService commissionService;
     private final PromoCodeService promoCodeService;
     private final FedaPayCheckoutService fedaPayCheckoutService;
+    private final DeliveryPricingService deliveryPricingService;
 
     @Value("${app.fedapay.enabled}")
     private boolean fedapayEnabled;
@@ -154,6 +157,15 @@ public class OrderService {
             BigDecimal net    = commissionService.netFor(subtotal);
             totalAmount       = totalAmount.add(subtotal);
 
+            // Frais de livraison dynamique (zone + distance réelle boutique↔adresse, voir
+            // DeliveryPricingService) — une boutique à la fois, chacune pouvant être à une
+            // distance différente dans un panier multi-vendeurs. Figé ici, jamais recalculé
+            // après coup, et réellement ajouté au montant facturé (voir §7 plus bas).
+            DeliveryFeeQuote deliveryQuote = deliveryPricingService.quote(
+                    shop, snapshot.getCity(), snapshot.getDistrict(),
+                    snapshot.getLatitude(), snapshot.getLongitude());
+            totalAmount = totalAmount.add(deliveryQuote.fee());
+
             // Construire les lignes du sous-ordre
             List<SubOrderItem> items = shopItems.stream()
                     .map(ci -> buildItem(ci))
@@ -165,6 +177,8 @@ public class OrderService {
                     .commissionRate(rate)
                     .commissionAmount(comm)
                     .netAmount(net)
+                    .deliveryFee(deliveryQuote.fee())
+                    .deliveryDistanceKm(deliveryQuote.distanceKm())
                     .status(SubOrderStatus.PENDING)
                     .items(new ArrayList<>(items))
                     .build();

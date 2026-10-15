@@ -44,8 +44,24 @@ public class DeliveryZoneService {
         DeliveryZone zone = DeliveryZone.builder()
                 .name(request.name())
                 .deliveryFee(request.deliveryFee())
+                .pricePerKm(request.pricePerKm() != null ? request.pricePerKm() : java.math.BigDecimal.ZERO)
                 .estimatedTimeMinutes(request.estimatedTimeMinutes())
                 .build();
+
+        return DeliveryZoneResponse.from(zoneRepository.save(zone));
+    }
+
+    /** Admin : ajuster le tarif de base et/ou le prix au km d'une zone existante, sans la
+     * recréer (ex: affiner la tarification dynamique au fil de l'eau). */
+    @CacheEvict(value = "delivery-zones", allEntries = true)
+    @Transactional
+    public DeliveryZoneResponse update(UUID id, com.maplenou.backend.delivery.dto.UpdateDeliveryZoneRequest request) {
+        DeliveryZone zone = zoneRepository.findById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Zone introuvable"));
+
+        if (request.deliveryFee() != null) zone.setDeliveryFee(request.deliveryFee());
+        if (request.pricePerKm() != null) zone.setPricePerKm(request.pricePerKm());
+        if (request.estimatedTimeMinutes() != null) zone.setEstimatedTimeMinutes(request.estimatedTimeMinutes());
 
         return DeliveryZoneResponse.from(zoneRepository.save(zone));
     }

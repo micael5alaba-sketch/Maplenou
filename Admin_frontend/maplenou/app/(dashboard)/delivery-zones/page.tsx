@@ -13,6 +13,7 @@ export default function DeliveryZonesPage() {
 
   const [name, setName] = useState("");
   const [fee, setFee] = useState("");
+  const [pricePerKm, setPricePerKm] = useState("0");
   const [minutes, setMinutes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,10 +38,12 @@ export default function DeliveryZonesPage() {
       await apiClient.post("/api/delivery-zones", {
         name,
         deliveryFee: Number(fee),
+        pricePerKm: Number(pricePerKm || 0),
         estimatedTimeMinutes: Number(minutes),
       });
       setName("");
       setFee("");
+      setPricePerKm("0");
       setMinutes("");
       load();
     } catch (err) {
@@ -54,6 +57,29 @@ export default function DeliveryZonesPage() {
     setActingId(id);
     try {
       await apiClient.patch(`/api/delivery-zones/${id}/toggle`);
+      load();
+    } catch (e) {
+      alert(e instanceof ApiException ? e.message : "Erreur.");
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  async function editPricing(zone: DeliveryZoneResponse) {
+    const newFee = prompt("Tarif de base (FCFA) :", String(zone.deliveryFee));
+    if (newFee === null) return;
+    const newPricePerKm = prompt(
+      "Prix au km (FCFA, 0 = tarif fixe sans supplément distance) :",
+      String(zone.pricePerKm),
+    );
+    if (newPricePerKm === null) return;
+
+    setActingId(zone.id);
+    try {
+      await apiClient.patch(`/api/delivery-zones/${zone.id}`, {
+        deliveryFee: Number(newFee),
+        pricePerKm: Number(newPricePerKm),
+      });
       load();
     } catch (e) {
       alert(e instanceof ApiException ? e.message : "Erreur.");
@@ -77,9 +103,12 @@ export default function DeliveryZonesPage() {
 
   return (
     <div>
-      <PageHeader title="Zones de livraison" subtitle="Tarif et délai par zone — Grand Lomé au lancement, extensible" />
+      <PageHeader
+        title="Zones de livraison"
+        subtitle="Tarif de base + prix au km par zone — dynamique type Gozem, calculé sur la distance réelle boutique↔adresse"
+      />
 
-      <Card className="mb-6 max-w-2xl">
+      <Card className="mb-6 max-w-3xl">
         <h2 className="mb-3 text-sm font-semibold text-foreground">Nouvelle zone</h2>
         {formError && (
           <div className="mb-3">
@@ -98,13 +127,23 @@ export default function DeliveryZonesPage() {
             />
           </div>
           <div className="w-32">
-            <label className="mb-1 block text-xs font-medium text-muted">Tarif (FCFA)</label>
+            <label className="mb-1 block text-xs font-medium text-muted">Tarif de base</label>
             <input
               required
               type="number"
               min={0}
               value={fee}
               onChange={(e) => setFee(e.target.value)}
+              className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div className="w-32">
+            <label className="mb-1 block text-xs font-medium text-muted">Prix/km</label>
+            <input
+              type="number"
+              min={0}
+              value={pricePerKm}
+              onChange={(e) => setPricePerKm(e.target.value)}
               className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
@@ -123,6 +162,10 @@ export default function DeliveryZonesPage() {
             Ajouter
           </Button>
         </form>
+        <p className="mt-3 text-xs text-muted">
+          Prix/km à 0 = tarif fixe (comportement historique). Au-dessus de 0, le prix affiché et facturé à
+          l&apos;acheteur = tarif de base + distance réelle × prix/km.
+        </p>
       </Card>
 
       {loading && <LoadingState />}
@@ -133,11 +176,14 @@ export default function DeliveryZonesPage() {
           {zones.length === 0 ? (
             <EmptyState message="Aucune zone." />
           ) : (
-            <Table headers={["Zone", "Tarif", "Délai estimé", "Statut", "Actions"]}>
+            <Table headers={["Zone", "Tarif de base", "Prix/km", "Délai estimé", "Statut", "Actions"]}>
               {zones.map((z) => (
                 <tr key={z.id}>
                   <td className="px-4 py-3 font-medium text-foreground">{z.name}</td>
                   <td className="px-4 py-3 text-muted">{formatFcfa(z.deliveryFee)}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {z.pricePerKm > 0 ? `${formatFcfa(z.pricePerKm)}/km` : "—"}
+                  </td>
                   <td className="px-4 py-3 text-muted">{z.estimatedTimeMinutes} min</td>
                   <td className="px-4 py-3">
                     <span
@@ -150,6 +196,9 @@ export default function DeliveryZonesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      <Button variant="secondary" onClick={() => editPricing(z)} disabled={actingId === z.id}>
+                        Modifier le tarif
+                      </Button>
                       <Button variant="secondary" onClick={() => toggle(z.id)} disabled={actingId === z.id}>
                         {z.active ? "Désactiver" : "Activer"}
                       </Button>

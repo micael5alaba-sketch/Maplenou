@@ -16,6 +16,8 @@ public record SubOrderSummary(
         BigDecimal subtotal,
         BigDecimal commissionAmount,
         BigDecimal netAmount,
+        BigDecimal deliveryFee,
+        BigDecimal deliveryDistanceKm,
         // Detail des articles - necessaire pour que l'acheteur puisse voir/imprimer un vrai
         // recu (nom produit, variante, quantite, prix), pas seulement le sous-total.
         List<SubOrderItemResponse> items,
@@ -30,6 +32,8 @@ public record SubOrderSummary(
                 so.getSubtotal(),
                 so.getCommissionAmount(),
                 so.getNetAmount(),
+                so.getDeliveryFee(),
+                so.getDeliveryDistanceKm(),
                 so.getItems().stream().map(SubOrderItemResponse::from).toList(),
                 so.getCreatedAt()
         );

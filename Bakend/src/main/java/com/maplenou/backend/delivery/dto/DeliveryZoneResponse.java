@@ -9,6 +9,7 @@ public record DeliveryZoneResponse(
         UUID id,
         String name,
         BigDecimal deliveryFee,
+        BigDecimal pricePerKm,
         int estimatedTimeMinutes,
         boolean active
 ) {
@@ -17,6 +18,7 @@ public record DeliveryZoneResponse(
                 z.getId(),
                 z.getName(),
                 z.getDeliveryFee(),
+                z.getPricePerKm(),
                 z.getEstimatedTimeMinutes(),
                 z.isActive()
         );

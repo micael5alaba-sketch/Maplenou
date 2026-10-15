@@ -66,23 +66,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _selectedAddress = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
     }
 
-    final deliveryFee = await _resolveDeliveryFee();
+    final deliveryFee = await _resolveDeliveryFee(cart);
     return (cart, addresses, deliveryFee);
   }
 
-  Future<num> _resolveDeliveryFee() async {
-    num deliveryFee = _fallbackDeliveryFee;
+  /// Un panier peut regrouper plusieurs boutiques (CLAUDE.md §4) : une sous-commande —
+  /// et donc un devis de livraison — par boutique, chacune pouvant être à une distance
+  /// différente de l'adresse choisie. Même calcul que celui figé par le backend au moment
+  /// de la commande (`GET /api/delivery-zones/quote`), pour ne jamais afficher un total
+  /// différent de ce qui sera réellement facturé.
+  Future<num> _resolveDeliveryFee(CartModel cart) async {
+    final shopIds = cart.items.map((i) => i.shopId).toSet();
+    if (shopIds.isEmpty) return 0;
+
+    num total = 0;
     try {
-      final zone = await _deliveryZoneService.resolveZone(
-        district: _selectedAddress?.district,
-        city: _selectedAddress?.city,
-      );
-      if (zone != null) deliveryFee = zone.deliveryFee;
+      final quotes = await Future.wait(shopIds.map((shopId) => _deliveryZoneService.getQuote(
+            shopId: shopId,
+            city: _selectedAddress?.city,
+            district: _selectedAddress?.district,
+            latitude: _selectedAddress?.latitude,
+            longitude: _selectedAddress?.longitude,
+          )));
+      total = quotes.fold<num>(0, (sum, q) => sum + q.fee);
     } catch (_) {
-      // Zones de livraison injoignables : on garde le repli plutôt que de
-      // bloquer le checkout.
+      // Service de devis injoignable : repli plutôt que de bloquer le checkout —
+      // le montant réel reste de toute façon calculé côté backend à la commande.
+      total = _fallbackDeliveryFee * shopIds.length;
     }
-    return deliveryFee;
+    return total;
   }
 
   Future<void> _pickAddress(AppColorScheme colors, List<AddressModel> addresses) async {
@@ -420,7 +432,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(height: 12),
           _buildSummaryLine(colors, 'Sous-total (${cart.itemCount} article${cart.itemCount > 1 ? 's' : ''})', formatFcfa(subtotal)),
           const SizedBox(height: 6),
-          _buildSummaryLine(colors, 'Livraison (estimation)', formatFcfa(deliveryFee)),
+          _buildSummaryLine(colors, 'Livraison', formatFcfa(deliveryFee)),
           const Divider(height: 20),
           _buildSummaryLine(colors, 'Total à payer', formatFcfa(total), emphasize: true),
           const SizedBox(height: 12),

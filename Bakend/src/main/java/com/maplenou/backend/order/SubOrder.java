@@ -45,6 +45,18 @@ public class SubOrder {
     @Column(name = "net_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal netAmount;
 
+    /** Frais de livraison réellement facturé pour cette sous-commande (tarif de base de la
+     * zone + distance réelle boutique↔adresse × prix/km, voir DeliveryPricingService).
+     * Figé au moment de la commande — jamais recalculé après coup. */
+    @Column(name = "delivery_fee", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal deliveryFee = BigDecimal.ZERO;
+
+    /** Distance réelle (à vol d'oiseau) utilisée pour calculer {@link #deliveryFee} — null si
+     * les coordonnées de la boutique ou de l'adresse manquaient (tarif de base seul appliqué). */
+    @Column(name = "delivery_distance_km", precision = 8, scale = 2)
+    private BigDecimal deliveryDistanceKm;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default

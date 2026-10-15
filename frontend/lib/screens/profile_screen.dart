@@ -4,8 +4,10 @@ import '../models/user_profile_model.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/app_router.dart';
 import '../services/conversation_service.dart';
 import '../services/locale_controller.dart';
+import '../services/session_service.dart';
 import '../services/theme_controller.dart';
 import '../services/user_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -67,6 +69,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
+  }
+
+  /// L'écran de sélection de profil ne s'affiche qu'une seule fois, à la toute
+  /// première connexion (voir `AppRouter`/`ProfileSelectionScreen`) — ce bouton
+  /// est le seul moyen de rebasculer ensuite, malgré ce qu'annonce ce premier écran.
+  Future<void> _switchToSeller() async {
+    await SessionService().saveSelectedRoleId('seller');
+    if (!mounted) return;
+    final target = await AppRouter.resolveSellerEntryScreen();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => target),
+      (route) => false,
+    );
   }
 
   void _handleActivityTap(String label) {
@@ -429,6 +445,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: profile.hasPendingSellerApplication
                 ? null
                 : () => _pushAndReload(const SellerRegistrationScreen()),
+          ),
+        if (profile.isApprovedSeller)
+          ProfileMenuRow(
+            icon: Icons.swap_horiz_rounded,
+            title: 'Passer en mode Vendeur',
+            subtitle: 'Retrouvez votre espace boutique',
+            onTap: _switchToSeller,
           ),
         ProfileMenuRow(
           icon: Icons.person_outline_rounded,

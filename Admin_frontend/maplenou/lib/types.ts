@@ -97,6 +97,7 @@ export interface DeliveryZoneResponse {
   id: string;
   name: string;
   deliveryFee: number;
+  pricePerKm: number;
   estimatedTimeMinutes: number;
   active: boolean;
 }
