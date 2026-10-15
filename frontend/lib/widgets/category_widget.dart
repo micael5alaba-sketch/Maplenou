@@ -52,11 +52,38 @@ class CategoryWidget extends StatelessWidget {
     );
   }
 
+  /// Tant qu'une catégorie n'a pas de vraie photo (`imageUrl`, upload Cloudinary admin), une
+  /// icône + couleur propres à son thème valent mieux qu'un même pictogramme générique gris
+  /// répété pour toutes — correspondance par slug (stable, indépendante du libellé affiché).
   Widget _buildPlaceholder(BuildContext context) {
+    final (icon, color) = _iconAndColorFor(category.slug);
     return Container(
-      color: context.colors.inputFill,
+      color: color.withValues(alpha: 0.12),
       alignment: Alignment.center,
-      child: Icon(Icons.category_rounded, color: context.colors.primary, size: 26),
+      child: Icon(icon, color: color, size: 28),
     );
+  }
+
+  (IconData, Color) _iconAndColorFor(String slug) {
+    switch (slug) {
+      case 'alimentation':
+        return (Icons.restaurant_rounded, const Color(0xFFE2772E));
+      case 'mode-vetements':
+        return (Icons.checkroom_rounded, const Color(0xFF8E5CD9));
+      case 'electronique-high-tech':
+        return (Icons.devices_rounded, const Color(0xFF2E7FE2));
+      case 'maison-jardin':
+        return (Icons.yard_rounded, const Color(0xFF2E9E5B));
+      case 'beaute-hygiene':
+        return (Icons.spa_rounded, const Color(0xFFD9548E));
+      case 'sante-bien-etre':
+        return (Icons.favorite_rounded, const Color(0xFFD94A4A));
+      case 'enfants-jouets':
+        return (Icons.toys_rounded, const Color(0xFFE2B52E));
+      case 'autres':
+        return (Icons.apps_rounded, const Color(0xFF7A7A7A));
+      default:
+        return (Icons.category_rounded, const Color(0xFF1E5A24));
+    }
   }
 }

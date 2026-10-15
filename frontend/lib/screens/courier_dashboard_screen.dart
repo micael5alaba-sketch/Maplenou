@@ -84,19 +84,23 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
         .then((_) => _reload());
   }
 
+  // `pushReplacement` dans tous les cas (jamais `pop`/`push`) : voir le même motif corrigé
+  // côté vendeur (seller_dashboard_screen.dart) et acheteur (home_screen.dart). Plus besoin
+  // du `.then(_reload)` : avec pushReplacement on ne "revient" jamais sur cet écran par pop,
+  // retourner au dashboard recrée l'écran et son initState recharge déjà les données.
   void _onTabSelected(CourierTab tab) {
     if (tab == _currentTab) return;
     switch (tab) {
       case CourierTab.dashboard:
         break;
       case CourierTab.deliveries:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen())).then((_) => _reload());
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
         break;
       case CourierTab.messages:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
         break;
       case CourierTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
         break;
     }
   }

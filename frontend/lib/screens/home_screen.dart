@@ -97,19 +97,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // `pushReplacement` dans tous les cas (jamais `pop`/`popUntil`/`push`) : un `pop()` qui
+  // suppose "l'écran précédent est toujours le bon onglet cible" casse dès qu'on change
+  // d'onglet deux fois de suite sans repasser par l'accueil (même motif que côté vendeur,
+  // voir seller_dashboard_screen.dart).
   void _onTabSelected(HomeTab tab) {
     if (tab == _currentTab) return;
     switch (tab) {
       case HomeTab.home:
         break;
       case HomeTab.categories:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
         break;
       case HomeTab.cart:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CartScreen()));
         break;
       case HomeTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const ProfileScreen()));
         break;
     }
   }

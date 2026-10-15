@@ -18,6 +18,7 @@ import '../widgets/product_card.dart';
 import '../widgets/search_field.dart';
 import 'cart_screen.dart';
 import 'favorites_screen.dart';
+import 'home_screen.dart';
 import 'product_details_screen.dart';
 import 'profile_screen.dart';
 
@@ -294,17 +295,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
+  // `pushReplacement` dans tous les cas, voir home_screen.dart.
   void _onTabSelected(HomeTab tab) {
     if (tab == HomeTab.categories) return;
     if (tab == HomeTab.home) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       return;
     }
     if (tab == HomeTab.profile) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const ProfileScreen()));
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CartScreen()));
   }
 
   Future<void> _addToCart(ProductModel product) async {

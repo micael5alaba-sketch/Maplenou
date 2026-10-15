@@ -8,6 +8,7 @@ import '../widgets/app_drawer.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/available_delivery_card.dart';
 import '../widgets/courier_bottom_navigation.dart';
+import 'courier_dashboard_screen.dart';
 import 'courier_delivery_detail_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_profile_screen.dart';
@@ -52,19 +53,20 @@ class _CourierDeliveriesScreenState extends State<CourierDeliveriesScreen> {
         .then((_) => _reload());
   }
 
+  // `pushReplacement` dans tous les cas, voir courier_dashboard_screen.dart.
   void _onTabSelected(CourierTab tab) {
     if (tab == CourierTab.deliveries) return;
     switch (tab) {
       case CourierTab.dashboard:
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDashboardScreen()));
         break;
       case CourierTab.deliveries:
         break;
       case CourierTab.messages:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
         break;
       case CourierTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
         break;
     }
   }

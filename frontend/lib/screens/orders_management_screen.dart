@@ -13,6 +13,7 @@ import '../widgets/orders_filter_bar.dart';
 import '../widgets/seller_bottom_navigation.dart';
 import 'order_detail_screen.dart';
 import 'seller_conversation_screen.dart';
+import 'seller_dashboard_screen.dart';
 import 'seller_profile_screen.dart';
 import 'vendor_catalog_screen.dart';
 
@@ -146,19 +147,23 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
+  // `pushReplacement` dans tous les cas (jamais `pop`/`push`) : la navigation par onglets
+  // doit toujours garder un seul écran empilé, quel que soit l'onglet de départ — un `pop()`
+  // qui suppose "le dashboard est juste en dessous" casse dès qu'on change d'onglet deux fois
+  // de suite sans repasser par le dashboard (voir seller_profile_screen.dart, même motif).
   void _onTabSelected(SellerTab tab) {
     if (tab == SellerTab.orders) return;
     switch (tab) {
       case SellerTab.dashboard:
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SellerDashboardScreen()));
         break;
       case SellerTab.orders:
         break;
       case SellerTab.products:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
         break;
       case SellerTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }

@@ -11,6 +11,7 @@ import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/primary_button.dart';
 import 'categories_screen.dart';
 import 'checkout_screen.dart';
+import 'home_screen.dart';
 import 'profile_screen.dart';
 
 /// Buyer's cart — reached from the bottom navigation's "Panier" tab.
@@ -62,19 +63,20 @@ class _CartScreenState extends State<CartScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // `pushReplacement` dans tous les cas, voir home_screen.dart.
   void _onTabSelected(HomeTab tab) {
     if (tab == HomeTab.cart) return;
     switch (tab) {
       case HomeTab.home:
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
         break;
       case HomeTab.categories:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
         break;
       case HomeTab.cart:
         break;
       case HomeTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const ProfileScreen()));
         break;
     }
   }

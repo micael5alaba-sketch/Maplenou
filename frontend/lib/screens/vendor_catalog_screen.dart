@@ -12,6 +12,7 @@ import '../widgets/vendor_product_card.dart';
 import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
 import 'orders_management_screen.dart';
+import 'seller_dashboard_screen.dart';
 import 'seller_profile_screen.dart';
 
 /// Seller's product catalog: search, filter by stock status, and manage
@@ -129,19 +130,20 @@ class _VendorCatalogScreenState extends State<VendorCatalogScreen> {
     }
   }
 
+  // `pushReplacement` dans tous les cas (jamais `pop`/`push`), voir orders_management_screen.dart.
   void _onTabSelected(SellerTab tab) {
     if (tab == SellerTab.products) return;
     switch (tab) {
       case SellerTab.dashboard:
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SellerDashboardScreen()));
         break;
       case SellerTab.orders:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OrdersManagementScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const OrdersManagementScreen()));
         break;
       case SellerTab.products:
         break;
       case SellerTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }

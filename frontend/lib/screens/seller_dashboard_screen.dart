@@ -49,19 +49,23 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
       ..showSnackBar(SnackBar(content: Text('$feature bientôt disponible.')));
   }
 
+  // `pushReplacement` dans tous les cas (jamais `pop`/`push`), voir orders_management_screen.dart —
+  // sans ça, la pile grandit d'un écran à chaque passage par le dashboard, et les autres onglets
+  // (qui supposaient "le dashboard est juste en dessous" avec un `pop()`) atterrissent au mauvais
+  // endroit dès qu'on change d'onglet deux fois de suite sans repasser par ici.
   void _onTabSelected(SellerTab tab) {
     if (tab == _currentTab) return;
     switch (tab) {
       case SellerTab.dashboard:
         break;
       case SellerTab.orders:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OrdersManagementScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const OrdersManagementScreen()));
         break;
       case SellerTab.products:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const VendorCatalogScreen()));
         break;
       case SellerTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SellerProfileScreen()));
         break;
     }
   }

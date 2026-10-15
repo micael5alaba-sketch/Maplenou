@@ -28,6 +28,7 @@ import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'favorites_screen.dart';
 import 'help_center_screen.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 import 'my_orders_screen.dart';
 import 'my_reviews_screen.dart';
@@ -149,17 +150,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // `pushReplacement` dans tous les cas, voir home_screen.dart.
   void _onTabSelected(HomeTab tab) {
     if (tab == HomeTab.profile) return;
     switch (tab) {
       case HomeTab.home:
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
         break;
       case HomeTab.categories:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CategoriesScreen()));
         break;
       case HomeTab.cart:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CartScreen()));
         break;
       case HomeTab.profile:
         break;

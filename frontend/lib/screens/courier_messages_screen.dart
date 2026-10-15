@@ -8,6 +8,7 @@ import '../widgets/app_logo.dart';
 import '../widgets/conversation_list_tile.dart';
 import '../widgets/courier_bottom_navigation.dart';
 import 'courier_conversation_screen.dart';
+import 'courier_dashboard_screen.dart';
 import 'courier_deliveries_screen.dart';
 import 'courier_profile_screen.dart';
 import 'notifications_screen.dart';
@@ -61,19 +62,20 @@ class _CourierMessagesScreenState extends State<CourierMessagesScreen> {
         .then((_) => setState(() => _conversationsFuture = _service.getConversations(kind: _selectedKind)));
   }
 
+  // `pushReplacement` dans tous les cas, voir courier_dashboard_screen.dart.
   void _onTabSelected(CourierTab tab) {
     if (tab == CourierTab.messages) return;
     switch (tab) {
       case CourierTab.dashboard:
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDashboardScreen()));
         break;
       case CourierTab.deliveries:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
         break;
       case CourierTab.messages:
         break;
       case CourierTab.profile:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierProfileScreen()));
         break;
     }
   }

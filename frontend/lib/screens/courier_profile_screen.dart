@@ -54,17 +54,18 @@ class _CourierProfileScreenState extends State<CourierProfileScreen> {
     );
   }
 
+  // `pushReplacement` dans tous les cas, voir courier_dashboard_screen.dart.
   void _onTabSelected(CourierTab tab) {
     if (tab == CourierTab.profile) return;
     switch (tab) {
       case CourierTab.dashboard:
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDashboardScreen()));
         break;
       case CourierTab.deliveries:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()));
         break;
       case CourierTab.messages:
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const CourierMessagesScreen()));
         break;
       case CourierTab.profile:
         break;
