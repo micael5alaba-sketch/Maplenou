@@ -2,11 +2,14 @@ package com.maplenou.backend.catalog;
 
 import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
+import com.maplenou.backend.catalog.dto.AdminCreateShopRequest;
 import com.maplenou.backend.catalog.dto.CreateShopRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.notification.NotificationService;
+import com.maplenou.backend.seller.SellerStatus;
 import com.maplenou.backend.user.User;
+import com.maplenou.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +26,7 @@ import java.util.regex.Pattern;
 public class ShopService {
 
     private final ShopRepository shopRepository;
+    private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
 
@@ -106,6 +110,40 @@ public class ShopService {
 
     public Page<Shop> listByStatus(ShopStatus status, Pageable pageable) {
         return shopRepository.findByStatus(status, pageable);
+    }
+
+    /** Admin : crée une boutique pour un vendeur déjà approuvé — directement APPROVED,
+     * puisque c'est l'admin lui-même qui en décide (pas de validation supplémentaire requise). */
+    @Transactional
+    public Shop adminCreate(AdminCreateShopRequest request, UUID actorId, String ip) {
+        User owner = userRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Utilisateur introuvable"));
+
+        if (owner.getSellerProfile() == null || owner.getSellerProfile().getStatus() != SellerStatus.APPROVED) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Ce compte n'a pas encore de profil vendeur approuvé — approuve-le d'abord dans \"Candidatures vendeurs\"");
+        }
+        if (shopRepository.existsByOwnerId(owner.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Ce compte possède déjà une boutique");
+        }
+
+        String slug = generateUniqueSlug(request.name());
+
+        Shop shop = Shop.builder()
+                .owner(owner)
+                .name(request.name())
+                .slug(slug)
+                .description(request.description())
+                .city(request.city())
+                .district(request.district())
+                .taxId(request.taxId())
+                .status(ShopStatus.APPROVED)
+                .build();
+
+        Shop saved = shopRepository.save(shop);
+        auditService.log(actorId, AuditAction.SHOP_STATUS_CHANGED, "SHOP", saved.getId(),
+                "Boutique créée directement par l'admin pour " + owner.getFullName(), ip);
+        return saved;
     }
 
     @Transactional

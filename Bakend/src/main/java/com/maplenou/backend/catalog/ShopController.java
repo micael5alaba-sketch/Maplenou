@@ -1,5 +1,6 @@
 package com.maplenou.backend.catalog;
 
+import com.maplenou.backend.catalog.dto.AdminCreateShopRequest;
 import com.maplenou.backend.catalog.dto.CreateShopRequest;
 import com.maplenou.backend.catalog.dto.ShopResponse;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
@@ -72,6 +73,17 @@ public class ShopController {
             return shopService.listByStatus(status, pageable).map(ShopResponse::from);
         }
         return shopService.listAll(pageable).map(ShopResponse::from);
+    }
+
+    /** Admin : crée directement une boutique pour un vendeur déjà approuvé (sans passer par le vendeur). */
+    @PostMapping("/api/admin/shops")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ShopResponse> adminCreate(@Valid @RequestBody AdminCreateShopRequest request,
+                                                      @AuthenticationPrincipal User currentUser,
+                                                      HttpServletRequest httpRequest) {
+        Shop shop = shopService.adminCreate(request, currentUser.getId(), resolveIp(httpRequest));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ShopResponse.from(shop));
     }
 
     @PatchMapping("/api/admin/shops/{id}/status")
