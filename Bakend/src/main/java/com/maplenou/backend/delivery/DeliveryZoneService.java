@@ -26,6 +26,13 @@ public class DeliveryZoneService {
                 .stream().map(DeliveryZoneResponse::from).toList();
     }
 
+    /** Admin : toutes les zones, actives et désactivées (pour pouvoir réactiver). */
+    @Transactional(readOnly = true)
+    public List<DeliveryZoneResponse> listAllForAdmin() {
+        return zoneRepository.findAllByOrderByNameAsc()
+                .stream().map(DeliveryZoneResponse::from).toList();
+    }
+
     @CacheEvict(value = "delivery-zones", allEntries = true)
     @Transactional
     public DeliveryZoneResponse create(CreateDeliveryZoneRequest request) {

@@ -10,6 +10,8 @@ import java.util.UUID;
 public record CourierEarningResponse(
         UUID id,
         UUID deliveryId,
+        UUID agentId,
+        String agentName,
         BigDecimal grossAmount,
         BigDecimal commissionRate,
         BigDecimal commissionAmount,
@@ -22,6 +24,8 @@ public record CourierEarningResponse(
         return new CourierEarningResponse(
                 e.getId(),
                 e.getDelivery().getId(),
+                e.getAgent().getId(),
+                e.getAgent().getFullName(),
                 e.getGrossAmount(),
                 e.getCommissionRate(),
                 e.getCommissionAmount(),

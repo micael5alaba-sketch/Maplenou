@@ -28,6 +28,14 @@ public class DeliveryZoneController {
         return zoneService.listActive();
     }
 
+    /** Admin : toutes les zones, y compris désactivées (sinon impossible de les réactiver). */
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    public List<DeliveryZoneResponse> listAllForAdmin() {
+        return zoneService.listAllForAdmin();
+    }
+
     /** Admin : créer une zone. */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

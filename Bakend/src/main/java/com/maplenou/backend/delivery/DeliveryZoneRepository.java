@@ -10,5 +10,8 @@ public interface DeliveryZoneRepository extends JpaRepository<DeliveryZone, UUID
 
     List<DeliveryZone> findByActiveTrueOrderByNameAsc();
 
+    /** Admin uniquement : y compris les zones désactivées (sinon impossible de les réactiver). */
+    List<DeliveryZone> findAllByOrderByNameAsc();
+
     Optional<DeliveryZone> findByNameIgnoreCase(String name);
 }

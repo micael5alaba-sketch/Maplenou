@@ -1,13 +1,18 @@
 package com.maplenou.backend.auth;
 
+import com.maplenou.backend.audit.AuditAction;
+import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.auth.dto.AuthResponse;
+import com.maplenou.backend.auth.dto.ForgotPasswordRequest;
 import com.maplenou.backend.auth.dto.LoginRequest;
 import com.maplenou.backend.auth.dto.LoginResponse;
 import com.maplenou.backend.auth.dto.LogoutRequest;
 import com.maplenou.backend.auth.dto.MfaLoginRequest;
 import com.maplenou.backend.auth.dto.RefreshRequest;
 import com.maplenou.backend.auth.dto.RegisterRequest;
+import com.maplenou.backend.auth.dto.ResetPasswordRequest;
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.email.EmailService;
 import com.maplenou.backend.security.JwtService;
 import com.maplenou.backend.security.TokenBlacklistService;
 import com.maplenou.backend.user.Role;
@@ -21,6 +26,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -34,6 +40,7 @@ public class AuthService {
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
+    private static final int PASSWORD_RESET_OTP_TTL_MINUTES = 10;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,6 +50,9 @@ public class AuthService {
     private final TotpService totpService;
     private final TokenBlacklistService tokenBlacklistService;
     private final RedisTemplate<String, String> redisTemplate;
+    private final EmailService emailService;
+    private final AuditService auditService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -194,6 +204,47 @@ public class AuthService {
                 // Access token malformé ou déjà expiré — on ignore
             }
         }
+    }
+
+    /**
+     * Génère un code à 6 chiffres, le stocke dans Redis (TTL 10 min, clé par téléphone) et
+     * l'envoie à l'adresse email du compte. Erreurs explicites (compte introuvable, pas d'email
+     * associé) plutôt qu'un message générique anti-énumération — cohérent avec le reste de
+     * l'API (ex: /api/auth/register révèle déjà si un téléphone est pris).
+     */
+    public void forgotPassword(String phoneNumber) {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Aucun compte avec ce numéro de téléphone"));
+
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Aucune adresse email associée à ce compte — contactez le support pour réinitialiser votre mot de passe");
+        }
+
+        String code = String.format("%06d", secureRandom.nextInt(1_000_000));
+        redisTemplate.opsForValue().set("password_reset:" + phoneNumber, code,
+                Duration.ofMinutes(PASSWORD_RESET_OTP_TTL_MINUTES));
+
+        emailService.sendPasswordResetCode(user.getEmail(), code);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByPhoneNumber(request.phoneNumber())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Aucun compte avec ce numéro de téléphone"));
+
+        String key = "password_reset:" + request.phoneNumber();
+        String storedCode = redisTemplate.opsForValue().get(key);
+        if (storedCode == null || !storedCode.equals(request.code())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Code invalide ou expiré");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        redisTemplate.delete(key);
+
+        auditService.log(user.getId(), AuditAction.PASSWORD_CHANGED, "USER", user.getId(),
+                "Mot de passe réinitialisé via code email", null);
     }
 
     public AuthResponse buildAuthResponse(User user) {

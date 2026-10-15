@@ -33,13 +33,12 @@ public class SellerProfileController {
     @PostMapping("/apply")
     public ResponseEntity<SellerProfileResponse> apply(@AuthenticationPrincipal User currentUser,
                                                          @Valid @RequestBody ApplySellerRequest request) {
-        SellerProfile created = sellerProfileService.apply(currentUser, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(SellerProfileResponse.from(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(sellerProfileService.apply(currentUser, request));
     }
 
     @GetMapping("/me")
     public SellerProfileResponse getMine(@AuthenticationPrincipal User currentUser) {
-        return SellerProfileResponse.from(sellerProfileService.getMine(currentUser));
+        return sellerProfileService.getMine(currentUser);
     }
 
     // ----- Admin -----
@@ -49,8 +48,7 @@ public class SellerProfileController {
     public Page<SellerProfileResponse> listAll(
             @RequestParam(required = false) SellerStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
-        return sellerProfileService.listByStatus(status, pageable)
-                .map(SellerProfileResponse::from);
+        return sellerProfileService.listByStatus(status, pageable);
     }
 
     @PatchMapping("/admin/{id}/status")
@@ -60,7 +58,6 @@ public class SellerProfileController {
                                                @AuthenticationPrincipal User currentUser,
                                                HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
-        return SellerProfileResponse.from(
-                sellerProfileService.updateStatus(id, request, currentUser.getId(), ip));
+        return sellerProfileService.updateStatus(id, request, currentUser.getId(), ip);
     }
 }

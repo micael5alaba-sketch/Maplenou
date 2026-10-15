@@ -3,11 +3,13 @@ package com.maplenou.backend.user;
 import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.common.exception.ApiException;
+import com.maplenou.backend.user.dto.ChangePasswordRequest;
 import com.maplenou.backend.user.dto.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final PasswordEncoder passwordEncoder;
 
     public User getById(UUID id) {
         return userRepository.findById(id)
@@ -43,6 +46,17 @@ public class UserService {
             user.setAvatarUrl(request.avatarUrl().isBlank() ? null : request.avatarUrl());
         }
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public void changePassword(User currentUser, ChangePasswordRequest request) {
+        if (!passwordEncoder.matches(request.currentPassword(), currentUser.getPasswordHash())) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Mot de passe actuel incorrect");
+        }
+        currentUser.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(currentUser);
+        auditService.log(currentUser.getId(), AuditAction.PASSWORD_CHANGED,
+                "USER", currentUser.getId(), "Mot de passe changé depuis le profil", null);
     }
 
     // ----- Admin -----

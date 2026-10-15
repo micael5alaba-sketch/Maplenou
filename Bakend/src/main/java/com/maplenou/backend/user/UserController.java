@@ -1,6 +1,7 @@
 package com.maplenou.backend.user;
 
 import com.maplenou.backend.admin.GdprService;
+import com.maplenou.backend.user.dto.ChangePasswordRequest;
 import com.maplenou.backend.user.dto.UpdateProfileRequest;
 import com.maplenou.backend.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,6 +31,13 @@ public class UserController {
     public UserResponse updateMe(@AuthenticationPrincipal User currentUser,
                                   @Valid @RequestBody UpdateProfileRequest request) {
         return UserResponse.from(userService.updateProfile(currentUser.getId(), request));
+    }
+
+    @PatchMapping("/me/password")
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal User currentUser,
+                                                @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(currentUser, request);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/me")

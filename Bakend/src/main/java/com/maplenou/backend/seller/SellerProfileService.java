@@ -4,6 +4,7 @@ import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.seller.dto.ApplySellerRequest;
+import com.maplenou.backend.seller.dto.SellerProfileResponse;
 import com.maplenou.backend.seller.dto.UpdateSellerStatusRequest;
 import com.maplenou.backend.user.User;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class SellerProfileService {
     private final AuditService auditService;
 
     @Transactional
-    public SellerProfile apply(User currentUser, ApplySellerRequest request) {
+    public SellerProfileResponse apply(User currentUser, ApplySellerRequest request) {
         if (sellerProfileRepository.existsByUserId(currentUser.getId())) {
             throw new ApiException(HttpStatus.CONFLICT, "Ce compte a deja un profil vendeur");
         }
@@ -35,26 +36,27 @@ public class SellerProfileService {
                 .feeCategory(request.feeCategory() != null ? request.feeCategory() : SellerFeeCategory.STANDARD)
                 .build();
 
-        return sellerProfileRepository.save(profile);
+        return SellerProfileResponse.from(sellerProfileRepository.save(profile));
     }
 
-    public SellerProfile getMine(User currentUser) {
-        return sellerProfileRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Aucun profil vendeur pour ce compte"));
+    @Transactional(readOnly = true)
+    public SellerProfileResponse getMine(User currentUser) {
+        return SellerProfileResponse.from(sellerProfileRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Aucun profil vendeur pour ce compte")));
     }
 
     // ----- Admin -----
 
     @Transactional(readOnly = true)
-    public Page<SellerProfile> listByStatus(SellerStatus status, Pageable pageable) {
-        if (status != null) {
-            return sellerProfileRepository.findByStatus(status, pageable);
-        }
-        return sellerProfileRepository.findAll(pageable);
+    public Page<SellerProfileResponse> listByStatus(SellerStatus status, Pageable pageable) {
+        Page<SellerProfile> page = status != null
+                ? sellerProfileRepository.findByStatus(status, pageable)
+                : sellerProfileRepository.findAll(pageable);
+        return page.map(SellerProfileResponse::from);
     }
 
     @Transactional
-    public SellerProfile updateStatus(UUID profileId, UpdateSellerStatusRequest request,
+    public SellerProfileResponse updateStatus(UUID profileId, UpdateSellerStatusRequest request,
                                       UUID actorId, String ip) {
         SellerProfile profile = sellerProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Profil vendeur introuvable"));
@@ -71,6 +73,6 @@ public class SellerProfileService {
         auditService.log(actorId, action, "SELLER_PROFILE", profileId,
                 "Status → " + newStatus + (request.adminNote() != null ? " | " + request.adminNote() : ""), ip);
 
-        return saved;
+        return SellerProfileResponse.from(saved);
     }
 }

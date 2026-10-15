@@ -45,6 +45,20 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Envoie un code à 6 chiffres par email au compte associé à ce numéro. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request.phoneNumber());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Vérifie le code reçu par email et définit le nouveau mot de passe. */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Jeton Firebase personnalisé pour le compte connecté — nécessaire pour
      * accéder à Firebase Realtime Database (tracking GPS livreur) sous les
