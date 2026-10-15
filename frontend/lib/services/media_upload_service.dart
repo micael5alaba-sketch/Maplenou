@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -52,7 +51,10 @@ class MediaUploadService {
   }
 
   Future<String> _uploadFile(XFile photo, {String? folder}) async {
-    final sizeBytes = await File(photo.path).length();
+    // `dart:io`'s File n'existe pas sur Flutter Web : on passe exclusivement par
+    // les méthodes cross-platform de XFile (length/readAsBytes), seules supportées
+    // à la fois sur mobile natif et web.
+    final sizeBytes = await photo.length();
     if (sizeBytes > _maxFileSizeBytes) {
       throw ApiException(413, 'Photo trop lourde (max 5 Mo) — réessaie avec une autre image.');
     }
@@ -68,13 +70,15 @@ class MediaUploadService {
     final signature = signatureData['signature'] as String;
     final signedFolder = signatureData['folder'] as String?;
 
+    final fileBytes = await photo.readAsBytes();
+
     final uploadUri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
     final request = http.MultipartRequest('POST', uploadUri)
       ..fields['api_key'] = apiKey
       ..fields['timestamp'] = '$timestamp'
       ..fields['signature'] = signature
       ..fields.addAll(signedFolder != null ? {'folder': signedFolder} : {})
-      ..files.add(await http.MultipartFile.fromPath('file', photo.path));
+      ..files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: photo.name));
 
     final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamedResponse);
