@@ -22,6 +22,7 @@ import 'about_screen.dart';
 import 'addresses_screen.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
+import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'favorites_screen.dart';
 import 'help_center_screen.dart';
@@ -446,6 +447,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: 'Modes de paiement',
           subtitle: profile.paymentMethodsSummary,
           onTap: _showPaymentMethodsInfo,
+        ),
+        ProfileMenuRow(
+          icon: Icons.lock_outline_rounded,
+          title: 'Mot de passe',
+          subtitle: 'Changer votre mot de passe',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+          ),
         ),
         ValueListenableBuilder<ThemeMode>(
           valueListenable: themeController,

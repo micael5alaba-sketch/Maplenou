@@ -63,6 +63,24 @@ class AuthService {
     return _storeSessionAndReturnUser(data);
   }
 
+  /// Envoie un code à 6 chiffres par email au compte associé à ce numéro.
+  Future<void> forgotPassword({required String phoneNumber}) async {
+    await _post('/api/auth/forgot-password', {'phoneNumber': phoneNumber});
+  }
+
+  /// Vérifie le code reçu par email et définit le nouveau mot de passe.
+  Future<void> resetPassword({
+    required String phoneNumber,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _post('/api/auth/reset-password', {
+      'phoneNumber': phoneNumber,
+      'code': code,
+      'newPassword': newPassword,
+    });
+  }
+
   Future<void> logout() async {
     final tokenStorage = TokenStorage();
     final refreshToken = await tokenStorage.getRefreshToken();

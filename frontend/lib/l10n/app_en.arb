@@ -29,6 +29,22 @@
   "verifyButton": "Verify",
   "noAccountYet": "Don't have an account yet? ",
   "signUpLink": "Sign up",
+  "forgotPasswordLink": "Forgot password?",
+
+  "forgotPasswordTitle": "Forgot password",
+  "forgotPasswordSubtitle": "Enter your phone number, we'll send you a code by email to reset your password.",
+  "forgotPasswordSendCodeButton": "Send code",
+  "backToLoginLink": "Back to login",
+
+  "resetPasswordTitle": "Reset password",
+  "resetPasswordSubtitle": "Enter the 6-digit code you received by email and your new password.",
+  "otpCodeHint": "6-digit code",
+  "otpCodeRequired": "Code is required.",
+  "newPasswordHint": "New password",
+  "newPasswordRequirements": "At least 8 characters, one uppercase letter and one digit.",
+  "resetPasswordButton": "Reset password",
+  "resetPasswordSuccessTitle": "Password reset!",
+  "resetPasswordSuccessSubtitle": "You can now sign in with your new password.",
 
   "registerTitle": "Create an account",
   "registerSubtitle": "Join Maplenou in a few seconds.",

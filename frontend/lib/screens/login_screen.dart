@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
+import 'forgot_password_screen.dart';
 import 'signup_intent_screen.dart';
 
 /// Connexion (`POST /api/auth/login`, `auth/AuthController.java`). Gère
@@ -157,6 +158,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) =>
                           (value == null || value.isEmpty) ? l10n.passwordRequired : null,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                        ),
+                        child: Text(
+                          l10n.forgotPasswordLink,
+                          style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ),
                     ),
                   ] else
                     TextFormField(

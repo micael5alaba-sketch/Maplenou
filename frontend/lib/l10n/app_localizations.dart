@@ -248,6 +248,90 @@ abstract class AppLocalizations {
   /// **'S\'inscrire'**
   String get signUpLink;
 
+  /// Login screen: forgot password link text
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe oublié ?'**
+  String get forgotPasswordLink;
+
+  /// Forgot password screen title
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe oublié'**
+  String get forgotPasswordTitle;
+
+  /// Forgot password screen subtitle
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez votre numéro de téléphone, nous vous enverrons un code par email pour réinitialiser votre mot de passe.'**
+  String get forgotPasswordSubtitle;
+
+  /// Forgot password screen: send code button
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer le code'**
+  String get forgotPasswordSendCodeButton;
+
+  /// Link back to the login screen
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour à la connexion'**
+  String get backToLoginLink;
+
+  /// Reset password screen title
+  ///
+  /// In fr, this message translates to:
+  /// **'Réinitialiser le mot de passe'**
+  String get resetPasswordTitle;
+
+  /// Reset password screen subtitle
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez le code à 6 chiffres reçu par email et votre nouveau mot de passe.'**
+  String get resetPasswordSubtitle;
+
+  /// Email OTP code field hint
+  ///
+  /// In fr, this message translates to:
+  /// **'Code à 6 chiffres'**
+  String get otpCodeHint;
+
+  /// Reset password: OTP code required validation message
+  ///
+  /// In fr, this message translates to:
+  /// **'Le code est requis.'**
+  String get otpCodeRequired;
+
+  /// New password field hint
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau mot de passe'**
+  String get newPasswordHint;
+
+  /// New password field helper text
+  ///
+  /// In fr, this message translates to:
+  /// **'Au moins 8 caractères, une majuscule et un chiffre.'**
+  String get newPasswordRequirements;
+
+  /// Reset password screen submit button
+  ///
+  /// In fr, this message translates to:
+  /// **'Réinitialiser le mot de passe'**
+  String get resetPasswordButton;
+
+  /// Reset password success message
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe réinitialisé !'**
+  String get resetPasswordSuccessTitle;
+
+  /// Reset password success subtitle
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.'**
+  String get resetPasswordSuccessSubtitle;
+
   /// Register screen title
   ///
   /// In fr, this message translates to:
