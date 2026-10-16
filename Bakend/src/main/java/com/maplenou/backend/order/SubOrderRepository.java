@@ -41,6 +41,14 @@ public interface SubOrderRepository extends JpaRepository<SubOrder, UUID> {
     /** Recherche d'un sous-ordre appartenant à une boutique précise (vérification ownership). */
     Optional<SubOrder> findByIdAndShopId(UUID id, UUID shopId);
 
+    /** Admin : toutes les sous-commandes, toutes boutiques confondues — rien d'équivalent
+     * n'existait, l'admin n'avait aucun moyen de voir les commandes passées sur la plateforme. */
+    @EntityGraph(attributePaths = {"shop", "order"})
+    Page<SubOrder> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"shop", "order"})
+    Page<SubOrder> findByStatusOrderByCreatedAtDesc(SubOrderStatus status, Pageable pageable);
+
     // ----- KPI queries -----
 
     @Query("SELECT COALESCE(SUM(so.commissionAmount), 0) FROM SubOrder so WHERE so.status <> com.maplenou.backend.order.SubOrderStatus.CANCELLED")

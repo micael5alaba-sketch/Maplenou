@@ -1,112 +1,165 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
-import type { SubOrderResponse, SubOrderStatus } from "@/lib/types";
-import { Button, Card, ErrorState, PageHeader, StatusBadge, formatDate, formatFcfa } from "@/components/ui";
+import type { Page, SubOrderResponse, SubOrderStatus } from "@/lib/types";
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+  Table,
+  formatDate,
+  formatFcfa,
+} from "@/components/ui";
 
-const STATUSES: SubOrderStatus[] = [
-  "PENDING",
-  "PREPARING",
-  "READY_FOR_PICKUP",
-  "IN_DELIVERY",
-  "DELIVERED",
-  "CANCELLED",
-  "RETURN_REQUESTED",
-  "RETURNED",
+const STATUS_LABELS: Record<SubOrderStatus, string> = {
+  PENDING: "En attente",
+  PREPARING: "En préparation",
+  READY_FOR_PICKUP: "Prêt pour retrait",
+  IN_DELIVERY: "En livraison",
+  DELIVERED: "Livré",
+  CANCELLED: "Annulé",
+  RETURN_REQUESTED: "Retour demandé",
+  RETURNED: "Retourné",
+};
+
+const ALL_STATUSES = Object.keys(STATUS_LABELS) as SubOrderStatus[];
+
+const FILTERS: { value: SubOrderStatus | "ALL"; label: string }[] = [
+  { value: "ALL", label: "Toutes" },
+  ...ALL_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
 ];
 
 export default function SubOrdersPage() {
-  const [subOrderId, setSubOrderId] = useState("");
-  const [status, setStatus] = useState<SubOrderStatus>("PENDING");
-  const [result, setResult] = useState<SubOrderResponse | null>(null);
+  const [status, setStatus] = useState<SubOrderStatus | "ALL">("ALL");
+  const [data, setData] = useState<Page<SubOrderResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const [forceStatusFor, setForceStatusFor] = useState<Record<string, SubOrderStatus>>({});
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (
-      !confirm(
-        `Forcer le statut de la sous-commande ${subOrderId} à ${status} ?\n\nCeci contourne les transitions normales vendeur/livreur — à utiliser uniquement pour débloquer un cas de support.`,
-      )
-    )
-      return;
+  function load() {
+    setLoading(true);
     setError(null);
-    setBusy(true);
+    apiClient
+      .get<Page<SubOrderResponse>>("/api/sub-orders/admin", {
+        status: status === "ALL" ? undefined : status,
+        size: 50,
+      })
+      .then(setData)
+      .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(load, [status]);
+
+  async function createDelivery(subOrderId: string) {
+    setActingId(subOrderId);
     try {
-      const res = await apiClient.patch<SubOrderResponse>(`/api/sub-orders/admin/${subOrderId}/status`, { status });
-      setResult(res);
+      await apiClient.post(`/api/deliveries/sub-orders/${subOrderId}`);
+      alert("Livraison créée — va dans \"Livraisons en attente\" pour assigner un livreur.");
+      load();
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Erreur.");
-      setResult(null);
+      alert(e instanceof ApiException ? e.message : "Erreur lors de la création de la livraison.");
     } finally {
-      setBusy(false);
+      setActingId(null);
+    }
+  }
+
+  async function forceStatus(subOrderId: string) {
+    const newStatus = forceStatusFor[subOrderId];
+    if (!newStatus) {
+      alert("Choisis d'abord un statut dans la liste déroulante.");
+      return;
+    }
+    if (!confirm(`Forcer le statut à "${STATUS_LABELS[newStatus]}" ? Ceci contourne les transitions normales vendeur/livreur.`))
+      return;
+    setActingId(subOrderId);
+    try {
+      await apiClient.patch(`/api/sub-orders/admin/${subOrderId}/status`, { status: newStatus });
+      load();
+    } catch (e) {
+      alert(e instanceof ApiException ? e.message : "Erreur.");
+    } finally {
+      setActingId(null);
     }
   }
 
   return (
     <div>
       <PageHeader
-        title="Forcer le statut d'une sous-commande"
-        subtitle="Override admin — contourne les transitions normales vendeur/livreur, pour débloquer un cas de support. Pas de recherche possible : l'ID vient d'un ticket support, d'une commande ou d'une livraison."
+        title="Commandes"
+        subtitle="Toutes les sous-commandes de la plateforme, toutes boutiques confondues. Statut « Prêt pour retrait » : crée la livraison pour pouvoir ensuite assigner un livreur depuis « Livraisons en attente »."
       />
 
-      <Card className="mb-6 max-w-xl">
-        {error && (
-          <div className="mb-3">
-            <ErrorState message={error} />
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted">ID de la sous-commande</label>
-            <input
-              required
-              value={subOrderId}
-              onChange={(e) => setSubOrderId(e.target.value)}
-              placeholder="uuid"
-              className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 font-mono text-sm outline-none focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Nouveau statut</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as SubOrderStatus)}
-              className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 text-sm outline-none focus:border-primary"
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button type="submit" variant="danger" disabled={busy}>
-            Forcer le statut
-          </Button>
-        </form>
-      </Card>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setStatus(f.value)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+              status === f.value ? "bg-primary text-white" : "bg-surface text-muted ring-1 ring-border"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-      {result && (
-        <Card className="max-w-xl">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">Résultat</h2>
-          <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
-            <dt className="text-muted">Commande</dt>
-            <dd className="text-foreground">#{result.orderNumber}</dd>
-            <dt className="text-muted">Boutique</dt>
-            <dd className="text-foreground">{result.shopName}</dd>
-            <dt className="text-muted">Acheteur</dt>
-            <dd className="text-foreground">{result.buyerName}</dd>
-            <dt className="text-muted">Nouveau statut</dt>
-            <dd>
-              <StatusBadge status={result.status} />
-            </dd>
-            <dt className="text-muted">Sous-total</dt>
-            <dd className="text-foreground">{formatFcfa(result.subtotal)}</dd>
-            <dt className="text-muted">Mis à jour</dt>
-            <dd className="text-foreground">{formatDate(result.updatedAt)}</dd>
-          </dl>
+      {loading && <LoadingState />}
+      {error && <ErrorState message={error} />}
+
+      {data && (
+        <Card>
+          {data.content.length === 0 ? (
+            <EmptyState message="Aucune commande pour ce filtre." />
+          ) : (
+            <Table headers={["Commande", "Boutique", "Acheteur", "Sous-total", "Livraison", "Statut", "Créée le", "Actions"]}>
+              {data.content.map((so) => (
+                <tr key={so.id}>
+                  <td className="px-4 py-3 font-medium text-foreground">#{so.orderNumber}</td>
+                  <td className="px-4 py-3 text-muted">{so.shopName}</td>
+                  <td className="px-4 py-3 text-muted">{so.buyerName}</td>
+                  <td className="px-4 py-3 text-muted">{formatFcfa(so.subtotal)}</td>
+                  <td className="px-4 py-3 text-muted">{formatFcfa(so.deliveryFee)}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={so.status} label={STATUS_LABELS[so.status]} />
+                  </td>
+                  <td className="px-4 py-3 text-muted">{formatDate(so.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {so.status === "READY_FOR_PICKUP" && (
+                        <Button onClick={() => createDelivery(so.id)} disabled={actingId === so.id}>
+                          Créer la livraison
+                        </Button>
+                      )}
+                      <select
+                        value={forceStatusFor[so.id] ?? ""}
+                        onChange={(e) =>
+                          setForceStatusFor((prev) => ({ ...prev, [so.id]: e.target.value as SubOrderStatus }))
+                        }
+                        className="rounded-lg border border-border bg-input-fill px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Forcer vers...</option>
+                        {ALL_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
+                      <Button variant="secondary" onClick={() => forceStatus(so.id)} disabled={actingId === so.id}>
+                        Forcer
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
         </Card>
       )}
     </div>

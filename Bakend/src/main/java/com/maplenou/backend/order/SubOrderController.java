@@ -55,6 +55,15 @@ public class SubOrderController {
         return subOrderService.updateStatus(currentUser, subOrderId, request.status());
     }
 
+    /** Admin : toutes les sous-commandes, toutes boutiques confondues, filtrable par statut. */
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<SubOrderResponse> listAllForAdmin(
+            @RequestParam(required = false) SubOrderStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return subOrderService.listAllForAdmin(status, pageable);
+    }
+
     /** Admin : peut forcer n'importe quel statut. */
     @PatchMapping("/admin/{subOrderId}/status")
     @PreAuthorize("hasRole('ADMIN')")

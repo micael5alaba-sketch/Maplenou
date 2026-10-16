@@ -31,12 +31,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Livraison",
     items: [
+      { href: "/sub-orders", label: "Commandes" },
       { href: "/couriers", label: "Créer un livreur" },
       { href: "/courier-documents", label: "Documents livreurs" },
       { href: "/courier-earnings", label: "Gains livreurs" },
       { href: "/deliveries", label: "Livraisons en attente" },
       { href: "/delivery-zones", label: "Zones de livraison" },
-      { href: "/sub-orders", label: "Forcer un statut (override)" },
     ],
   },
   {

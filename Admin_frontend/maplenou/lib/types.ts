@@ -318,6 +318,8 @@ export interface SubOrderResponse {
   commissionRate: number;
   commissionAmount: number;
   netAmount: number;
+  deliveryFee: number;
+  deliveryDistanceKm: number | null;
   items: SubOrderItemResponse[];
   createdAt: string;
   updatedAt: string;

@@ -24,4 +24,9 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     // Sous-catégories actives d'une catégorie donnée
     @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent WHERE c.parent.id = :parentId AND c.active = true ORDER BY c.name ASC")
     List<Category> findByParentIdAndActiveTrueOrderByNameAsc(@Param("parentId") UUID parentId);
+
+    /** Admin uniquement : toutes les catégories y compris désactivées (sinon impossible de les
+     * réactiver — même piège déjà corrigé pour DeliveryZoneRepository). */
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.name ASC")
+    List<Category> findAllByOrderByNameAsc();
 }

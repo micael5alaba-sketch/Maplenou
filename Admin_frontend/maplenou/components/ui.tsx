@@ -33,15 +33,22 @@ const BADGE_STYLES: Record<string, string> = {
   PROCESSING: "bg-accent/10 text-accent",
   IN_PROGRESS: "bg-accent/10 text-accent",
   OPEN: "bg-accent/10 text-accent",
+  PREPARING: "bg-accent/10 text-accent",
+  READY_FOR_PICKUP: "bg-accent/10 text-accent",
+  IN_DELIVERY: "bg-accent/10 text-accent",
+  DELIVERED: "bg-primary/10 text-primary",
+  CANCELLED: "bg-error/10 text-error",
+  RETURN_REQUESTED: "bg-error/10 text-error",
+  RETURNED: "bg-error/10 text-error",
   default: "bg-muted/10 text-muted",
 };
 
-export function StatusBadge({ status }: { status: string | null | undefined }) {
+export function StatusBadge({ status, label }: { status: string | null | undefined; label?: string }) {
   if (!status) return <span className="text-sm text-muted">—</span>;
   const style = BADGE_STYLES[status] ?? BADGE_STYLES.default;
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>
-      {status}
+      {label ?? status}
     </span>
   );
 }

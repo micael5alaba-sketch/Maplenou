@@ -45,6 +45,15 @@ public class CategoryService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Catégorie introuvable"));
     }
 
+    // ----- Admin -----
+
+    /** Toutes les catégories, actives et désactivées (sinon impossible de les réactiver
+     * depuis l'admin — le catalogue public ne montre jamais que les actives). */
+    @Transactional(readOnly = true)
+    public List<Category> listAllForAdmin() {
+        return categoryRepository.findAllByOrderByNameAsc();
+    }
+
     // ----- Écriture (admin uniquement, vérifié au niveau du contrôleur) -----
 
     @CacheEvict(value = "categories", allEntries = true)

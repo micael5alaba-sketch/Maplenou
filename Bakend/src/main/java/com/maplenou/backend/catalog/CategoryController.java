@@ -45,6 +45,18 @@ public class CategoryController {
     }
 
     // ----- Admin uniquement : gestion du référentiel -----
+
+    /** Toutes les catégories (actives et désactivées) — le catalogue public ci-dessus ne
+     * montre jamais que les actives, ce qui empêcherait l'admin de réactiver quoi que ce soit. */
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    public List<CategoryResponse> listAllForAdmin() {
+        return categoryService.listAllForAdmin().stream()
+                .map(CategoryResponse::from)
+                .toList();
+    }
+
     // @PreAuthorize vérifie le rôle à l'entrée de la méthode, avant même d'atteindre le service.
     // C'est la même annotation qu'on réutilisera pour Shop/Product avec des règles plus fines.
 

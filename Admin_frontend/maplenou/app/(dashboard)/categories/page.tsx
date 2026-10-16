@@ -1,13 +1,12 @@
 "use client";
 
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { CategoryResponse } from "@/lib/types";
 import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Table } from "@/components/ui";
 
 export default function CategoriesPage() {
-  const [roots, setRoots] = useState<CategoryResponse[] | null>(null);
-  const [children, setChildren] = useState<Record<string, CategoryResponse[]>>({});
+  const [all, setAll] = useState<CategoryResponse[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,30 +20,29 @@ export default function CategoriesPage() {
   function load() {
     setLoading(true);
     setError(null);
+    // Endpoint admin (toutes catégories, actives ET désactivées) — le catalogue public
+    // /api/categories ne montre que les actives, ce qui rendait impossible de réactiver
+    // quoi que ce soit depuis cette page (elle disparaissait purement et simplement de la
+    // liste dès qu'on la désactivait).
     apiClient
-      .get<CategoryResponse[]>("/api/categories")
-      .then(setRoots)
+      .get<CategoryResponse[]>("/api/categories/admin")
+      .then(setAll)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
   useEffect(load, []);
 
-  async function toggleExpand(id: string) {
-    if (expanded === id) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(id);
-    if (!children[id]) {
-      try {
-        const subs = await apiClient.get<CategoryResponse[]>(`/api/categories/${id}/subcategories`);
-        setChildren((prev) => ({ ...prev, [id]: subs }));
-      } catch {
-        setChildren((prev) => ({ ...prev, [id]: [] }));
+  const roots = useMemo(() => (all ?? []).filter((c) => c.parentId === null), [all]);
+  const childrenByParent = useMemo(() => {
+    const map: Record<string, CategoryResponse[]> = {};
+    for (const c of all ?? []) {
+      if (c.parentId) {
+        (map[c.parentId] ??= []).push(c);
       }
     }
-  }
+    return map;
+  }, [all]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -54,7 +52,6 @@ export default function CategoriesPage() {
       await apiClient.post("/api/categories", { name, parentId: parentId || null });
       setName("");
       setParentId("");
-      setChildren({});
       load();
     } catch (err) {
       setFormError(err instanceof ApiException ? err.message : "Erreur lors de la création.");
@@ -67,21 +64,6 @@ export default function CategoriesPage() {
     setActingId(cat.id);
     try {
       await apiClient.patch(`/api/categories/${cat.id}`, { active: !cat.active });
-      setChildren({});
-      load();
-    } catch (e) {
-      alert(e instanceof ApiException ? e.message : "Erreur.");
-    } finally {
-      setActingId(null);
-    }
-  }
-
-  async function remove(id: string) {
-    if (!confirm("Désactiver cette catégorie ?")) return;
-    setActingId(id);
-    try {
-      await apiClient.delete(`/api/categories/${id}`);
-      setChildren({});
       load();
     } catch (e) {
       alert(e instanceof ApiException ? e.message : "Erreur.");
@@ -119,7 +101,7 @@ export default function CategoriesPage() {
               className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 text-sm outline-none focus:border-primary"
             >
               <option value="">— Racine —</option>
-              {roots?.map((r) => (
+              {roots.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
@@ -135,7 +117,7 @@ export default function CategoriesPage() {
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
 
-      {roots && (
+      {all && (
         <Card>
           {roots.length === 0 ? (
             <EmptyState message="Aucune catégorie." />
@@ -145,9 +127,14 @@ export default function CategoriesPage() {
                 <Fragment key={cat.id}>
                   <tr>
                     <td className="px-4 py-3 font-medium text-foreground">
-                      <button onClick={() => toggleExpand(cat.id)} className="mr-2 text-muted">
-                        {expanded === cat.id ? "▾" : "▸"}
-                      </button>
+                      {(childrenByParent[cat.id]?.length ?? 0) > 0 && (
+                        <button
+                          onClick={() => setExpanded(expanded === cat.id ? null : cat.id)}
+                          className="mr-2 text-muted"
+                        >
+                          {expanded === cat.id ? "▾" : "▸"}
+                        </button>
+                      )}
                       {cat.name}
                     </td>
                     <td className="px-4 py-3 text-muted">{cat.slug}</td>
@@ -161,18 +148,13 @@ export default function CategoriesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => toggleActive(cat)} disabled={actingId === cat.id}>
-                          {cat.active ? "Désactiver" : "Activer"}
-                        </Button>
-                        <Button variant="danger" onClick={() => remove(cat.id)} disabled={actingId === cat.id}>
-                          Supprimer
-                        </Button>
-                      </div>
+                      <Button variant="secondary" onClick={() => toggleActive(cat)} disabled={actingId === cat.id}>
+                        {cat.active ? "Désactiver" : "Activer"}
+                      </Button>
                     </td>
                   </tr>
                   {expanded === cat.id &&
-                    (children[cat.id] ?? []).map((sub) => (
+                    (childrenByParent[cat.id] ?? []).map((sub) => (
                       <tr key={sub.id} className="bg-input-fill/40">
                         <td className="px-4 py-3 pl-10 text-foreground">{sub.name}</td>
                         <td className="px-4 py-3 text-muted">{sub.slug}</td>
@@ -186,14 +168,9 @@ export default function CategoriesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <Button variant="secondary" onClick={() => toggleActive(sub)} disabled={actingId === sub.id}>
-                              {sub.active ? "Désactiver" : "Activer"}
-                            </Button>
-                            <Button variant="danger" onClick={() => remove(sub.id)} disabled={actingId === sub.id}>
-                              Supprimer
-                            </Button>
-                          </div>
+                          <Button variant="secondary" onClick={() => toggleActive(sub)} disabled={actingId === sub.id}>
+                            {sub.active ? "Désactiver" : "Activer"}
+                          </Button>
                         </td>
                       </tr>
                     ))}

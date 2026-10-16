@@ -48,6 +48,18 @@ public class SubOrderService {
         return SubOrderResponse.from(so);
     }
 
+    // ----- Lecture admin -----
+
+    /** Admin : toutes les sous-commandes, toutes boutiques confondues (rien d'équivalent
+     * n'existait — l'admin n'avait aucun moyen de voir les commandes passées sur la plateforme). */
+    @Transactional(readOnly = true)
+    public Page<SubOrderResponse> listAllForAdmin(SubOrderStatus status, Pageable pageable) {
+        Page<SubOrder> page = status == null
+                ? subOrderRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : subOrderRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+        return page.map(SubOrderResponse::from);
+    }
+
     // ----- Mise à jour du statut (vendeur) -----
     // Transitions autorisées au vendeur :
     //   PENDING → PREPARING
