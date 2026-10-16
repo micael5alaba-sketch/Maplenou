@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
@@ -24,6 +25,7 @@ const FILTERS: { label: string; value: SellerFeeCategoryChangeStatus | "ALL" }[]
 
 export default function SellerFeesPage() {
   const [filter, setFilter] = useState<SellerFeeCategoryChangeStatus | "ALL">("PENDING");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<SellerFeeCategoryChangeResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,14 +37,15 @@ export default function SellerFeesPage() {
     apiClient
       .get<Page<SellerFeeCategoryChangeResponse>>("/api/admin/seller-fees/category-changes", {
         status: filter === "ALL" ? undefined : filter,
-        size: 50,
+        page,
+        size: 20,
       })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [filter]);
+  useEffect(load, [filter, page]);
 
   async function decide(id: string, approve: boolean) {
     const adminNotes = !approve ? prompt("Raison du rejet (optionnel) :") ?? "" : null;
@@ -68,7 +71,10 @@ export default function SellerFeesPage() {
         {FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => setFilter(f.value)}
+            onClick={() => {
+              setFilter(f.value);
+              setPage(0);
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               filter === f.value ? "bg-primary text-white" : "bg-input-fill text-foreground"
             }`}
@@ -116,6 +122,7 @@ export default function SellerFeesPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

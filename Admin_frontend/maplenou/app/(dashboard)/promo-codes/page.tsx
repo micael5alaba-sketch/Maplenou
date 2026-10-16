@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui";
 
 export default function PromoCodesPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<PromoCodeResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,13 +36,13 @@ export default function PromoCodesPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<PromoCodeResponse>>("/api/promo-codes/platform", { size: 50 })
+      .get<Page<PromoCodeResponse>>("/api/promo-codes/platform", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -183,6 +185,7 @@ export default function PromoCodesPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { AuditLogResponse, Page } from "@/lib/types";
-import { Card, EmptyState, ErrorState, LoadingState, PageHeader, Table, formatDate } from "@/components/ui";
+import { Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, Table, formatDate } from "@/components/ui";
 
 export default function AuditLogPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<AuditLogResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -13,11 +14,11 @@ export default function AuditLogPage() {
   useEffect(() => {
     setLoading(true);
     apiClient
-      .get<Page<AuditLogResponse>>("/api/admin/audit", { size: 100 })
+      .get<Page<AuditLogResponse>>("/api/admin/audit", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   return (
     <div>
@@ -46,6 +47,7 @@ export default function AuditLogPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

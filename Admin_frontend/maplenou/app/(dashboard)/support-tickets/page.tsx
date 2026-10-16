@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
@@ -24,6 +25,7 @@ const FILTERS: { label: string; value: SupportTicketStatus | "ALL" }[] = [
 
 export default function SupportTicketsPage() {
   const [filter, setFilter] = useState<SupportTicketStatus | "ALL">("OPEN");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<SupportTicketResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,14 +37,15 @@ export default function SupportTicketsPage() {
     apiClient
       .get<Page<SupportTicketResponse>>("/api/admin/support-tickets", {
         status: filter === "ALL" ? undefined : filter,
-        size: 50,
+        page,
+        size: 20,
       })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [filter]);
+  useEffect(load, [filter, page]);
 
   async function resolve(id: string) {
     const resolutionNotes = prompt("Note de résolution (optionnel) :") ?? "";
@@ -65,7 +68,10 @@ export default function SupportTicketsPage() {
         {FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => setFilter(f.value)}
+            onClick={() => {
+              setFilter(f.value);
+              setPage(0);
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               filter === f.value ? "bg-primary text-white" : "bg-input-fill text-foreground"
             }`}
@@ -109,6 +115,7 @@ export default function SupportTicketsPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

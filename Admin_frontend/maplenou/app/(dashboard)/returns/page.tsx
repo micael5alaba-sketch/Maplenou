@@ -10,12 +10,14 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
 } from "@/components/ui";
 
 export default function ReturnsPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<ReturnRequestResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,13 +27,13 @@ export default function ReturnsPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<ReturnRequestResponse>>("/api/return-requests/admin/pending", { size: 50 })
+      .get<Page<ReturnRequestResponse>>("/api/return-requests/admin/pending", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   async function decide(id: string, decision: "APPROVED" | "REJECTED") {
     const adminNotes = prompt("Notes (optionnel) :") ?? "";
@@ -85,6 +87,7 @@ export default function ReturnsPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

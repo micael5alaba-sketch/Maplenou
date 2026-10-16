@@ -10,12 +10,14 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
 } from "@/components/ui";
 
 export default function DeliveriesPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<DeliveryResponse> | null>(null);
   const [couriers, setCouriers] = useState<AdminUserResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function DeliveriesPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      apiClient.get<Page<DeliveryResponse>>("/api/deliveries/pending", { size: 50 }),
+      apiClient.get<Page<DeliveryResponse>>("/api/deliveries/pending", { page, size: 20 }),
       apiClient.get<Page<AdminUserResponse>>("/api/admin/users", { role: "DELIVERY_AGENT", active: true, size: 100 }),
     ])
       .then(([deliveries, agents]) => {
@@ -38,7 +40,7 @@ export default function DeliveriesPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   async function assign(deliveryId: string) {
     const agentId = selectedCourier[deliveryId];
@@ -103,6 +105,7 @@ export default function DeliveriesPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

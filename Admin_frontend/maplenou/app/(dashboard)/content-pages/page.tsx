@@ -3,9 +3,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { ContentPageResponse, Page } from "@/lib/types";
-import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Table, formatDate } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, Table, formatDate } from "@/components/ui";
 
 export default function ContentPagesPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<ContentPageResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,13 +24,13 @@ export default function ContentPagesPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<ContentPageResponse>>("/api/admin/pages", { size: 50 })
+      .get<Page<ContentPageResponse>>("/api/admin/pages", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function openCreate() {
     setCreating(true);
@@ -187,6 +188,7 @@ export default function ContentPagesPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

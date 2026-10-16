@@ -3,9 +3,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { ConversationResponse, MessageResponse, Page } from "@/lib/types";
-import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, formatDate } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, formatDate } from "@/components/ui";
 
 export default function SupportConversationsPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<ConversationResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,13 +16,13 @@ export default function SupportConversationsPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<ConversationResponse>>("/api/admin/conversations/support", { size: 50 })
+      .get<Page<ConversationResponse>>("/api/admin/conversations/support", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   return (
     <div>
@@ -51,6 +52,7 @@ export default function SupportConversationsPage() {
                 ))}
               </div>
             )}
+            <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />
           </Card>
 
           <div className="flex-1">

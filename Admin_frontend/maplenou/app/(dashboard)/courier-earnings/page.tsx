@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
@@ -18,6 +19,7 @@ import {
 
 export default function CourierEarningsPage() {
   const [status, setStatus] = useState<CourierEarningStatus | null>("PENDING");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<CourierEarningResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,13 @@ export default function CourierEarningsPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<CourierEarningResponse>>("/api/admin/courier-earnings", { status: status ?? undefined, size: 50 })
+      .get<Page<CourierEarningResponse>>("/api/admin/courier-earnings", { status: status ?? undefined, page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [status]);
+  useEffect(load, [status, page]);
 
   async function markPaid(id: string) {
     setActingId(id);
@@ -55,7 +57,10 @@ export default function CourierEarningsPage() {
         {([["PENDING", "À payer"], ["PAID", "Payés"], [null, "Tous"]] as const).map(([value, label]) => (
           <button
             key={label}
-            onClick={() => setStatus(value)}
+            onClick={() => {
+              setStatus(value);
+              setPage(0);
+            }}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
               status === value ? "bg-primary text-white" : "bg-surface text-muted ring-1 ring-border"
             }`}
@@ -97,6 +102,7 @@ export default function CourierEarningsPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

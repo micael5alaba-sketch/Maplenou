@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   Table,
   formatDate,
 } from "@/components/ui";
@@ -23,6 +24,7 @@ const ROLE_FILTERS: { label: string; value: Role | "ALL" }[] = [
 
 export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<AdminUserResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,14 +36,15 @@ export default function UsersPage() {
     apiClient
       .get<Page<AdminUserResponse>>("/api/admin/users", {
         role: roleFilter === "ALL" || roleFilter === null ? undefined : roleFilter,
-        size: 50,
+        page,
+        size: 20,
       })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [roleFilter]);
+  useEffect(load, [roleFilter, page]);
 
   async function toggleBan(u: AdminUserResponse) {
     setActingId(u.id);
@@ -98,7 +101,10 @@ export default function UsersPage() {
         {ROLE_FILTERS.map((f) => (
           <button
             key={f.label}
-            onClick={() => setRoleFilter(f.value)}
+            onClick={() => {
+              setRoleFilter(f.value);
+              setPage(0);
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               roleFilter === f.value ? "bg-primary text-white" : "bg-input-fill text-foreground"
             }`}
@@ -158,6 +164,7 @@ export default function UsersPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

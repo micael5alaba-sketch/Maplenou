@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   formatDate,
@@ -24,6 +25,7 @@ const STATUS_FILTERS: { value: SellerStatus; label: string }[] = [
 
 export default function SellersPage() {
   const [status, setStatus] = useState<SellerStatus>("PENDING");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<SellerProfileResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,13 +35,13 @@ export default function SellersPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<SellerProfileResponse>>("/api/sellers/admin", { status: status ?? undefined, size: 50 })
+      .get<Page<SellerProfileResponse>>("/api/sellers/admin", { status: status ?? undefined, page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [status]);
+  useEffect(load, [status, page]);
 
   async function decide(id: string, newStatus: "APPROVED" | "REJECTED") {
     setActingId(id);
@@ -61,7 +63,10 @@ export default function SellersPage() {
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.label}
-            onClick={() => setStatus(f.value)}
+            onClick={() => {
+              setStatus(f.value);
+              setPage(0);
+            }}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
               status === f.value ? "bg-primary text-white" : "bg-surface text-muted ring-1 ring-border"
             }`}
@@ -117,6 +122,7 @@ export default function SellersPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

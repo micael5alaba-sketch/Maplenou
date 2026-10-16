@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import type { CourierDocumentResponse, CourierDocumentType, Page } from "@/lib/types";
-import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Table, formatDate } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, Table, formatDate } from "@/components/ui";
 
 const TYPE_LABELS: Record<CourierDocumentType, string> = {
   DRIVING_LICENSE: "Permis de conduire",
@@ -13,6 +13,7 @@ const TYPE_LABELS: Record<CourierDocumentType, string> = {
 };
 
 export default function CourierDocumentsPage() {
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<CourierDocumentResponse> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,13 +23,13 @@ export default function CourierDocumentsPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<Page<CourierDocumentResponse>>("/api/admin/courier-documents", { size: 50 })
+      .get<Page<CourierDocumentResponse>>("/api/admin/courier-documents", { page, size: 20 })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   async function approve(id: string) {
     setActingId(id);
@@ -98,6 +99,7 @@ export default function CourierDocumentsPage() {
           )}
         </Card>
       )}
+      {data && <Pagination page={data.number} totalPages={data.totalPages} onChange={setPage} />}
     </div>
   );
 }

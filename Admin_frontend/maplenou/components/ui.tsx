@@ -118,6 +118,53 @@ export function Table({ headers, children }: { headers: string[]; children: Reac
   );
 }
 
+export function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  const pages = new Set<number>([0, totalPages - 1, page, page - 1, page + 1]);
+  const items = [...pages].filter((p) => p >= 0 && p < totalPages).sort((a, b) => a - b);
+
+  return (
+    <div className="mt-4 flex items-center justify-center gap-1.5">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 0}
+        className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-input-fill disabled:opacity-40"
+      >
+        Précédent
+      </button>
+      {items.map((p, i) => (
+        <span key={p} className="flex items-center gap-1.5">
+          {i > 0 && items[i - 1] !== p - 1 && <span className="px-1 text-muted">…</span>}
+          <button
+            onClick={() => onChange(p)}
+            className={`h-8 w-8 rounded-lg text-sm font-semibold transition ${
+              p === page ? "bg-primary text-white" : "text-foreground hover:bg-input-fill"
+            }`}
+          >
+            {p + 1}
+          </button>
+        </span>
+      ))}
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages - 1}
+        className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-input-fill disabled:opacity-40"
+      >
+        Suivant
+      </button>
+    </div>
+  );
+}
+
 export function formatFcfa(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   return `${Math.round(amount).toLocaleString("fr-FR")} FCFA`;
