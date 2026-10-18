@@ -36,7 +36,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/courier-documents", label: "Documents livreurs" },
       { href: "/courier-earnings", label: "Gains livreurs" },
       { href: "/deliveries", label: "Livraisons en attente" },
-      { href: "/delivery-zones", label: "Zones de livraison" },
+      { href: "/delivery-pricing", label: "Tarification livraison" },
     ],
   },
   {

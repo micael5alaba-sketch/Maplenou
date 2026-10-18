@@ -15,7 +15,7 @@ import com.maplenou.backend.delivery.DeliveryRepository;
 import com.maplenou.backend.delivery.DeliveryStatus;
 import com.maplenou.backend.delivery.ProofType;
 import com.maplenou.backend.delivery.dto.AssignAgentRequest;
-import com.maplenou.backend.delivery.dto.CreateDeliveryZoneRequest;
+import com.maplenou.backend.delivery.dto.CreateDeliveryPricingTierRequest;
 import com.maplenou.backend.delivery.dto.UpdateDeliveryRequest;
 import com.maplenou.backend.order.OrderRepository;
 import com.maplenou.backend.order.dto.PlaceOrderRequest;
@@ -95,7 +95,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
     private UUID promoCodeId;
     private UUID orderId, order2Id;
     private UUID subOrderId, subOrder2Id;
-    private UUID deliveryZoneId;
+    private UUID deliveryTierId;
     private UUID deliveryId, delivery2Id;
     private UUID productReviewId, shopReviewId;
     private UUID returnRequestId, returnRequest2Id;
@@ -261,20 +261,17 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     @Order(6)
-    void deliveryZoneCrud() throws Exception {
-        JsonNode zone = post("/api/delivery-zones",
-                new CreateDeliveryZoneRequest("Zone Test " + rand, new BigDecimal("1000.00"), BigDecimal.ZERO, 45), adminToken, 201);
-        deliveryZoneId = UUID.fromString(zone.get("id").asText());
-        assertTrue(zone.get("active").asBoolean());
+    void deliveryPricingTierCrud() throws Exception {
+        JsonNode tier = post("/api/delivery-pricing-tiers",
+                new CreateDeliveryPricingTierRequest(new BigDecimal("5.00"), new BigDecimal("1000.00")), adminToken, 201);
+        deliveryTierId = UUID.fromString(tier.get("id").asText());
+        assertEquals(0, new BigDecimal("1000.00").compareTo(new BigDecimal(tier.get("price").asText())));
 
-        JsonNode active = get("/api/delivery-zones", null, 200);
-        assertTrue(active.isArray());
+        JsonNode list = get("/api/delivery-pricing-tiers", null, 200);
+        assertTrue(list.isArray());
 
-        JsonNode toggled = patch("/api/delivery-zones/" + deliveryZoneId + "/toggle", null, adminToken, 200);
-        assertFalse(toggled.get("active").asBoolean());
-
-        delete("/api/delivery-zones/" + deliveryZoneId, adminToken, 204);
-        deliveryZoneId = null;
+        delete("/api/delivery-pricing-tiers/" + deliveryTierId, adminToken, 204);
+        deliveryTierId = null;
     }
 
     @Test
@@ -497,7 +494,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (shopId != null) shopRepository.deleteById(shopId); } catch (Exception ignored) { }
         try { if (sellerProfileId != null) sellerProfileRepository.deleteById(sellerProfileId); } catch (Exception ignored) { }
         try { if (categoryId != null) categoryRepository.deleteById(categoryId); } catch (Exception ignored) { }
-        try { if (deliveryZoneId != null) { /* already deleted in test */ } } catch (Exception ignored) { }
+        try { if (deliveryTierId != null) { /* already deleted in test */ } } catch (Exception ignored) { }
 
         for (UUID id : new UUID[]{buyerId, sellerId, agentId}) {
             if (id == null) continue;

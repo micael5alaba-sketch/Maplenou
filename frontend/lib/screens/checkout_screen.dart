@@ -8,7 +8,7 @@ import '../models/payment_method_option_model.dart';
 import '../services/address_service.dart';
 import '../services/api_client.dart';
 import '../services/cart_service.dart';
-import '../services/delivery_zone_service.dart';
+import '../services/delivery_pricing_service.dart';
 import '../services/order_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
@@ -40,9 +40,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _cartService = CartService();
   final _addressService = AddressService();
   final _orderService = OrderService();
-  final _deliveryZoneService = DeliveryZoneService();
+  final _deliveryPricingService = DeliveryPricingService();
 
-  // Utilisé uniquement si /api/delivery-zones est injoignable, pour ne pas
+  // Utilisé uniquement si /api/delivery-pricing-tiers est injoignable, pour ne pas
   // bloquer l'affichage du checkout.
   static const num _fallbackDeliveryFee = 1500;
 
@@ -73,7 +73,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Un panier peut regrouper plusieurs boutiques (CLAUDE.md §4) : une sous-commande —
   /// et donc un devis de livraison — par boutique, chacune pouvant être à une distance
   /// différente de l'adresse choisie. Même calcul que celui figé par le backend au moment
-  /// de la commande (`GET /api/delivery-zones/quote`), pour ne jamais afficher un total
+  /// de la commande (`GET /api/delivery-pricing-tiers/quote`), pour ne jamais afficher un total
   /// différent de ce qui sera réellement facturé.
   Future<num> _resolveDeliveryFee(CartModel cart) async {
     final shopIds = cart.items.map((i) => i.shopId).toSet();
@@ -81,10 +81,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     num total = 0;
     try {
-      final quotes = await Future.wait(shopIds.map((shopId) => _deliveryZoneService.getQuote(
+      final quotes = await Future.wait(shopIds.map((shopId) => _deliveryPricingService.getQuote(
             shopId: shopId,
-            city: _selectedAddress?.city,
-            district: _selectedAddress?.district,
             latitude: _selectedAddress?.latitude,
             longitude: _selectedAddress?.longitude,
           )));

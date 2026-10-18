@@ -6,25 +6,25 @@ import '../models/product_model.dart';
 import '../models/product_spec_entry.dart';
 import '../models/product_variant_model.dart';
 import '../models/review_model.dart';
-import 'delivery_zone_service.dart';
+import 'delivery_pricing_service.dart';
 import 'product_service.dart';
 import 'review_service.dart';
 
 /// Assemble la fiche produit affichée par [ProductDetailsScreen] : variantes,
 /// images, description et spécifications viennent du vrai backend
 /// (`GET /api/products/{slug}`, `ProductService.getProductDetail`) ; avis
-/// réels aussi (`ReviewService`). Le frais de livraison vient de la zone la
-/// moins chère active (`GET /api/delivery-zones`) — aucune adresse n'est
-/// encore choisie à ce stade du parcours. Seuls les délais textuels, la
+/// réels aussi (`ReviewService`). Le frais de livraison vient du palier le
+/// moins cher du barème (`GET /api/delivery-pricing-tiers`) — aucune adresse
+/// n'est encore choisie à ce stade du parcours. Seuls les délais textuels, la
 /// politique de retour et les badges (`Bio`/`Artisanal`/...) restent
 /// décoratifs — le backend n'a pas de champ équivalent et ce n'est pas
 /// bloquant pour l'achat.
 class ProductDetailService {
   final _productService = ProductService();
   final _reviewService = ReviewService();
-  final _deliveryZoneService = DeliveryZoneService();
+  final _deliveryPricingService = DeliveryPricingService();
 
-  // Utilisé uniquement si /api/delivery-zones est injoignable.
+  // Utilisé uniquement si /api/delivery-pricing-tiers est injoignable.
   static const num _fallbackDeliveryFee = 1500;
 
   Future<ProductDetailModel> buildDetail(
@@ -58,10 +58,10 @@ class ProductDetailService {
 
     num deliveryFee = _fallbackDeliveryFee;
     try {
-      final zone = await _deliveryZoneService.resolveZone();
-      if (zone != null) deliveryFee = zone.deliveryFee;
+      final cheapest = await _deliveryPricingService.getCheapestPrice();
+      if (cheapest != null) deliveryFee = cheapest;
     } catch (_) {
-      // Zones de livraison injoignables : on garde le repli plutôt que de
+      // Barème de livraison injoignable : on garde le repli plutôt que de
       // bloquer l'affichage de la fiche produit.
     }
 

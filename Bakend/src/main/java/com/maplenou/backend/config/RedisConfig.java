@@ -44,10 +44,10 @@ public class RedisConfig {
      * CacheManager Spring utilisé par @Cacheable / @CacheEvict.
      * Sérialise les valeurs en JSON (avec type info pour la désérialisation polymorphe).
      * TTL par cache :
-     *   - categories     : 1 heure  (changement rare, admin seulement)
-     *   - delivery-zones : 1 heure  (idem)
-     *   - products       : 5 minutes (prix/stock peuvent changer)
-     *   - shops          : 10 minutes
+     *   - categories             : 1 heure  (changement rare, admin seulement)
+     *   - delivery-pricing-tiers : 1 heure  (idem)
+     *   - products               : 5 minutes (prix/stock peuvent changer)
+     *   - shops                  : 10 minutes
      */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory) {
@@ -68,10 +68,10 @@ public class RedisConfig {
                 .disableCachingNullValues();
 
         Map<String, RedisCacheConfiguration> configs = Map.of(
-                "categories",     defaults.entryTtl(Duration.ofHours(1)),
-                "delivery-zones", defaults.entryTtl(Duration.ofHours(1)),
-                "products",       defaults.entryTtl(Duration.ofMinutes(5)),
-                "shops",          defaults.entryTtl(Duration.ofMinutes(10))
+                "categories",             defaults.entryTtl(Duration.ofHours(1)),
+                "delivery-pricing-tiers", defaults.entryTtl(Duration.ofHours(1)),
+                "products",               defaults.entryTtl(Duration.ofMinutes(5)),
+                "shops",                  defaults.entryTtl(Duration.ofMinutes(10))
         );
 
         return RedisCacheManager.builder(factory)

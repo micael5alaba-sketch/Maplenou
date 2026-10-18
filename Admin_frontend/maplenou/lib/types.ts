@@ -93,13 +93,11 @@ export interface CourierEarningResponse {
   createdAt: string;
 }
 
-export interface DeliveryZoneResponse {
+export interface DeliveryPricingTierResponse {
   id: string;
-  name: string;
-  deliveryFee: number;
-  pricePerKm: number;
-  estimatedTimeMinutes: number;
-  active: boolean;
+  // null = dernier palier, "au-delà de X km" (illimité).
+  maxDistanceKm: number | null;
+  price: number;
 }
 
 export interface PayoutResponse {

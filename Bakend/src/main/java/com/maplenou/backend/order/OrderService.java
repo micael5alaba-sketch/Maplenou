@@ -162,8 +162,7 @@ public class OrderService {
             // distance différente dans un panier multi-vendeurs. Figé ici, jamais recalculé
             // après coup, et réellement ajouté au montant facturé (voir §7 plus bas).
             DeliveryFeeQuote deliveryQuote = deliveryPricingService.quote(
-                    shop, snapshot.getCity(), snapshot.getDistrict(),
-                    snapshot.getLatitude(), snapshot.getLongitude());
+                    shop, snapshot.getLatitude(), snapshot.getLongitude());
             totalAmount = totalAmount.add(deliveryQuote.fee());
 
             // Construire les lignes du sous-ordre

@@ -55,8 +55,8 @@ public class Product {
     @Builder.Default
     private List<ProductSpecification> specifications = new ArrayList<>();
 
-    // Champs livraison par produit (optionnels) -- distincts des zones de livraison
-    // geographiques (DeliveryZone), qui restent la source de verite pour frais/delais par defaut.
+    // Champs livraison par produit (optionnels) -- distincts du bareme de livraison par
+    // palier de distance (DeliveryPricingTier), qui reste la source de verite pour le prix.
     @Column(name = "package_weight_kg", precision = 8, scale = 3)
     private BigDecimal packageWeightKg;
 

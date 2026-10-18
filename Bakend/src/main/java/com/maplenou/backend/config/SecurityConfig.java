@@ -72,7 +72,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/shops/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/delivery-zones").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/delivery-pricing-tiers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pages/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/delivery-agents/*/reviews/**").permitAll()
                         // Panier et favoris : authentification requise (géré par les controllers)

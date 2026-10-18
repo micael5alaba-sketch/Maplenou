@@ -9,13 +9,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Gain d'un livreur pour une livraison terminée. Le montant brut (tarif de
- * la {@link DeliveryZone} correspondant à l'adresse de livraison — voir
- * {@link CourierEarningService}) est toujours partagé 25 % plateforme /
- * 75 % livreur ; {@code amount} reste le montant net déjà versable au
- * livreur, comme avant l'introduction du barème. L'`Order` ne mémorise pas
- * encore quelle zone a été appliquée au moment du checkout, donc la zone est
- * déduite a posteriori par correspondance de ville/quartier.
+ * Gain d'un livreur pour une livraison terminée. Le montant brut (frais de livraison réel
+ * du sous-ordre, figé au moment de la commande par {@link DeliveryPricingService} selon le
+ * palier de distance applicable — voir {@link CourierEarningService}) est toujours partagé
+ * 25 % plateforme / 75 % livreur ; {@code amount} reste le montant net déjà versable au livreur.
  */
 @Entity
 @Table(name = "courier_earnings")
