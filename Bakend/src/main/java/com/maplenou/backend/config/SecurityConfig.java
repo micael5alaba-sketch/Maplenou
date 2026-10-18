@@ -73,6 +73,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/shops/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/delivery-pricing-tiers").permitAll()
+                        // Readiness Render (voir application.properties) -- jamais de JWT disponible
+                        // au moment où le load balancer vérifie qu'une nouvelle instance est prête.
+                        .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pages/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/delivery-agents/*/reviews/**").permitAll()
                         // Panier et favoris : authentification requise (géré par les controllers)

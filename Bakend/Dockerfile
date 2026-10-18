@@ -25,4 +25,9 @@ RUN addgroup --system maplenou && adduser --system --ingroup maplenou maplenou
 USER maplenou
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# MaxRAMPercentage borne le tas a 70% de la memoire detectee du conteneur (cgroup) plutot que
+# de laisser le JVM deviner -- sans ca, un pic de charge peut faire grossir le tas jusqu'a
+# saturer les 512 Mo du plan Render "starter" et declencher un OOM-kill silencieux (le
+# conteneur redemarre, les quelques requetes en vol pendant le redemarrage echouent avec une
+# erreur 502/504 -- symptome "ca marche apres un rafraichissement" remonte en test).
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70.0", "-XX:InitialRAMPercentage=50.0", "-jar", "app.jar"]

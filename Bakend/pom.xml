@@ -40,6 +40,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<!-- /actuator/health : readiness réelle (DB + Redis) pour que Render ne bascule le trafic
+		     sur une nouvelle instance qu'une fois vraiment prête à répondre (voir Dockerfile/render). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<!-- Validation (@NotBlank, @Email…) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
