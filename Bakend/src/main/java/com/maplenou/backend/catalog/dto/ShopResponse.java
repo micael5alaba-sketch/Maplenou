@@ -3,6 +3,7 @@ package com.maplenou.backend.catalog.dto;
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ShopStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -18,6 +19,8 @@ public record ShopResponse(
         String city,
         String district,
         String taxId,
+        BigDecimal latitude,
+        BigDecimal longitude,
         Instant createdAt
 ) {
     public static ShopResponse from(Shop shop) {
@@ -33,6 +36,8 @@ public record ShopResponse(
                 shop.getCity(),
                 shop.getDistrict(),
                 shop.getTaxId(),
+                shop.getLatitude(),
+                shop.getLongitude(),
                 shop.getCreatedAt()
         );
     }

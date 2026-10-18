@@ -50,6 +50,8 @@ public class ShopService {
                 .city(request.city())
                 .district(request.district())
                 .taxId(request.taxId())
+                .latitude(request.latitude())
+                .longitude(request.longitude())
                 .status(ShopStatus.PENDING)
                 .build();
 
@@ -85,6 +87,12 @@ public class ShopService {
         }
         if (request.taxId() != null) {
             shop.setTaxId(request.taxId().isBlank() ? null : request.taxId());
+        }
+        if (request.latitude() != null) {
+            shop.setLatitude(request.latitude());
+        }
+        if (request.longitude() != null) {
+            shop.setLongitude(request.longitude());
         }
 
         return shopRepository.save(shop);

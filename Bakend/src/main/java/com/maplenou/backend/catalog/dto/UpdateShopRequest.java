@@ -2,6 +2,8 @@ package com.maplenou.backend.catalog.dto;
 
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
+
 // Tous les champs sont optionnels : seuls les champs non-null sont appliqués.
 public record UpdateShopRequest(
         @Size(max = 150) String name,
@@ -10,6 +12,8 @@ public record UpdateShopRequest(
         @Size(max = 500) String coverUrl,
         @Size(max = 100) String city,
         @Size(max = 100) String district,
-        @Size(max = 50) String taxId
+        @Size(max = 50) String taxId,
+        BigDecimal latitude,
+        BigDecimal longitude
 ) {
 }

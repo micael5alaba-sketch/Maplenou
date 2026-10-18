@@ -23,10 +23,20 @@ class ShopService {
     required String city,
     String? district,
     String? taxId,
+    double? latitude,
+    double? longitude,
   }) async {
     final data = await _client.post(
       '/api/shops',
-      body: {'name': name, 'description': description, 'city': city, 'district': district, 'taxId': taxId},
+      body: {
+        'name': name,
+        'description': description,
+        'city': city,
+        'district': district,
+        'taxId': taxId,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
     ) as Map<String, dynamic>;
     return ShopModel.fromJson(data);
   }
@@ -37,6 +47,8 @@ class ShopService {
     String? logoUrl,
     String? coverUrl,
     String? taxId,
+    double? latitude,
+    double? longitude,
   }) async {
     final data = await _client.patch(
       '/api/shops/mine',
@@ -46,6 +58,8 @@ class ShopService {
         if (logoUrl != null) 'logoUrl': logoUrl,
         if (coverUrl != null) 'coverUrl': coverUrl,
         if (taxId != null) 'taxId': taxId,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       },
     ) as Map<String, dynamic>;
     return ShopModel.fromJson(data);

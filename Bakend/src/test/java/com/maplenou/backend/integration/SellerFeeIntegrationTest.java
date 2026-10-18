@@ -95,7 +95,7 @@ class SellerFeeIntegrationTest extends AbstractIntegrationTest {
                 new UpdateSellerStatusRequest(SellerStatus.APPROVED, "ok"), adminToken, 200);
         sellerToken = login(sellerPhone, "Passw0rd!");
 
-        JsonNode shop = post("/api/shops", new CreateShopRequest("Boutique Frais " + rand, "d", "Lomé", "Centre", null), sellerToken, 201);
+        JsonNode shop = post("/api/shops", new CreateShopRequest("Boutique Frais " + rand, "d", "Lomé", "Centre", null, null, null), sellerToken, 201);
         shopId = UUID.fromString(shop.get("id").asText());
         patch("/api/admin/shops/" + shopId + "/status", new UpdateShopStatusRequest(ShopStatus.APPROVED), adminToken, 200);
 
