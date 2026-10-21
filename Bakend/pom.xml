@@ -46,6 +46,18 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Supervision d'erreurs (Sentry). SDK "core" plutôt que sentry-spring-boot-starter-jakarta :
+		     ce dernier échoue au démarrage sur Spring Boot 4.1 (classe
+		     org.springframework.boot.web.client.RestClientCustomizer introuvable, l'écosystème
+		     Sentry n'a pas encore rattrapé Boot 4, trop récent). Intégration manuelle à la place
+		     (voir SentryConfig, GlobalExceptionHandler) : capture explicite sur les erreurs 500
+		     réelles uniquement, pas d'auto-instrumentation large surface qui pourrait recasser au
+		     prochain changement interne de Spring. S'initialise seulement si sentry.dsn est non vide. -->
+		<dependency>
+			<groupId>io.sentry</groupId>
+			<artifactId>sentry</artifactId>
+			<version>8.50.1</version>
+		</dependency>
 		<!-- Validation (@NotBlank, @Email…) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

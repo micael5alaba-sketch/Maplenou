@@ -1,5 +1,6 @@
 package com.maplenou.backend.common.exception;
 
+import io.sentry.Sentry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -94,9 +95,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Corps de requête invalide (champ manquant, valeur ou format incorrect)", null);
     }
 
+    /**
+     * Seul point d'entrée qui remonte encore une vraie 500 : tous les cas attendus (routes
+     * inconnues, validation, auth...) ont leur propre handler ci-dessus désormais. C'est donc
+     * exactement ici qu'une alerte Sentry a du sens — un bug réel, pas un 404 déguisé. No-op
+     * silencieux si Sentry n'est pas configuré (voir SentryConfig).
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        Sentry.captureException(ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Une erreur inattendue est survenue", null);
     }
 
