@@ -11,6 +11,7 @@ import com.maplenou.backend.user.User;
 import com.maplenou.backend.user.UserRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -74,8 +75,9 @@ public class TwoFactorController {
      * This endpoint is PUBLIC (no JWT required).
      */
     @PostMapping("/verify-login")
-    public AuthResponse verifyLogin(@Valid @RequestBody MfaLoginRequest request) {
-        return authService.verifyMfaLogin(request);
+    public AuthResponse verifyLogin(@Valid @RequestBody MfaLoginRequest request,
+                                     HttpServletRequest httpRequest) {
+        return authService.verifyMfaLogin(request, httpRequest);
     }
 
     /**

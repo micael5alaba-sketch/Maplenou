@@ -88,7 +88,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
     private String sellerToken;
     private String agentToken;
 
-    private UUID buyerId, sellerId, agentId;
+    private UUID buyerId, sellerId, agentId, strangerId;
     private UUID sellerProfileId, shopId, categoryId, productId, variantId;
     private String productSlug;
     private UUID addressId;
@@ -287,6 +287,17 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         JsonNode assigned = patch("/api/deliveries/" + deliveryId + "/assign",
                 new AssignAgentRequest(agentId), adminToken, 200);
         assertEquals("ASSIGNED", assigned.get("status").asText());
+
+        // O-01 (pentest du 21/10/2026, point ouvert) : avec une livraison réelle désormais
+        // créée, confirme qu'un acheteur qui n'est pas le propriétaire de la sous-commande ne
+        // peut rien en voir — la vérification de propriété a lieu avant toute exposition de
+        // données (DeliveryService.getForBuyer).
+        String strangerPhone = "+22873" + String.format("%07d", rand % 10_000_000L);
+        JsonNode stranger = post("/api/auth/register",
+                new RegisterRequest("Order Stranger", strangerPhone, "Passw0rd!", null), null, 201);
+        String strangerToken = stranger.get("accessToken").asText();
+        strangerId = UUID.fromString(stranger.get("user").get("id").asText());
+        get("/api/deliveries/sub-orders/" + subOrderId, strangerToken, 403);
 
         JsonNode myDeliveries = get("/api/deliveries/my", agentToken, 200);
         assertTrue(myDeliveries.get("content").isArray());
@@ -496,7 +507,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (categoryId != null) categoryRepository.deleteById(categoryId); } catch (Exception ignored) { }
         try { if (deliveryTierId != null) { /* already deleted in test */ } } catch (Exception ignored) { }
 
-        for (UUID id : new UUID[]{buyerId, sellerId, agentId}) {
+        for (UUID id : new UUID[]{buyerId, sellerId, agentId, strangerId}) {
             if (id == null) continue;
             try {
                 auditLogRepository.deleteAll(
@@ -509,5 +520,6 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (buyerId != null) userRepository.deleteById(buyerId); } catch (Exception ignored) { }
         try { if (sellerId != null) userRepository.deleteById(sellerId); } catch (Exception ignored) { }
         try { if (agentId != null) userRepository.deleteById(agentId); } catch (Exception ignored) { }
+        try { if (strangerId != null) userRepository.deleteById(strangerId); } catch (Exception ignored) { }
     }
 }

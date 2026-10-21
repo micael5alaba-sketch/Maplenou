@@ -1,14 +1,11 @@
 package com.maplenou.backend.security;
 
+import com.maplenou.backend.common.Sha256Utils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
 
 /**
  * Blacklist de tokens JWT stockée dans Redis.
@@ -39,12 +36,6 @@ public class TokenBlacklistService {
     }
 
     private String hash(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 introuvable", e);
-        }
+        return Sha256Utils.hex(token);
     }
 }

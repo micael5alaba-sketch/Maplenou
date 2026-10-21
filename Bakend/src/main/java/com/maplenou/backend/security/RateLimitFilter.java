@@ -112,6 +112,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private void rejectTooManyRequests(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
         response.setContentType("application/json");
         response.getWriter().write(
                 "{\"error\":\"Trop de tentatives. Réessayez dans une minute.\",\"status\":429}"

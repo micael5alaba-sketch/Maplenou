@@ -26,8 +26,9 @@ public class AuthController {
     private final FirebaseTokenService firebaseTokenService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
+                                                  HttpServletRequest httpRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request, httpRequest));
     }
 
     @PostMapping("/login")
@@ -36,8 +37,8 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        return authService.refresh(request);
+    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest httpRequest) {
+        return authService.refresh(request, httpRequest);
     }
 
     @PostMapping("/logout")
@@ -46,11 +47,15 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Envoie un code à 6 chiffres par email au compte associé à ce numéro. */
+    /**
+     * Envoie un code à 6 chiffres par email au compte associé à ce numéro, si éligible.
+     * Réponse générique systématique (202 + même message) — voir AuthService.forgotPassword.
+     */
     @PostMapping("/forgot-password")
-    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request.phoneNumber());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                                   HttpServletRequest httpRequest) {
+        authService.forgotPassword(request.phoneNumber(), httpRequest);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ForgotPasswordResponse.generic());
     }
 
     /** Vérifie le code reçu par email et définit le nouveau mot de passe. */

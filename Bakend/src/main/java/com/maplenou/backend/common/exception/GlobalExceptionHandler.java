@@ -27,7 +27,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApiException(ApiException ex) {
-        return build(ex.getStatus(), ex.getMessage(), null);
+        ResponseEntity<ErrorResponse> response = build(ex.getStatus(), ex.getMessage(), null);
+        if (ex.getRetryAfterSeconds() != null) {
+            return ResponseEntity.status(ex.getStatus())
+                    .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                    .body(response.getBody());
+        }
+        return response;
     }
 
     @ExceptionHandler(BadCredentialsException.class)

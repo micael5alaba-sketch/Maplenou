@@ -45,8 +45,16 @@ public class JwtService {
         return buildToken(Map.of("type", "access", "roles", roles), userDetails.getUsername(), accessTokenExpirationMs);
     }
 
+    /**
+     * "jti" aléatoire : garantit que deux refresh tokens émis pour le même utilisateur dans la
+     * même milliseconde ne produisent jamais la même chaîne JWT (la signature HS256 est
+     * déterministe pour des claims identiques) — essentiel car RefreshTokenSession indexe ces
+     * jetons par leur hash, qui doit rester unique par émission.
+     */
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(Map.of("type", "refresh"), userDetails.getUsername(), refreshTokenExpirationMs);
+        return buildToken(
+                Map.of("type", "refresh", "jti", java.util.UUID.randomUUID().toString()),
+                userDetails.getUsername(), refreshTokenExpirationMs);
     }
 
     private String buildToken(Map<String, Object> claims, String subject, long expirationMs) {
