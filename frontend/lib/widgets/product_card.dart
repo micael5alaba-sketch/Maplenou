@@ -14,12 +14,17 @@ class ProductCard extends StatefulWidget {
   final ProductModel product;
   final VoidCallback? onTap;
   final VoidCallback? onAddToCart;
+  /// Appelé après un basculement réussi du cœur, avec le nouvel état
+  /// (true = favori). Utilisé par [FavoritesScreen] pour retirer
+  /// immédiatement une carte de la liste dès qu'elle est désaffectée.
+  final ValueChanged<bool>? onFavoriteChanged;
 
   const ProductCard({
     super.key,
     required this.product,
     this.onTap,
     this.onAddToCart,
+    this.onFavoriteChanged,
   });
 
   @override
@@ -32,10 +37,26 @@ class _ProductCardState extends State<ProductCard> {
   @override
   void initState() {
     super.initState();
+    FavoritesService().addListener(_onFavoritesChanged);
+    _refreshFavoriteState();
+  }
+
+  @override
+  void dispose() {
+    FavoritesService().removeListener(_onFavoritesChanged);
+    super.dispose();
+  }
+
+  void _refreshFavoriteState() {
     FavoritesService().isFavorite(widget.product.id).then((value) {
       if (mounted) setState(() => _isFavorite = value);
     });
   }
+
+  /// Une autre instance de cette même fiche produit (grille d'accueil, écran
+  /// favoris, détail produit...) a basculé l'état côté serveur — se
+  /// resynchronise plutôt que de rester figée sur son état initial.
+  void _onFavoritesChanged() => _refreshFavoriteState();
 
   Future<void> _toggleFavorite() async {
     final previous = _isFavorite ?? false;
@@ -43,6 +64,7 @@ class _ProductCardState extends State<ProductCard> {
     try {
       final result = await FavoritesService().toggle(widget.product.id);
       if (mounted) setState(() => _isFavorite = result);
+      widget.onFavoriteChanged?.call(result);
     } on ApiException catch (_) {
       if (mounted) setState(() => _isFavorite = previous);
     }

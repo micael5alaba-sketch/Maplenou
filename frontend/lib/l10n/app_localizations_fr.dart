@@ -151,4 +151,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get registerButton => 'S\'inscrire';
+
+  @override
+  String get confirmPasswordHint => 'Confirmer le mot de passe';
+
+  @override
+  String get confirmPasswordMismatch =>
+      'Les mots de passe ne correspondent pas.';
+
+  @override
+  String phoneNumberDigitsRequired(String country, int digits) {
+    return 'Numéro invalide pour $country : $digits chiffres attendus.';
+  }
 }

@@ -151,4 +151,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerButton => 'Sign up';
+
+  @override
+  String get confirmPasswordHint => 'Confirm password';
+
+  @override
+  String get confirmPasswordMismatch => 'Passwords do not match.';
+
+  @override
+  String phoneNumberDigitsRequired(String country, int digits) {
+    return 'Invalid number for $country: $digits digits expected.';
+  }
 }

@@ -373,6 +373,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'S\'inscrire'**
   String get registerButton;
+
+  /// Register: confirm password field hint
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer le mot de passe'**
+  String get confirmPasswordHint;
+
+  /// Register: password confirmation mismatch validation message
+  ///
+  /// In fr, this message translates to:
+  /// **'Les mots de passe ne correspondent pas.'**
+  String get confirmPasswordMismatch;
+
+  /// Register: exact digit count required for the selected country
+  ///
+  /// In fr, this message translates to:
+  /// **'Numéro invalide pour {country} : {digits} chiffres attendus.'**
+  String phoneNumberDigitsRequired(String country, int digits);
 }
 
 class _AppLocalizationsDelegate

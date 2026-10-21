@@ -95,8 +95,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return total;
   }
 
+  /// Choix parmi les adresses enregistrées, mais aussi possibilité d'en ajouter une
+  /// nouvelle directement depuis le checkout — signalé dans le rapport de test du
+  /// 21/10/2026 : un client pouvait vouloir être livré ailleurs que ses adresses déjà
+  /// enregistrées, sans avoir à interrompre sa commande pour aller dans les paramètres.
+  /// Sentinelle _addNewAddressSentinel plutôt que null : le résultat null du bottom
+  /// sheet (fermeture sans choix) doit rester un no-op, distinct d'un vrai clic sur
+  /// "Ajouter une nouvelle adresse".
   Future<void> _pickAddress(AppColorScheme colors, List<AddressModel> addresses) async {
-    final chosen = await showModalBottomSheet<AddressModel>(
+    final result = await showModalBottomSheet<Object>(
       context: context,
       backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -119,6 +126,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   subtitle: Text([address.summary, if (address.details != null) address.details!].join(', ')),
                   onTap: () => Navigator.of(sheetContext).pop(address),
                 ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(Icons.add_location_alt_outlined, color: colors.primary),
+                title: Text('Ajouter une nouvelle adresse', style: TextStyle(fontWeight: FontWeight.w600, color: colors.primary)),
+                onTap: () => Navigator.of(sheetContext).pop(_addNewAddressSentinel),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -126,12 +139,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       },
     );
 
-    if (chosen == null || chosen.id == _selectedAddress?.id || !mounted) return;
+    if (!mounted || result == null) return;
+
+    if (identical(result, _addNewAddressSentinel)) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddressesScreen()));
+      if (!mounted) return;
+      setState(() => _loadFuture = _load());
+      return;
+    }
+
+    final chosen = result as AddressModel;
+    if (chosen.id == _selectedAddress?.id) return;
     setState(() {
       _selectedAddress = chosen;
       _loadFuture = _load();
     });
   }
+
+  static final Object _addNewAddressSentinel = Object();
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -335,9 +360,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final address = _selectedAddress ?? addresses.first;
     return GestureDetector(
-      onTap: addresses.length <= 1
-          ? null
-          : () => _pickAddress(colors, addresses),
+      // Toujours cliquable, même avec une seule adresse enregistrée : permet d'ajouter
+      // une adresse de livraison différente pour cette commande précise (signalé dans
+      // le rapport de test du 21/10/2026).
+      onTap: () => _pickAddress(colors, addresses),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -361,7 +387,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ],
               ),
             ),
-            Icon(Icons.check_circle_rounded, color: colors.primary),
+            Icon(Icons.chevron_right_rounded, color: colors.primary),
           ],
         ),
       ),

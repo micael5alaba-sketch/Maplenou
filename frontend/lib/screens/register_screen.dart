@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/api_client.dart';
@@ -8,6 +9,26 @@ import '../theme/app_color_scheme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/primary_button.dart';
 import 'seller_registration_screen.dart';
+
+/// Indicatif + longueur exacte attendue pour les deux marchés cibles
+/// (cahier des charges §1 : Togo, Bénin) — un numéro à 9 chiffres sans
+/// indicatif passait auparavant sans aucun contrôle (signalé dans le
+/// rapport de test du 21/10/2026). Togo : +228, 8 chiffres. Bénin : +229,
+/// 10 chiffres (nouveau plan de numérotation depuis le 30/11/2024, préfixe
+/// "01" obligatoire inclus dans ces 10 chiffres).
+class _PhoneCountry {
+  final String flag;
+  final String dialCode;
+  final String name;
+  final int digitCount;
+
+  const _PhoneCountry({required this.flag, required this.dialCode, required this.name, required this.digitCount});
+}
+
+const List<_PhoneCountry> _phoneCountries = [
+  _PhoneCountry(flag: '🇹🇬', dialCode: '+228', name: 'Togo', digitCount: 8),
+  _PhoneCountry(flag: '🇧🇯', dialCode: '+229', name: 'Bénin', digitCount: 10),
+];
 
 /// Inscription (`POST /api/auth/register`, `auth/AuthController.java`).
 /// Le compte est Acheteur par défaut, sauf si [intendedRole] vaut 'courier' :
@@ -30,10 +51,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
 
+  _PhoneCountry _selectedCountry = _phoneCountries.first;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _errorMessage;
 
   @override
@@ -41,6 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -55,7 +80,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final user = await _authService.register(
         fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
+        phoneNumber: _selectedCountry.dialCode + _phoneController.text.trim(),
         password: _passwordController.text,
         accountType: widget.intendedRole == 'courier' ? 'DELIVERY_AGENT' : null,
       );
@@ -130,15 +155,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         (value == null || value.trim().length < 2) ? l10n.fullNameRequired : null,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
-                    validator: (value) {
-                      final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (digits.length < 8) return l10n.phoneNumberInvalid;
-                      return null;
-                    },
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 52,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: colors.inputFill,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<_PhoneCountry>(
+                            value: _selectedCountry,
+                            items: _phoneCountries
+                                .map((c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Text('${c.flag} ${c.dialCode}', style: TextStyle(color: colors.textDark)),
+                                    ))
+                                .toList(),
+                            onChanged: (country) {
+                              if (country == null) return;
+                              setState(() => _selectedCountry = country);
+                              _formKey.currentState?.validate();
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(_selectedCountry.digitCount),
+                          ],
+                          decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
+                          validator: (value) {
+                            final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                            if (digits.length != _selectedCountry.digitCount) {
+                              return l10n.phoneNumberDigitsRequired(_selectedCountry.name, _selectedCountry.digitCount);
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -159,6 +223,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       }
                       if (!RegExp(r'^(?=.*[A-Z])(?=.*[0-9]).{8,}$').hasMatch(value)) {
                         return l10n.passwordRule;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    decoration: _inputDecoration(context, l10n.confirmPasswordHint, Icons.lock_outline_rounded).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          color: colors.textMuted,
+                        ),
+                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value != _passwordController.text) {
+                        return l10n.confirmPasswordMismatch;
                       }
                       return null;
                     },

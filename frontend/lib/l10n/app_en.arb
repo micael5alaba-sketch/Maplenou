@@ -52,5 +52,8 @@
   "fullNameRequired": "Full name required.",
   "phoneNumberInvalid": "Invalid phone number.",
   "passwordRule": "At least 8 characters, one uppercase letter and one digit.",
-  "registerButton": "Sign up"
+  "registerButton": "Sign up",
+  "confirmPasswordHint": "Confirm password",
+  "confirmPasswordMismatch": "Passwords do not match.",
+  "phoneNumberDigitsRequired": "Invalid number for {country}: {digits} digits expected."
 }

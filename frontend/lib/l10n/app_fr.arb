@@ -98,5 +98,17 @@
   "passwordRule": "Au moins 8 caractères, une majuscule et un chiffre.",
   "@passwordRule": {"description": "Register: password strength rule / validation message"},
   "registerButton": "S'inscrire",
-  "@registerButton": {"description": "Register submit button label"}
+  "@registerButton": {"description": "Register submit button label"},
+  "confirmPasswordHint": "Confirmer le mot de passe",
+  "@confirmPasswordHint": {"description": "Register: confirm password field hint"},
+  "confirmPasswordMismatch": "Les mots de passe ne correspondent pas.",
+  "@confirmPasswordMismatch": {"description": "Register: password confirmation mismatch validation message"},
+  "phoneNumberDigitsRequired": "Numéro invalide pour {country} : {digits} chiffres attendus.",
+  "@phoneNumberDigitsRequired": {
+    "description": "Register: exact digit count required for the selected country",
+    "placeholders": {
+      "country": {"type": "String"},
+      "digits": {"type": "int"}
+    }
+  }
 }

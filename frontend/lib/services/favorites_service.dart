@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/product_model.dart';
 import 'api_client.dart';
 
@@ -6,7 +8,14 @@ import 'api_client.dart';
 /// Garde en mémoire les ids déjà vus par [getFavorites] pour que
 /// [isFavorite]/[toggle] (utilisés par l'icône cœur de la fiche produit)
 /// n'aient pas à recharger toute la liste à chaque fois.
-class FavoritesService {
+///
+/// `ChangeNotifier` : chaque [ProductCard] d'une même fiche produit peut
+/// apparaître sur plusieurs écrans à la fois (grille d'accueil, favoris,
+/// détail produit). Sans notification, seule l'instance tapée se mettait à
+/// jour ; les autres restaient figées sur leur état lu une seule fois à
+/// l'ouverture — signalé dans le rapport de test du 21/10/2026 (un produit
+/// retiré des favoris y restait affiché comme favori ailleurs dans l'app).
+class FavoritesService extends ChangeNotifier {
   FavoritesService._internal();
   static final FavoritesService _instance = FavoritesService._internal();
   factory FavoritesService() => _instance;
@@ -49,10 +58,12 @@ class FavoritesService {
   Future<void> add(String productId) async {
     await _client.post('/api/favorites', body: {'productId': productId});
     _knownFavoriteIds?.add(productId);
+    notifyListeners();
   }
 
   Future<void> remove(String productId) async {
     await _client.delete('/api/favorites/$productId');
     _knownFavoriteIds?.remove(productId);
+    notifyListeners();
   }
 }

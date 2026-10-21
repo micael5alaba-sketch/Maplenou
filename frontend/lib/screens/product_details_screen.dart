@@ -72,10 +72,26 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       }
       return detail;
     });
+    FavoritesService().addListener(_onFavoritesChanged);
+    _refreshFavoriteState();
+  }
+
+  @override
+  void dispose() {
+    FavoritesService().removeListener(_onFavoritesChanged);
+    super.dispose();
+  }
+
+  void _refreshFavoriteState() {
     FavoritesService().isFavorite(widget.product.id).then((value) {
       if (mounted) setState(() => _isFavorite = value);
     });
   }
+
+  /// Resynchronise si le favori a été basculé ailleurs (grille, écran favoris)
+  /// pendant que cette fiche produit était déjà ouverte — signalé dans le
+  /// rapport de test du 21/10/2026.
+  void _onFavoritesChanged() => _refreshFavoriteState();
 
   void _showMessage(String message) {
     if (!mounted) return;

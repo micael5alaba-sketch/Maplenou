@@ -66,7 +66,7 @@ class _SignupIntentScreenState extends State<SignupIntentScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      'Vous pourrez toujours faire les deux plus tard depuis le même compte — '
+                      'Vous pourrez toujours changer ou cumuler plus tard depuis le même compte — '
                       'ce choix sert juste à préparer les prochaines étapes.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: context.colors.textMuted, height: 1.4),

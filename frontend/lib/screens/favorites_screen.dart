@@ -21,6 +21,7 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final _service = FavoritesService();
   late Future<List<ProductModel>> _favoritesFuture;
+  List<ProductModel>? _visibleFavorites;
 
   @override
   void initState() {
@@ -29,7 +30,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _reload() {
-    setState(() => _favoritesFuture = _service.getFavorites());
+    setState(() {
+      _visibleFavorites = null;
+      _favoritesFuture = _service.getFavorites();
+    });
+  }
+
+  /// Retire immédiatement la carte de la liste visible dès qu'elle est
+  /// désaffectée depuis cet écran — signalé dans le rapport de test du
+  /// 21/10/2026 : rien ne retirait un produit de "Mes Favoris" une fois son
+  /// cœur retiré, il fallait quitter l'écran et y revenir pour le voir disparaître.
+  void _onFavoriteChanged(ProductModel product, bool isFavorite) {
+    if (isFavorite || _visibleFavorites == null) return;
+    setState(() => _visibleFavorites!.remove(product));
   }
 
   void _openProductDetails(ProductModel product) {
@@ -58,7 +71,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   if (snapshot.hasError) {
                     return _buildErrorState(colors, snapshot.error);
                   }
-                  final favorites = snapshot.data ?? const [];
+                  _visibleFavorites ??= List.of(snapshot.data ?? const []);
+                  final favorites = _visibleFavorites!;
                   if (favorites.isEmpty) return _buildEmptyState(colors);
                   return MasonryGridView.count(
                     padding: const EdgeInsets.all(16),
@@ -68,7 +82,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     itemCount: favorites.length,
                     itemBuilder: (context, index) {
                       final product = favorites[index];
-                      return ProductCard(product: product, onTap: () => _openProductDetails(product));
+                      return ProductCard(
+                        product: product,
+                        onTap: () => _openProductDetails(product),
+                        onFavoriteChanged: (isFavorite) => _onFavoriteChanged(product, isFavorite),
+                      );
                     },
                   );
                 },
