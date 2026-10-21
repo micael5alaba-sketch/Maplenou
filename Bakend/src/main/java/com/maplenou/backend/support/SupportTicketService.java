@@ -2,6 +2,7 @@ package com.maplenou.backend.support;
 
 import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.delivery.Delivery;
 import com.maplenou.backend.delivery.DeliveryRepository;
@@ -53,8 +54,8 @@ public class SupportTicketService {
                 .ticketNumber(ticketNumber)
                 .requester(requester)
                 .category(request.category())
-                .subject(request.subject())
-                .description(request.description())
+                .subject(HtmlSanitizer.stripTags(request.subject()))
+                .description(HtmlSanitizer.stripTags(request.description()))
                 .relatedDelivery(delivery)
                 .photoUrl(request.photoUrl())
                 .status(SupportTicketStatus.OPEN)

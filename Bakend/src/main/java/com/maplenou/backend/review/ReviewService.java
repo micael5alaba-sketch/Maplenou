@@ -4,6 +4,7 @@ import com.maplenou.backend.catalog.Product;
 import com.maplenou.backend.catalog.ProductRepository;
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ShopRepository;
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.delivery.Delivery;
 import com.maplenou.backend.delivery.DeliveryRepository;
@@ -87,7 +88,7 @@ public class ReviewService {
                 .author(buyer)
                 .subOrder(subOrder)
                 .rating(req.rating())
-                .comment(req.comment())
+                .comment(HtmlSanitizer.stripTags(req.comment()))
                 .build();
 
         return ReviewResponse.from(productReviewRepository.save(review));
@@ -164,7 +165,7 @@ public class ReviewService {
                 .author(buyer)
                 .subOrder(subOrder)
                 .rating(req.rating())
-                .comment(req.comment())
+                .comment(HtmlSanitizer.stripTags(req.comment()))
                 .build();
 
         return ReviewResponse.from(shopReviewRepository.save(review));
@@ -221,7 +222,7 @@ public class ReviewService {
                 .agent(delivery.getAgent())
                 .author(buyer)
                 .rating(req.rating())
-                .comment(req.comment())
+                .comment(HtmlSanitizer.stripTags(req.comment()))
                 .build();
 
         return ReviewResponse.from(courierReviewRepository.save(review));

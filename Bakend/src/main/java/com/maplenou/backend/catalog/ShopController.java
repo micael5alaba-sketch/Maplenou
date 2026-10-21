@@ -2,6 +2,8 @@ package com.maplenou.backend.catalog;
 
 import com.maplenou.backend.catalog.dto.AdminCreateShopRequest;
 import com.maplenou.backend.catalog.dto.CreateShopRequest;
+import com.maplenou.backend.catalog.dto.ProductSummaryResponse;
+import com.maplenou.backend.common.CursorPage;
 import com.maplenou.backend.catalog.dto.ShopResponse;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopStatusRequest;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class ShopController {
 
     private final ShopService shopService;
+    private final ProductService productService;
 
     // ----- Vendeur -----
 
@@ -57,9 +60,31 @@ public class ShopController {
 
     // ----- Public -----
 
+    /** Annuaire public des boutiques (approuvées uniquement) — absent jusqu'ici, signalé par
+     * l'audit externe du 16/10/2026 : aucun moyen de parcourir les boutiques sans déjà
+     * connaître leur slug. Faible volume (back-office/catalogue boutiques), Pageable standard
+     * suffit (voir CLAUDE.md §9). */
+    @GetMapping("/api/shops")
+    public Page<ShopResponse> listPublic(@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return shopService.listPublic(pageable).map(ShopResponse::from);
+    }
+
     @GetMapping("/api/shops/{slug}")
     public ShopResponse getBySlug(@PathVariable String slug) {
         return ShopResponse.from(shopService.getBySlug(slug));
+    }
+
+    /** Alias pratique vers le catalogue filtré par boutique (équivalent à
+     * GET /api/products?shopId=...), pour les consommateurs d'API qui s'attendent à une route
+     * imbriquée classique — les deux fonctionnent, celle-ci résout juste le slug en UUID. */
+    @GetMapping("/api/shops/{slug}/products")
+    public CursorPage<ProductSummaryResponse> listProductsByShop(
+            @PathVariable String slug,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        UUID shopId = shopService.getBySlug(slug).getId();
+        int clampedSize = Math.min(Math.max(size, 1), 100);
+        return productService.listCatalog(null, shopId, null, null, null, cursor, clampedSize);
     }
 
     // ----- Admin -----

@@ -5,6 +5,7 @@ import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.catalog.dto.AdminCreateShopRequest;
 import com.maplenou.backend.catalog.dto.CreateShopRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.notification.NotificationService;
 import com.maplenou.backend.seller.SellerStatus;
@@ -44,9 +45,9 @@ public class ShopService {
 
         Shop shop = Shop.builder()
                 .owner(owner)
-                .name(request.name())
+                .name(HtmlSanitizer.stripTags(request.name()))
                 .slug(slug)
-                .description(request.description())
+                .description(HtmlSanitizer.stripTags(request.description()))
                 .city(request.city())
                 .district(request.district())
                 .taxId(request.taxId())
@@ -68,10 +69,10 @@ public class ShopService {
         Shop shop = getMine(owner);
 
         if (request.name() != null && !request.name().isBlank()) {
-            shop.setName(request.name());
+            shop.setName(HtmlSanitizer.stripTags(request.name()));
         }
         if (request.description() != null) {
-            shop.setDescription(request.description());
+            shop.setDescription(HtmlSanitizer.stripTags(request.description()));
         }
         if (request.logoUrl() != null) {
             shop.setLogoUrl(request.logoUrl());
@@ -110,6 +111,12 @@ public class ShopService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Boutique introuvable"));
     }
 
+    /** Public : uniquement les boutiques approuvées, jamais PENDING/REJECTED/SUSPENDED
+     * (contrairement à {@link #listAll}/{@link #listByStatus}, réservées à l'admin). */
+    public Page<Shop> listPublic(Pageable pageable) {
+        return shopRepository.findByStatus(ShopStatus.APPROVED, pageable);
+    }
+
     // ----- Admin -----
 
     public Page<Shop> listAll(Pageable pageable) {
@@ -139,9 +146,9 @@ public class ShopService {
 
         Shop shop = Shop.builder()
                 .owner(owner)
-                .name(request.name())
+                .name(HtmlSanitizer.stripTags(request.name()))
                 .slug(slug)
-                .description(request.description())
+                .description(HtmlSanitizer.stripTags(request.description()))
                 .city(request.city())
                 .district(request.district())
                 .taxId(request.taxId())

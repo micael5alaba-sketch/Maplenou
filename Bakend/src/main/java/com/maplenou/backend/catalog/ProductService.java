@@ -2,6 +2,7 @@ package com.maplenou.backend.catalog;
 
 import com.maplenou.backend.catalog.dto.*;
 import com.maplenou.backend.common.CursorPage;
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.media.CloudinaryUrlUtils;
 import com.maplenou.backend.media.MediaService;
@@ -57,6 +58,10 @@ public class ProductService {
         if (request.basePrice().compareTo(MIN_PRICE) < 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Le prix minimum est 500 FCFA");
         }
+        if (request.oldPrice() != null && request.oldPrice().compareTo(request.basePrice()) <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "L'ancien prix doit être strictement supérieur au prix actuel (sinon ce n'est pas une promotion)");
+        }
 
         Category category = categoryService.getById(request.categoryId());
         String slug = generateUniqueSlug(request.name());
@@ -64,9 +69,9 @@ public class ProductService {
         Product product = Product.builder()
                 .shop(shop)
                 .category(category)
-                .name(request.name())
+                .name(HtmlSanitizer.stripTags(request.name()))
                 .slug(slug)
-                .description(request.description())
+                .description(HtmlSanitizer.stripTags(request.description()))
                 .basePrice(request.basePrice())
                 .oldPrice(request.oldPrice())
                 .specifications(request.specifications() != null ? request.specifications() : new ArrayList<>())
@@ -158,10 +163,10 @@ public class ProductService {
         requireOwnership(shop, product);
 
         if (request.name() != null && !request.name().isBlank()) {
-            product.setName(request.name());
+            product.setName(HtmlSanitizer.stripTags(request.name()));
         }
         if (request.description() != null) {
-            product.setDescription(request.description());
+            product.setDescription(HtmlSanitizer.stripTags(request.description()));
         }
         if (request.basePrice() != null) {
             if (request.basePrice().compareTo(MIN_PRICE) < 0) {
@@ -176,6 +181,12 @@ public class ProductService {
             product.setStatus(request.status());
         }
         if (request.oldPrice() != null) {
+            // Comparé au prix EFFECTIF (celui que cette même requête vient éventuellement de
+            // changer juste au-dessus), pas à l'ancien product.getBasePrice() figé en mémoire.
+            if (request.oldPrice().compareTo(product.getBasePrice()) <= 0) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "L'ancien prix doit être strictement supérieur au prix actuel (sinon ce n'est pas une promotion)");
+            }
             product.setOldPrice(request.oldPrice());
         }
         if (request.specifications() != null) {

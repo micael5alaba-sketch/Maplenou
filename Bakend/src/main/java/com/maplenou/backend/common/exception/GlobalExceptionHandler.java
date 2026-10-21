@@ -8,9 +8,13 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.List;
@@ -56,6 +60,38 @@ public class GlobalExceptionHandler {
                 .map(fe -> new ErrorResponse.FieldErrorDetail(fe.getField(), fe.getDefaultMessage()))
                 .toList();
         return build(HttpStatus.BAD_REQUEST, "Données invalides", fieldErrors);
+    }
+
+    /**
+     * Route inexistante (ex. /api/zzz-nope) — sans ce handler, retombait dans le handler
+     * générique ci-dessous et renvoyait 500 au lieu de 404, masquant la différence entre
+     * "cette route n'existe pas" et "une vraie erreur serveur" (signalé par l'audit externe
+     * du 16/10/2026).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "Route introuvable", null);
+    }
+
+    /** Même principe pour une méthode HTTP non supportée sur une route qui existe (ex. DELETE
+     * sur un endpoint qui n'accepte que GET) : 405, pas 500. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Méthode HTTP non supportée sur cette route", null);
+    }
+
+    /** Enum invalide ou type incorrect dans un paramètre de requête/chemin (ex: ?status=HACKED
+     * sur un filtre enum) — 400, pas 500 (signalé par l'audit externe du 16/10/2026). */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return build(HttpStatus.BAD_REQUEST, "Valeur invalide pour le paramètre \"" + ex.getName() + "\"", null);
+    }
+
+    /** Corps de requête illisible : JSON malformé, enum invalide ou nombre hors bornes
+     * (ex: quantité dépassant Integer.MAX_VALUE) dans le corps — même raison que ci-dessus. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return build(HttpStatus.BAD_REQUEST, "Corps de requête invalide (champ manquant, valeur ou format incorrect)", null);
     }
 
     @ExceptionHandler(Exception.class)

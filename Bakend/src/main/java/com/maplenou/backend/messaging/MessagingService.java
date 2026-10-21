@@ -2,6 +2,7 @@ package com.maplenou.backend.messaging;
 
 import com.maplenou.backend.catalog.Shop;
 import com.maplenou.backend.catalog.ShopRepository;
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.delivery.Delivery;
 import com.maplenou.backend.delivery.DeliveryRepository;
@@ -153,7 +154,7 @@ public class MessagingService {
         Message message = Message.builder()
                 .conversation(conversation)
                 .sender(sender)
-                .content(request.content())
+                .content(HtmlSanitizer.stripTags(request.content()))
                 .build();
         messageRepository.save(message);
 

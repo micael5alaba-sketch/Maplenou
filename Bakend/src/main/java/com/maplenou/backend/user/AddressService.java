@@ -1,5 +1,6 @@
 package com.maplenou.backend.user;
 
+import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.user.dto.CreateAddressRequest;
 import com.maplenou.backend.user.dto.UpdateAddressRequest;
@@ -29,10 +30,10 @@ public class AddressService {
         }
         Address address = Address.builder()
                 .user(user)
-                .label(req.label())
+                .label(HtmlSanitizer.stripTags(req.label()))
                 .city(req.city())
                 .district(req.district())
-                .details(req.details())
+                .details(HtmlSanitizer.stripTags(req.details()))
                 .latitude(req.latitude())
                 .longitude(req.longitude())
                 .isDefault(req.isDefault())
@@ -43,10 +44,10 @@ public class AddressService {
     @Transactional
     public Address update(User user, UUID addressId, UpdateAddressRequest req) {
         Address address = getOwned(user.getId(), addressId);
-        if (req.label() != null)    address.setLabel(req.label());
+        if (req.label() != null)    address.setLabel(HtmlSanitizer.stripTags(req.label()));
         if (req.city()  != null && !req.city().isBlank()) address.setCity(req.city());
         if (req.district() != null) address.setDistrict(req.district());
-        if (req.details()  != null) address.setDetails(req.details());
+        if (req.details()  != null) address.setDetails(HtmlSanitizer.stripTags(req.details()));
         if (req.latitude()  != null) address.setLatitude(req.latitude());
         if (req.longitude() != null) address.setLongitude(req.longitude());
         if (Boolean.TRUE.equals(req.isDefault())) {
