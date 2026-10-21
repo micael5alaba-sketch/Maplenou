@@ -1,11 +1,11 @@
 {
-    "name": "frontend",
-    "short_name": "frontend",
+    "name": "Maplenou",
+    "short_name": "Maplenou",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#2C4E2C",
-    "description": "A new Flutter project.",
+    "description": "Maplenou — Achetez local. Vendez facile.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
