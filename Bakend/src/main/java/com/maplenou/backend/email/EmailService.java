@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Façade d'envoi d'email — désactivée par défaut ({@code app.mailjet.enabled}, comme
- * {@code app.fedapay.enabled}/{@code app.colissimo.enabled}) : sans clé Mailjet réelle (dev local,
+ * Façade d'envoi d'email — désactivée par défaut ({@code app.brevo.enabled}, comme
+ * {@code app.fedapay.enabled}/{@code app.colissimo.enabled}) : sans clé Brevo réelle (dev local,
  * CI), le code est simplement loggué au lieu d'échouer, pour ne pas bloquer le développement.
  */
 @Service
@@ -15,9 +15,9 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
-    private final MailjetEmailClient mailjetEmailClient;
+    private final BrevoEmailClient brevoEmailClient;
 
-    @Value("${app.mailjet.enabled}")
+    @Value("${app.brevo.enabled}")
     private boolean enabled;
 
     public void sendPasswordResetCode(String toEmail, String code) {
@@ -30,9 +30,9 @@ public class EmailService {
                 """.formatted(code);
 
         if (!enabled) {
-            log.warn("Mailjet désactivé (app.mailjet.enabled=false) — code de réinitialisation pour {} : {}", toEmail, code);
+            log.warn("Brevo désactivé (app.brevo.enabled=false) — code de réinitialisation pour {} : {}", toEmail, code);
             return;
         }
-        mailjetEmailClient.sendEmail(toEmail, subject, html);
+        brevoEmailClient.sendEmail(toEmail, subject, html);
     }
 }

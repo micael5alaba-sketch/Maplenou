@@ -13,65 +13,54 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Base64;
 
 /**
- * Client HTTP minimal pour l'API transactionnelle Mailjet (v3.1/send) — pas de SDK Java officiel
- * léger, même approche que {@link com.maplenou.backend.payment.FedaPayClient} pour FedaPay.
- * Authentification HTTP Basic : clé API publique en utilisateur, clé secrète en mot de passe
- * (voir https://dev.mailjet.com/email/guides/send-api-v31/).
+ * Client HTTP minimal pour l'API transactionnelle Brevo (ex-Sendinblue) — pas de SDK Java
+ * officiel léger, ce projet n'ayant aucune dépendance externe pour les appels sortants (même
+ * approche que {@link com.maplenou.backend.payment.FedaPayClient} pour FedaPay).
+ * Doc : https://developers.brevo.com/reference/sendtransacemail
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class MailjetEmailClient {
+public class BrevoEmailClient {
 
-    private static final String API_URL = "https://api.mailjet.com/v3.1/send";
+    private static final String API_URL = "https://api.brevo.com/v3/smtp/email";
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    @Value("${app.mailjet.api-key}")
+    @Value("${app.brevo.api-key}")
     private String apiKey;
 
-    @Value("${app.mailjet.api-secret}")
-    private String apiSecret;
-
-    @Value("${app.mailjet.sender-email}")
+    @Value("${app.brevo.sender-email}")
     private String senderEmail;
 
-    @Value("${app.mailjet.sender-name}")
+    @Value("${app.brevo.sender-name}")
     private String senderName;
 
     public void sendEmail(String toEmail, String subject, String htmlContent) {
-        ObjectNode from = objectMapper.createObjectNode();
-        from.put("Email", senderEmail);
-        from.put("Name", senderName);
+        ObjectNode sender = objectMapper.createObjectNode();
+        sender.put("name", senderName);
+        sender.put("email", senderEmail);
 
         ObjectNode recipient = objectMapper.createObjectNode();
-        recipient.put("Email", toEmail);
-
-        ObjectNode message = objectMapper.createObjectNode();
-        message.set("From", from);
-        message.putArray("To").add(recipient);
-        message.put("Subject", subject);
-        message.put("HTMLPart", htmlContent);
+        recipient.put("email", toEmail);
 
         ObjectNode body = objectMapper.createObjectNode();
-        body.putArray("Messages").add(message);
-
-        String basicAuth = Base64.getEncoder().encodeToString(
-                (apiKey + ":" + apiSecret).getBytes(StandardCharsets.UTF_8));
+        body.set("sender", sender);
+        body.putArray("to").add(recipient);
+        body.put("subject", subject);
+        body.put("htmlContent", htmlContent);
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(API_URL))
                     .timeout(Duration.ofSeconds(15))
-                    .header("Authorization", "Basic " + basicAuth)
+                    .header("api-key", apiKey)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
@@ -79,13 +68,13 @@ public class MailjetEmailClient {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.error("Mailjet a répondu {} à l'envoi d'email : {}", response.statusCode(), response.body());
+                log.error("Brevo a répondu {} à l'envoi d'email : {}", response.statusCode(), response.body());
                 throw new ApiException(HttpStatus.BAD_GATEWAY, "Le service d'envoi d'email a refusé la requête");
             }
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Erreur réseau lors de l'envoi d'email via Mailjet", e);
+            log.error("Erreur réseau lors de l'envoi d'email via Brevo", e);
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Service d'envoi d'email injoignable");
         }
     }
