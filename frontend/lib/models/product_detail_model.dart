@@ -11,6 +11,8 @@ import 'variant_group_model.dart';
 class ProductDetailModel {
   final String id;
   final String name;
+  final String shopId;
+  final String shopName;
   final List<String> images;
   final List<String> badges;
   final num price;
@@ -32,6 +34,8 @@ class ProductDetailModel {
   const ProductDetailModel({
     required this.id,
     required this.name,
+    required this.shopId,
+    required this.shopName,
     required this.images,
     this.badges = const [],
     required this.price,

@@ -5,6 +5,7 @@ import '../models/product_detail_model.dart';
 import '../models/product_model.dart';
 import '../services/api_client.dart';
 import '../services/cart_service.dart';
+import '../services/conversation_service.dart';
 import '../services/favorites_service.dart';
 import '../services/product_detail_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -22,6 +23,7 @@ import '../widgets/related_products_carousel.dart';
 import '../widgets/variant_option_selector.dart';
 import 'cart_screen.dart';
 import 'checkout_screen.dart';
+import 'seller_conversation_screen.dart';
 
 /// Generic product detail page — one single layout reused for every
 /// product type in the marketplace (mode, électronique, beauté, maison,
@@ -55,6 +57,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   bool? _isFavorite;
   bool _isAddingToCart = false;
   bool _allReviewsVisible = false;
+  bool _isContactingSeller = false;
 
   @override
   void initState() {
@@ -134,6 +137,24 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     await _addToCart(detail, showConfirmation: false);
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
+  }
+
+  Future<void> _contactSeller(ProductDetailModel detail) async {
+    setState(() => _isContactingSeller = true);
+    try {
+      final conversationId = await ConversationService().startConversationWithShop(detail.shopId);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SellerConversationScreen(
+          conversationId: conversationId,
+          participantName: detail.shopName,
+        ),
+      ));
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _isContactingSeller = false);
+    }
   }
 
   void _openProduct(ProductModel product) {
@@ -250,7 +271,28 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           ),
           const SizedBox(height: 8),
           RatingSummary(rating: detail.rating ?? 0, reviewCount: detail.reviewCount ?? 0),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.storefront_outlined, size: 16, color: colors.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  detail.shopName,
+                  style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _isContactingSeller ? null : () => _contactSeller(detail),
+                icon: _isContactingSeller
+                    ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary))
+                    : Icon(Icons.chat_bubble_outline_rounded, size: 16, color: colors.primary),
+                label: Text('Contacter', style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           _buildPriceRow(detail),
           const SizedBox(height: 22),
           for (final group in detail.variantGroups) ...[

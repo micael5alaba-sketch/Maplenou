@@ -70,6 +70,38 @@ public class OrderService {
         return OrderResponse.from(order);
     }
 
+    /**
+     * Annulation par l'acheteur — absente jusqu'ici (signalé par l'audit externe du
+     * 16/10/2026) : un acheteur n'avait aucun moyen de se défaire d'une commande impayée. Refusé
+     * dès qu'un seul vendeur a commencé à préparer (SubOrder au-delà de PENDING) : à ce stade
+     * l'annulation doit passer par le support, pas en self-service. Aucun stock à libérer : rien
+     * n'est décrémenté avant PAID (voir ProductVariantRepository.decrementStock).
+     */
+    @Transactional
+    public OrderResponse cancelMyOrder(User buyer, UUID orderId) {
+        Order order = orderRepository.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Commande introuvable"));
+
+        if (!order.getBuyer().getId().equals(buyer.getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé");
+        }
+        if (order.getStatus() != OrderStatus.CREATED) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Seule une commande non payée peut être annulée directement (statut actuel : " + order.getStatus() + ")");
+        }
+        boolean anySubOrderStarted = order.getSubOrders().stream()
+                .anyMatch(so -> so.getStatus() != SubOrderStatus.PENDING);
+        if (anySubOrderStarted) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Au moins un vendeur a déjà commencé à préparer cette commande — contactez le support pour l'annuler");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.getSubOrders().forEach(so -> so.setStatus(SubOrderStatus.CANCELLED));
+
+        return OrderResponse.from(order);
+    }
+
     private static final Set<OrderStatus> ONGOING_STATUSES = Set.of(OrderStatus.CREATED, OrderStatus.PAID);
 
     /** Compteur de mes commandes par statut (ex: badge "commandes en cours" du profil). */

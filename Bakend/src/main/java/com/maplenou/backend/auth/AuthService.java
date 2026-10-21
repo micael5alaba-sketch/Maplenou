@@ -11,6 +11,7 @@ import com.maplenou.backend.auth.dto.MfaLoginRequest;
 import com.maplenou.backend.auth.dto.RefreshRequest;
 import com.maplenou.backend.auth.dto.RegisterRequest;
 import com.maplenou.backend.auth.dto.ResetPasswordRequest;
+import com.maplenou.backend.common.ClientIpResolver;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.email.EmailService;
 import com.maplenou.backend.security.JwtService;
@@ -19,6 +20,7 @@ import com.maplenou.backend.user.Role;
 import com.maplenou.backend.user.User;
 import com.maplenou.backend.user.UserRepository;
 import com.maplenou.backend.user.dto.UserResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -52,6 +54,7 @@ public class AuthService {
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailService emailService;
     private final AuditService auditService;
+    private final ClientIpResolver clientIpResolver;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -86,9 +89,18 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
-    public LoginResponse login(LoginRequest request) {
-        String lockKey = "login_lock:" + request.phoneNumber();
-        String failKey = "login_fail:" + request.phoneNumber();
+    /**
+     * Verrou combiné (téléphone, IP) plutôt que par téléphone seul — signalé par l'audit
+     * externe du 16/10/2026 : avant ce correctif, n'importe qui connaissant un numéro pouvait
+     * verrouiller ce compte 15 min depuis n'importe où (5 échecs volontaires), y compris pour
+     * le vrai propriétaire essayant de se connecter depuis son propre appareil/IP. Avec la clé
+     * combinée, un attaquant ne peut plus se verrouiller que lui-même pour ce numéro, jamais la
+     * victime connectée depuis une IP différente.
+     */
+    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+        String ip = clientIpResolver.resolve(httpRequest);
+        String lockKey = "login_lock:" + request.phoneNumber() + ":" + ip;
+        String failKey = "login_fail:" + request.phoneNumber() + ":" + ip;
 
         // Vérifie si le compte est verrouillé
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {

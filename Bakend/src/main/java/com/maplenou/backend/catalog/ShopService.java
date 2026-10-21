@@ -35,6 +35,14 @@ public class ShopService {
 
     // ----- Vendeur -----
 
+    /**
+     * Fusion des deux validations admin signalée par l'audit externe du 16/10/2026 : ce point
+     * n'est atteignable qu'avec {@code ROLE_SELLER} (voir {@code @PreAuthorize} du contrôleur),
+     * donc uniquement si {@code SellerProfile.status == APPROVED} (User.getAuthorities(), voir
+     * CLAUDE.md §3) -- l'admin a déjà vérifié ce compte une fois. Exiger une DEUXIÈME approbation
+     * rien que pour la boutique était redondant ; la boutique est désormais approuvée directement
+     * à la création. L'admin garde la main pour suspendre/rejeter après coup si besoin.
+     */
     @Transactional
     public Shop create(User owner, CreateShopRequest request) {
         if (shopRepository.existsByOwnerId(owner.getId())) {
@@ -53,7 +61,7 @@ public class ShopService {
                 .taxId(request.taxId())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
-                .status(ShopStatus.PENDING)
+                .status(ShopStatus.APPROVED)
                 .build();
 
         return shopRepository.save(shop);

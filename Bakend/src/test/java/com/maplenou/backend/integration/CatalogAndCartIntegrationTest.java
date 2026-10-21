@@ -101,7 +101,9 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         JsonNode shop = post("/api/shops",
                 new CreateShopRequest("Boutique Catalogue " + rand, "desc", "Lomé", "Centre", null, null, null), sellerToken, 201);
         shopId = UUID.fromString(shop.get("id").asText());
-        assertEquals("PENDING", shop.get("status").asText());
+        // Approuvee directement a la creation depuis la fusion des deux validations admin
+        // (SellerProfile deja approuve = seul gate necessaire, voir ShopService.create).
+        assertEquals("APPROVED", shop.get("status").asText());
 
         JsonNode mine = get("/api/shops/mine", sellerToken, 200);
         assertEquals(shopId.toString(), mine.get("id").asText());

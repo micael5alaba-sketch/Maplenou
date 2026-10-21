@@ -68,6 +68,8 @@ class ProductDetailService {
     return ProductDetailModel(
       id: detailJson['id'] as String,
       name: detailJson['name'] as String,
+      shopId: detailJson['shopId'] as String,
+      shopName: detailJson['shopName'] as String? ?? 'Boutique',
       images: images.isEmpty && product.imageUrl != null ? [product.imageUrl!] : images,
       badges: _mockBadges(product),
       price: (detailJson['basePrice'] as num),

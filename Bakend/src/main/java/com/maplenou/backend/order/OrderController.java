@@ -58,4 +58,12 @@ public class OrderController {
             @PathVariable UUID orderId) {
         return orderService.getMyOrder(currentUser, orderId);
     }
+
+    /** Annuler ma commande (uniquement tant qu'aucun vendeur n'a commencé à la préparer). */
+    @PatchMapping("/{orderId}/cancel")
+    public OrderResponse cancelMyOrder(
+            @AuthenticationPrincipal User currentUser,
+            @PathVariable UUID orderId) {
+        return orderService.cancelMyOrder(currentUser, orderId);
+    }
 }

@@ -61,6 +61,22 @@ public class DeliveryController {
         return deliveryService.getById(id);
     }
 
+    // ----- Livreur : dispatch en libre-service -----
+
+    /** Livreur : file des courses disponibles, pour en choisir une. */
+    @GetMapping("/available")
+    @PreAuthorize("hasRole('DELIVERY_AGENT')")
+    public Page<DeliveryResponse> listAvailable(@PageableDefault(size = 20) Pageable pageable) {
+        return deliveryService.listAvailable(pageable);
+    }
+
+    /** Livreur : prendre soi-même une course disponible (sans passer par l'admin). */
+    @PatchMapping("/{id}/claim")
+    @PreAuthorize("hasRole('DELIVERY_AGENT')")
+    public DeliveryResponse claim(@AuthenticationPrincipal User currentUser, @PathVariable UUID id) {
+        return deliveryService.claim(currentUser, id);
+    }
+
     // ----- Acheteur -----
 
     /**

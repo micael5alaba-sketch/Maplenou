@@ -144,6 +144,44 @@ public class DeliveryService {
     }
 
     /**
+     * Livreur : file des courses disponibles (dispatch en libre-service, signalé manquant par
+     * l'audit externe du 16/10/2026 — jusqu'ici l'affectation était entièrement manuelle côté
+     * admin). Même liste que {@link #listPending} côté admin, exposée en lecture à tout livreur
+     * pour qu'il puisse choisir une course à prendre.
+     */
+    @Transactional(readOnly = true)
+    public Page<DeliveryResponse> listAvailable(Pageable pageable) {
+        return deliveryRepository.findByStatusOrderByCreatedAtAsc(DeliveryStatus.PENDING, pageable)
+                .map(DeliveryResponse::from);
+    }
+
+    /**
+     * Livreur : prendre lui-même une course disponible, sans intervention admin. Même garde-fou
+     * documents que {@link #assignAgent} (CLAUDE.md §3.bis : "impossible de contourner ce verrou
+     * même en passant directement par l'API"). La mise à jour elle-même est atomique
+     * ({@link DeliveryRepository#claim}) : si deux livreurs cliquent en même temps sur la même
+     * course, un seul l'obtient, l'autre reçoit un 409 plutôt qu'une course à deux.
+     */
+    @Transactional
+    public DeliveryResponse claim(User agent, UUID deliveryId) {
+        if (!courierDocumentService.isFullyVerified(agent.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Tes documents ne sont pas encore tous validés par l'admin — impossible de prendre une course.");
+        }
+
+        int updated = deliveryRepository.claim(deliveryId, agent, Instant.now());
+        if (updated == 0) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Cette course n'est plus disponible — un autre livreur l'a probablement déjà prise.");
+        }
+
+        DeliveryResponse response = reload(deliveryId);
+        notificationService.deliveryAssigned(
+                agent.getId(), deliveryId, response.shopName());
+        return response;
+    }
+
+    /**
      * Livreur : données de navigation Google Maps pour une livraison.
      * Fournit le point de retrait (boutique) et le point de livraison (adresse client).
      */
