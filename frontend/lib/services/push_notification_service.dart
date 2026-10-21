@@ -4,15 +4,15 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'api_client.dart';
-import 'notification_history_service.dart';
 
 /// Handler appelé par le système quand une notification arrive alors que
 /// l'app est en arrière-plan/fermée — doit être une fonction top-level
-/// (isolate séparé), voir `main.dart`.
+/// (isolate séparé), voir `main.dart`. Ne fait plus rien ici : la notification
+/// est déjà persistée côté serveur (`NotificationService.send`, avant même
+/// l'envoi FCM) — `NotificationsScreen` la lit depuis `GET /api/notifications`
+/// au lieu d'un historique local reconstruit message par message.
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await NotificationHistoryService().addFromMessage(message);
-}
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
 /// Enregistre le device auprès du backend (`POST /api/notifications/tokens`,
 /// voir `DeviceTokenController`) pour recevoir les notifications push
@@ -32,9 +32,10 @@ class PushNotificationService {
       if (token != null) await _registerToken(token);
       messaging.onTokenRefresh.listen(_registerToken);
 
-      FirebaseMessaging.onMessage.listen((message) {
-        NotificationHistoryService().addFromMessage(message);
-      });
+      // TODO (audit du 16/10/2026) : app ouverte au premier plan, FCM n'affiche pas de bannière
+      // automatiquement sur Android — brancher flutter_local_notifications ici pour en afficher
+      // une explicitement. Pas fait dans ce lot : nouvelle dépendance + config native Android/iOS
+      // à tester sur un vrai appareil, hors de portée de cette session.
 
       _initialized = true;
     } catch (_) {

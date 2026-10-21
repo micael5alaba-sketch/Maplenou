@@ -1,43 +1,35 @@
-import 'dart:convert';
-
-/// Une notification push reçue sur cet appareil, conservée localement
-/// (voir `NotificationHistoryService`) — le backend (`FcmService`) envoie en
-/// fire-and-forget, sans historique côté serveur.
+/// Une notification, lue depuis l'historique serveur (`GET /api/notifications`,
+/// `notification/AppNotification.java` côté backend) — plus de stockage local
+/// uniquement : visible après réinstallation de l'app et sur tout appareil connecté
+/// au même compte.
 class AppNotification {
+  final String id;
   final String title;
   final String body;
-  final Map<String, dynamic> data;
+  final String type;
+  final String? referenceId;
   final DateTime receivedAt;
-  bool read;
+  final bool read;
 
-  AppNotification({
+  const AppNotification({
+    required this.id,
     required this.title,
     required this.body,
-    required this.data,
+    required this.type,
+    this.referenceId,
     required this.receivedAt,
-    this.read = false,
+    required this.read,
   });
-
-  Map<String, dynamic> toJson() => {
-        'title': title,
-        'body': body,
-        'data': data,
-        'receivedAt': receivedAt.toIso8601String(),
-        'read': read,
-      };
-
-  String encode() => jsonEncode(toJson());
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
+      id: json['id'] as String,
       title: json['title'] as String? ?? 'Maplenou',
       body: json['body'] as String? ?? '',
-      data: (json['data'] as Map?)?.cast<String, dynamic>() ?? const {},
-      receivedAt: DateTime.tryParse(json['receivedAt'] as String? ?? '') ?? DateTime.now(),
+      type: json['type'] as String? ?? '',
+      referenceId: json['referenceId'] as String?,
+      receivedAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
       read: json['read'] as bool? ?? false,
     );
   }
-
-  factory AppNotification.decode(String raw) =>
-      AppNotification.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 }
