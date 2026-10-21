@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icône adaptative (Android 8.0+, API 26+) -- signalé par l'audit externe du 16/10/2026 :
+     sans ça, l'icône "maskable" était identique à l'icône normale (logo collé aux bords),
+     rognée selon la forme imposée par le lanceur (cercle, carré arrondi, goutte...). Le logo
+     vit maintenant dans une couche foreground séparée avec une marge de sécurité, sur un fond
+     uni qui occupe tout le canevas -- jamais de bord dur visible quel que soit le masque. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

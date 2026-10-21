@@ -163,10 +163,6 @@ class _CourierSettingsScreenState extends State<CourierSettingsScreen> {
                   const SizedBox(height: 4),
                   Text('Gérez vos préférences de livraison et de compte.', style: TextStyle(fontSize: 13, color: colors.textMuted)),
                   const SizedBox(height: 20),
-                  _buildSectionLabel(colors, 'PRÉFÉRENCES DE LIVRAISON'),
-                  const SizedBox(height: 8),
-                  _buildRow(colors, Icons.location_on_outlined, 'Zone de livraison', subtitle: 'Adidogomé, Agoè, Kégué', onTap: () => _showComingSoon('La zone de livraison')),
-                  const SizedBox(height: 20),
                   _buildSectionLabel(colors, 'APPARENCE & SYSTÈME'),
                   const SizedBox(height: 8),
                   ValueListenableBuilder<ThemeMode>(

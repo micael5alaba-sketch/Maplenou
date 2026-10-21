@@ -24,6 +24,17 @@ class UserService {
     return UserModel.fromJson(data);
   }
 
+  /// `PATCH /api/users/me/password` — change le mot de passe depuis l'app, en
+  /// restant connecté (contrairement au flux "mot de passe oublié", qui déconnecte
+  /// et repart d'un code reçu par email). L'ancien mot de passe est vérifié côté
+  /// serveur avant d'accepter le nouveau.
+  Future<void> changePassword({required String currentPassword, required String newPassword}) {
+    return _client.patch('/api/users/me/password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
   /// Anonymisation RGPD du compte (`GdprService.selfDelete`) — pas une
   /// suppression physique (obligation comptable sur les commandes déjà
   /// facturées, voir `CLAUDE.md` §10), mais le compte devient inutilisable :

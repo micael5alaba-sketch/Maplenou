@@ -266,11 +266,11 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Utiliser ta position actuelle ?'),
+        title: const Text('Utiliser votre position actuelle ?'),
         content: const Text(
-          'Maplenou va demander accès à ta position GPS pour pré-remplir automatiquement ta '
-          'ville et ton quartier, et permettre au livreur de te localiser précisément. '
-          'Ta position n\'est utilisée que pour cette adresse et n\'est jamais partagée ailleurs.',
+          'Maplenou va demander accès à votre position GPS pour pré-remplir automatiquement votre '
+          'ville et votre quartier, et permettre au livreur de vous localiser précisément. '
+          'Votre position n\'est utilisée que pour cette adresse et n\'est jamais partagée ailleurs.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Non merci')),

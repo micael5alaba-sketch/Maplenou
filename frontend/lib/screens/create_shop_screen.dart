@@ -49,10 +49,10 @@ class _CreateShopScreenState extends State<CreateShopScreen> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Utiliser ta position actuelle ?'),
+        title: const Text('Utiliser votre position actuelle ?'),
         content: const Text(
-          "Maplenou va demander accès à ta position GPS pour pré-remplir automatiquement la "
-          "ville et le quartier de ta boutique, et calculer un prix de livraison précis en "
+          "Maplenou va demander accès à votre position GPS pour pré-remplir automatiquement la "
+          "ville et le quartier de votre boutique, et calculer un prix de livraison précis en "
           "fonction de la distance jusqu'à chaque acheteur. Sans ça, seul le tarif de base de "
           "la zone sera appliqué.",
         ),
@@ -181,7 +181,7 @@ class _CreateShopScreenState extends State<CreateShopScreen> {
                         controller: _nameController,
                         textCapitalization: TextCapitalization.words,
                         decoration: _inputDecoration(context, 'Nom de la boutique'),
-                        validator: (v) => (v == null || v.trim().length < 2) ? 'Indique le nom de ta boutique.' : null,
+                        validator: (v) => (v == null || v.trim().length < 2) ? 'Indiquez le nom de votre boutique.' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(

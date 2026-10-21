@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond de l'icône adaptative (ic_launcher.xml) -- blanc, cohérent avec background_color
+         du manifest PWA web/manifest.json. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

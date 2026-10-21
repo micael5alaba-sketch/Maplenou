@@ -36,7 +36,7 @@ class ReverseGeocodeResult {
 class LocationService {
   Future<Position> getCurrentPosition() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
-      throw LocationException('Active la localisation dans les réglages de ton téléphone.');
+      throw LocationException('Activez la localisation dans les réglages de votre téléphone.');
     }
 
     var permission = await Geolocator.checkPermission();
@@ -48,7 +48,7 @@ class LocationService {
     }
     if (permission == LocationPermission.deniedForever) {
       throw LocationException(
-        "Permission de localisation bloquée — active-la depuis les réglages de l'application.",
+        "Permission de localisation bloquée — activez-la depuis les réglages de l'application.",
       );
     }
 

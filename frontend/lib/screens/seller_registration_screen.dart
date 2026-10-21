@@ -245,7 +245,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             decoration: _inputDecoration(context, "Ex : Les Merveilles d'Afrique"),
             textCapitalization: TextCapitalization.words,
             validator: (value) =>
-                (value == null || value.trim().length < 2) ? 'Indique le nom de ta boutique.' : null,
+                (value == null || value.trim().length < 2) ? 'Indiquez le nom de votre boutique.' : null,
           ),
           const SizedBox(height: 20),
           _buildLabel(context, 'Catégorie de prix de tes produits *'),
@@ -363,9 +363,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Maplenou prélève une commission transparente sur chaque vente réalisée. '
-                  'En plus, tes 3 premières ventes sont sans frais mensuel ; à partir de la 4ᵉ, '
-                  'un petit frais d\'activité (selon ta catégorie ci-dessus) est déduit '
-                  'automatiquement de ton reversement chaque mois où tu as vendu.',
+                  'En plus, vos 3 premières ventes sont sans frais mensuel ; à partir de la 4ᵉ, '
+                  'un petit frais d\'activité (selon votre catégorie ci-dessus) est déduit '
+                  'automatiquement de votre reversement chaque mois où vous avez vendu.',
                   style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
                 ),
               ],

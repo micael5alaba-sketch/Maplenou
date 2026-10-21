@@ -25,7 +25,7 @@ class CourierLocationTrackingService {
     if (_subscription != null) return;
 
     if (!await Geolocator.isLocationServiceEnabled()) {
-      throw LocationException('Active la localisation dans les réglages de ton téléphone.');
+      throw LocationException('Activez la localisation dans les réglages de votre téléphone.');
     }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -36,7 +36,7 @@ class CourierLocationTrackingService {
     }
     if (permission == LocationPermission.deniedForever) {
       throw LocationException(
-        "Permission de localisation bloquée — active-la depuis les réglages de l'application.",
+        "Permission de localisation bloquée — activez-la depuis les réglages de l'application.",
       );
     }
 

@@ -11,8 +11,8 @@ class _Faq {
 const _faqs = [
   _Faq(
     'Comment passer une commande ?',
-    'Ajoute des produits au panier, va dans "Panier", choisis une adresse de livraison et un '
-        'pays/moyen de paiement, puis confirme. Tu es redirigé vers une page de paiement sécurisée.',
+    'Ajoutez des produits au panier, allez dans "Panier", choisissez une adresse de livraison et un '
+        'pays/moyen de paiement, puis confirmez. Vous êtes redirigé vers une page de paiement sécurisée.',
   ),
   _Faq(
     'Quels moyens de paiement sont acceptés ?',
@@ -20,7 +20,7 @@ const _faqs = [
   ),
   _Faq(
     'Combien de temps prend la livraison ?',
-    'Le délai estimé dépend de ta zone de livraison et s\'affiche avant de valider la commande. '
+    'Le délai estimé dépend de la distance jusqu\'à votre adresse et s\'affiche avant de valider la commande. '
         'Le suivi en temps réel est disponible depuis "Mes commandes".',
   ),
   _Faq(
@@ -29,12 +29,12 @@ const _faqs = [
   ),
   _Faq(
     'Comment devenir vendeur sur Maplenou ?',
-    'Depuis "Paramètres du compte" > "Devenir vendeur", crée ta boutique. Une fois approuvée par '
-        'l\'équipe Maplenou, tu peux publier tes produits.',
+    'Depuis "Paramètres du compte" > "Devenir vendeur", créez votre boutique. Une fois votre profil '
+        'approuvé par l\'équipe Maplenou, vous pouvez publier vos produits.',
   ),
   _Faq(
     'Ma question n\'est pas ici ?',
-    'Utilise "Nous contacter" dans cette même section pour écrire directement au support.',
+    'Utilisez "Nous contacter" dans cette même section pour écrire directement au support.',
   ),
 ];
 
