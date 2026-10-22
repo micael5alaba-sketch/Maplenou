@@ -42,7 +42,26 @@ export function clearTokens() {
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
+// Rafraîchissement en cours, partagé par tous les appels concurrents —
+// indispensable depuis que le backend applique une rotation stricte à usage
+// unique sur les refresh tokens (F-02, pentest du 21/10/2026) : sans cette
+// mise en commun, une page qui lance plusieurs requêtes en parallèle juste
+// après l'expiration du token d'accès présentait le MÊME refresh token
+// plusieurs fois au backend, qui traitait ça comme un rejeu et révoquait
+// toute la session (déconnexion en plein milieu d'une action admin).
+let refreshInFlight: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = performRefresh();
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+async function performRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
   try {
