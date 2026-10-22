@@ -11,18 +11,32 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Rotation stricte des refresh tokens (correctif F-02, pentest du 21/10/2026) : chaque jeton
  * n'est utilisable qu'une fois pour produire son successeur. Un jeton déjà consommé présenté à
- * nouveau (rejeu — vol probable) révoque immédiatement toute sa famille de session.
+ * nouveau révoque toute sa famille de session, SAUF dans une courte fenêtre de tolérance
+ * ({@link #REUSE_GRACE_PERIOD}) juste après sa rotation, où c'est traité comme une requête
+ * concurrente bénigne plutôt qu'un vol — voir {@link #isWithinGracePeriod}.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RefreshTokenSessionService {
+
+    /**
+     * Fenêtre de tolérance sur un jeton déjà consommé : si son successeur a été émis il y a moins
+     * de ce délai et est toujours ACTIVE, c'est presque certainement une rafale de requêtes
+     * concurrentes présentant le même jeton (ex. un écran qui charge plusieurs ressources en
+     * parallèle juste après l'expiration de l'access token), pas un vol — un attaquant qui rejoue
+     * un jeton volé le fait presque toujours bien après que le successeur légitime ait déjà
+     * tourné. Dans cette fenêtre, la requête en trop échoue simplement (401) sans emporter toute
+     * la famille de session avec elle.
+     */
+    private static final Duration REUSE_GRACE_PERIOD = Duration.ofSeconds(10);
 
     private final RefreshTokenSessionRepository repository;
     private final JwtService jwtService;
@@ -66,6 +80,11 @@ public class RefreshTokenSessionService {
 
         if (rotated == 0) {
             if (presented != null && presented.getStatus() == RefreshTokenStatus.ROTATED) {
+                if (isWithinGracePeriod(presented)) {
+                    // Requête concurrente présentant le même jeton que celle qui vient de le faire
+                    // tourner avec succès — pas un rejeu, juste la requête de trop à rejeter.
+                    throw new ApiException(HttpStatus.UNAUTHORIZED, "Token de rafraîchissement déjà utilisé");
+                }
                 int revokedCount = repository.revokeFamily(presented.getFamilyId(), Instant.now(), "REUSE_DETECTED");
                 log.warn("REFRESH_REUSE_DETECTED familyId={} userId={} revokedSessions={}",
                         presented.getFamilyId(), user.getId(), revokedCount);
@@ -94,6 +113,13 @@ public class RefreshTokenSessionService {
         }
 
         insertSuccessor(presented.getFamilyId(), presented.getId(), user, newRefreshToken, ipHash);
+    }
+
+    private boolean isWithinGracePeriod(RefreshTokenSession rotatedToken) {
+        return repository.findByParentId(rotatedToken.getId())
+                .filter(successor -> successor.getStatus() == RefreshTokenStatus.ACTIVE)
+                .filter(successor -> Duration.between(successor.getIssuedAt(), Instant.now()).compareTo(REUSE_GRACE_PERIOD) <= 0)
+                .isPresent();
     }
 
     private void insertSuccessor(UUID familyId, UUID parentId, User user, String newRefreshToken, String ipHash) {

@@ -8,6 +8,8 @@ import com.maplenou.backend.auth.dto.RefreshRequest;
 import com.maplenou.backend.auth.dto.RegisterRequest;
 import com.maplenou.backend.auth.dto.ResetPasswordRequest;
 import com.maplenou.backend.common.Sha256Utils;
+import com.maplenou.backend.security.RefreshTokenSession;
+import com.maplenou.backend.security.RefreshTokenSessionRepository;
 import com.maplenou.backend.user.UserRepository;
 import com.maplenou.backend.user.dto.UpdateProfileRequest;
 import org.junit.jupiter.api.AfterAll;
@@ -17,6 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +45,8 @@ class SecurityHardeningIntegrationTest extends AbstractIntegrationTest {
     private UserRepository userRepository;
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+    @Autowired
+    private RefreshTokenSessionRepository refreshTokenSessionRepository;
 
     private final long rand = System.nanoTime() % 100_000_000L;
     private final List<UUID> createdUserIds = new ArrayList<>();
@@ -138,7 +143,7 @@ class SecurityHardeningIntegrationTest extends AbstractIntegrationTest {
     // ----- F-02 : rotation stricte des refresh tokens -----
 
     @Test
-    void refreshTokenReuseAfterRotationRevokesWholeFamily() throws Exception {
+    void refreshTokenConcurrentReplayWithinGracePeriodDoesNotRevokeFamily() throws Exception {
         String phone = "+22880" + String.format("%07d", rand % 10_000_000L);
         JsonNode registered = post("/api/auth/register",
                 new RegisterRequest("Rotation User", phone, "Passw0rd!", null), null, 201);
@@ -149,11 +154,34 @@ class SecurityHardeningIntegrationTest extends AbstractIntegrationTest {
         String r1 = afterFirstRefresh.get("refreshToken").asText();
         assertNotEquals(r0, r1);
 
-        // Rejeu de r0 (déjà consommé pour produire r1) -> rejet, et toute la famille est révoquée
+        // Rejeu immédiat de r0 (ex: deux requêtes API concurrentes présentant le même token juste
+        // après l'expiration de l'access token, voir ApiClient côté Flutter) -> cette requête en
+        // trop échoue, mais la fenêtre de tolérance évite de révoquer toute la famille pour autant.
         post("/api/auth/refresh", new RefreshRequest(r0), null, 401);
 
-        // r1, pourtant jamais lui-même rejoué, est désormais inutilisable : toute la famille est
-        // tombée avec le jeton rejoué — c'est la défense centrale de F-02.
+        // r1 reste parfaitement utilisable : la session n'a pas été punie pour une course bénigne.
+        post("/api/auth/refresh", new RefreshRequest(r1), null, 200);
+    }
+
+    @Test
+    void refreshTokenReplayAfterGracePeriodRevokesWholeFamily() throws Exception {
+        String phone = "+22883" + String.format("%07d", rand % 10_000_000L);
+        JsonNode registered = post("/api/auth/register",
+                new RegisterRequest("Rotation Reuse User", phone, "Passw0rd!", null), null, 201);
+        createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
+        String r0 = registered.get("refreshToken").asText();
+
+        JsonNode afterFirstRefresh = post("/api/auth/refresh", new RefreshRequest(r0), null, 200);
+        String r1 = afterFirstRefresh.get("refreshToken").asText();
+
+        // Simule un rejeu tardif (bien après la fenêtre de tolérance de 10s) : recule l'horodatage
+        // du successeur en base plutôt que d'attendre réellement 10+ secondes dans le test.
+        RefreshTokenSession successor = refreshTokenSessionRepository.findByTokenHash(Sha256Utils.hex(r1)).orElseThrow();
+        successor.setIssuedAt(Instant.now().minusSeconds(60));
+        refreshTokenSessionRepository.save(successor);
+
+        // Rejeu de r0 hors fenêtre de tolérance -> traité comme un vol, toute la famille tombe
+        post("/api/auth/refresh", new RefreshRequest(r0), null, 401);
         post("/api/auth/refresh", new RefreshRequest(r1), null, 401);
     }
 

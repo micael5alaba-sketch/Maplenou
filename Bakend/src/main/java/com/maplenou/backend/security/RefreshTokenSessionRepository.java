@@ -13,6 +13,8 @@ public interface RefreshTokenSessionRepository extends JpaRepository<RefreshToke
 
     Optional<RefreshTokenSession> findByTokenHash(String tokenHash);
 
+    Optional<RefreshTokenSession> findByParentId(UUID parentId);
+
     /**
      * Rotation atomique : ne marque ROTATED que si le jeton est encore ACTIVE. Exactement le même
      * principe que {@code ProductVariantRepository.decrementStock}/{@code DeliveryRepository.claim} —

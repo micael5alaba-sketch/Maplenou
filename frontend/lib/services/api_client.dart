@@ -35,6 +35,16 @@ class ApiClient {
   final _tokenStorage = TokenStorage();
   static const _timeout = Duration(seconds: 8);
 
+  /// Appel de rafraîchissement en cours, partagé par tous les appelants
+  /// concurrents — indispensable depuis que le backend applique une rotation
+  /// stricte à usage unique sur les refresh tokens (F-02, pentest du
+  /// 21/10/2026) : sans cette mise en commun, un écran qui lance plusieurs
+  /// requêtes en parallèle juste après l'expiration du token d'accès
+  /// présentait le MÊME refresh token plusieurs fois au backend, qui traitait
+  /// ça comme un rejeu et révoquait toute la session (déconnexion en plein
+  /// milieu d'une action, ex. ajout de produit).
+  Future<bool>? _refreshInFlight;
+
   Future<dynamic> get(String path, {Map<String, String>? query}) =>
       _send('GET', path, query: query);
 
@@ -105,7 +115,11 @@ class ApiClient {
     return null;
   }
 
-  Future<bool> _tryRefresh() async {
+  Future<bool> _tryRefresh() {
+    return _refreshInFlight ??= _performRefresh().whenComplete(() => _refreshInFlight = null);
+  }
+
+  Future<bool> _performRefresh() async {
     final refreshToken = await _tokenStorage.getRefreshToken();
     if (refreshToken == null) return false;
 
