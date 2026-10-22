@@ -5,10 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -24,6 +28,7 @@ import java.util.List;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final AuthenticationTrustResolver trustResolver = new AuthenticationTrustResolverImpl();
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApiException(ApiException ex) {
@@ -56,8 +61,28 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Ce compte est verrouillé", null);
     }
 
+    /**
+     * Un token expiré/invalide n'est jamais authentifié par JwtAuthenticationFilter (il laisse
+     * passer la requête sans poser d'authentification), mais Spring Security pose alors
+     * automatiquement une authentification "anonyme" par défaut. Sur une route protégée par
+     * {@code @PreAuthorize("hasRole(...)")} (vendeur/livreur/admin — la grande majorité des
+     * routes métier), {@code hasRole(...)} ne traite pas "anonyme" comme "non authentifié" :
+     * il évalue juste que ce rôle est absent et lève AccessDeniedException → 403, alors que les
+     * routes protégées au niveau HTTP (.anyRequest().authenticated()) renvoient correctement 401
+     * dans le même cas. Conséquence côté client observée : en revenant sur un écran après
+     * l'expiration du token (15 min), la requête échouait en 403 "Accès refusé" au lieu de 401 —
+     * ApiClient/apiClient.ts ne tentent un rafraîchissement automatique que sur 401, donc
+     * l'utilisateur restait bloqué jusqu'à rechargement manuel de la page/l'app. On distingue
+     * donc ici ce cas (authentification absente/anonyme → 401, traité comme une session à
+     * rafraîchir) d'un vrai refus de droits (utilisateur authentifié, mauvais rôle → 403).
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean looksUnauthenticated = authentication == null || trustResolver.isAnonymous(authentication);
+        if (looksUnauthenticated) {
+            return build(HttpStatus.UNAUTHORIZED, "Session expirée, veuillez vous reconnecter", null);
+        }
         return build(HttpStatus.FORBIDDEN, "Accès refusé", null);
     }
 

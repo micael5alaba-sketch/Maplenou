@@ -203,6 +203,28 @@ class SecurityHardeningIntegrationTest extends AbstractIntegrationTest {
         post("/api/auth/refresh", new RefreshRequest(r1), null, 401);
     }
 
+    // ----- Jeton absent/expiré sur une route @PreAuthorize("hasRole(...)") -> 401, pas 403 -----
+
+    /**
+     * Bug réel (pas une faille du pentest) : un token absent ou expiré n'est jamais authentifié
+     * par JwtAuthenticationFilter, mais Spring Security pose alors une authentification "anonyme"
+     * par défaut. Sur une route protégée au niveau HTTP (.anyRequest().authenticated()),
+     * Spring traite "anonyme" comme "non authentifié" -> 401. Mais sur une route protégée par
+     * @PreAuthorize("hasRole(...)") (vendeur/livreur/admin — la quasi-totalité des routes
+     * métier), hasRole(...) ne fait pas cette distinction : il voit juste que le rôle manque et
+     * renvoie 403 — ce qui empêchait ApiClient/apiClient.ts de tenter un rafraîchissement
+     * automatique (ils ne le font que sur 401), laissant l'utilisateur bloqué jusqu'à
+     * rechargement manuel. Corrigé dans GlobalExceptionHandler.handleAccessDenied.
+     */
+    @Test
+    void expiredOrMissingTokenOnRoleProtectedRouteReturns401NotForbidden() throws Exception {
+        // Aucun jeton du tout (ex: token jamais chargé depuis le stockage)
+        get("/api/shops/mine/products", null, 401);
+
+        // Jeton présent mais invalide/malformé (ex: JWT expiré encore en mémoire côté client)
+        get("/api/shops/mine/products", "not-a-real-jwt", 401);
+    }
+
     // ----- F-03 : force brute distribuée (nombreuses IP, même compte) -----
 
     @Test
