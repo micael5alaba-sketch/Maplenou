@@ -8,8 +8,17 @@ import 'login_screen.dart';
 /// Carrousel d'accueil (3 pages), affiché une seule fois au tout premier
 /// lancement sans session active — voir [SessionService.hasSeenOnboarding],
 /// appelé depuis [SplashScreen]. "Suivant" fait défiler les deux premières
-/// pages, "Commencer" sur la dernière marque l'onboarding comme vu et ouvre
-/// [LoginScreen] (qui propose lui-même le lien vers l'inscription).
+/// pages, "Commencer"/"Passer" sur la dernière (ou directement depuis la
+/// première) marque l'onboarding comme vu et ouvre [LoginScreen] (qui
+/// propose lui-même le lien vers l'inscription).
+///
+/// Chaque page essaie d'abord une vraie illustration déposée dans
+/// `assets/images/onboarding_{1,2,3}.png` (déclare le fichier et relance
+/// `flutter pub get`/le build — tout le dossier `assets/images/` est déjà
+/// référencé dans pubspec.yaml, aucune autre déclaration n'est nécessaire).
+/// Tant qu'un fichier n'existe pas, [Image.asset] échoue proprement et
+/// `errorBuilder` affiche à la place une illustration codée ici, pour ne
+/// jamais bloquer sur un visuel manquant.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -18,11 +27,17 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingPageData {
-  final Widget illustration;
+  final String assetPath;
+  final Widget fallback;
   final String title;
   final String subtitle;
 
-  const _OnboardingPageData({required this.illustration, required this.title, required this.subtitle});
+  const _OnboardingPageData({
+    required this.assetPath,
+    required this.fallback,
+    required this.title,
+    required this.subtitle,
+  });
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
@@ -31,19 +46,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   late final List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
-      illustration: const _ShoppingIllustration(),
+      assetPath: 'assets/images/onboarding_1.png',
+      fallback: const _ShoppingIllustration(),
       title: 'Des milliers de produits\nà portée de main',
       subtitle: 'Découvrez une large sélection de produits de qualité, vendus par '
           'des vendeurs de confiance. Faites vos achats en toute simplicité.',
     ),
     _OnboardingPageData(
-      illustration: const _DeliveryIllustration(),
+      assetPath: 'assets/images/onboarding_2.png',
+      fallback: const _DeliveryIllustration(),
       title: 'Une livraison rapide\net sécurisée',
       subtitle: 'Suivez votre commande en temps réel et recevez vos produits où que '
           'vous soyez, grâce à nos livreurs et partenaires de confiance.',
     ),
     _OnboardingPageData(
-      illustration: const _AppPreviewIllustration(),
+      assetPath: 'assets/images/onboarding_3.png',
+      fallback: const _AppPreviewIllustration(),
       title: 'Une expérience complète',
       subtitle: 'Commandez, payez en toute sécurité, suivez vos livraisons et gérez '
           'tout depuis votre compte, sur web et mobile.',
@@ -56,15 +74,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  Future<void> _goToSignIn() async {
+    await SessionService().markOnboardingSeen();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+  }
+
   Future<void> _handlePrimaryAction() async {
     final isLastPage = _currentPage == _pages.length - 1;
     if (!isLastPage) {
       _pageController.nextPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOut);
       return;
     }
-    await SessionService().markOnboardingSeen();
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    await _goToSignIn();
   }
 
   @override
@@ -77,6 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (_currentPage == 0) _buildBrandHeader(colors),
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -88,7 +111,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: List.generate(
@@ -96,16 +118,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       (index) => _buildDot(colors, isActive: index == _currentPage),
                     ),
                   ),
-                  TextButton(
+                  const Spacer(),
+                  if (_currentPage == 0)
+                    TextButton(
+                      onPressed: _goToSignIn,
+                      style: TextButton.styleFrom(foregroundColor: colors.textMuted),
+                      child: const Text('Passer', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  const SizedBox(width: 4),
+                  ElevatedButton(
                     onPressed: _handlePrimaryAction,
-                    style: TextButton.styleFrom(foregroundColor: colors.accentOrange),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accentOrange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           isLastPage ? 'Commencer' : 'Suivant',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         const Icon(Icons.arrow_forward_rounded, size: 18),
                       ],
                     ),
@@ -115,6 +152,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBrandHeader(AppColorScheme colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+      child: Column(
+        children: [
+          const AppLogo(variant: AppLogoVariant.horizontalColor, size: 32),
+          const SizedBox(height: 6),
+          Text(
+            'Tout ce dont vous avez besoin, au même endroit',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: colors.textMuted),
+          ),
+        ],
       ),
     );
   }
@@ -139,7 +193,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          Expanded(child: Center(child: page.illustration)),
+          Expanded(
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Image.asset(
+                  page.assetPath,
+                  height: 280,
+                  width: 280,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => page.fallback,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             page.title,
@@ -157,7 +224,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-/// Page 1 : panier central entouré de badges produits flottants.
+/// Page 1 (repli) : panier central entouré de badges produits flottants.
 class _ShoppingIllustration extends StatelessWidget {
   const _ShoppingIllustration();
 
@@ -195,7 +262,9 @@ class _ShoppingIllustration extends StatelessWidget {
   }
 }
 
-/// Page 2 : livreur en tenue Maplenou, repère de localisation en superposition.
+/// Page 2 (repli) : livreur en tenue Maplenou, repère de localisation en
+/// superposition — réutilise la photo déjà présente dans l'app plutôt
+/// qu'une icône générique, tant que onboarding_2.png n'existe pas.
 class _DeliveryIllustration extends StatelessWidget {
   const _DeliveryIllustration();
 
@@ -216,8 +285,8 @@ class _DeliveryIllustration extends StatelessWidget {
           ),
         ),
         Positioned(
-          bottom: -14,
-          right: -6,
+          bottom: 10,
+          right: 10,
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -233,7 +302,7 @@ class _DeliveryIllustration extends StatelessWidget {
   }
 }
 
-/// Page 3 : aperçu stylisé de l'écran d'accueil dans un cadre "téléphone".
+/// Page 3 (repli) : aperçu stylisé de l'écran d'accueil dans un cadre "téléphone".
 class _AppPreviewIllustration extends StatelessWidget {
   const _AppPreviewIllustration();
 
