@@ -34,4 +34,13 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @Modifying
     @Query("UPDATE ProductVariant v SET v.stockQuantity = v.stockQuantity + :qty WHERE v.id = :id")
     void incrementStock(@Param("id") UUID id, @Param("qty") int qty);
+
+    /**
+     * Relit le stock courant après un {@link #decrementStock} dans la même transaction — une mise
+     * à jour en masse (@Modifying) ne rafraîchit pas automatiquement l'entité déjà chargée en
+     * mémoire, donc on ne peut pas se fier à {@code variant.getStockQuantity()} juste après.
+     * Utilisé par PaymentWebhookService pour détecter le franchissement du seuil de stock bas.
+     */
+    @Query("SELECT v.stockQuantity FROM ProductVariant v WHERE v.id = :id")
+    Integer findStockQuantityById(@Param("id") UUID id);
 }

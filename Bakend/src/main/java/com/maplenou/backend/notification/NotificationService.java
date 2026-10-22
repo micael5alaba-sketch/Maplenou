@@ -148,6 +148,18 @@ public class NotificationService {
                 Map.of("type", "SELLER_FEE_DEDUCTED"));
     }
 
+    // ── Stock ─────────────────────────────────────────────────────────────────
+
+    @Async
+    public void lowStock(UUID sellerId, UUID variantId, String productName, int remainingStock) {
+        String body = remainingStock > 0
+                ? "Il ne reste plus que " + remainingStock + " exemplaire" + (remainingStock > 1 ? "s" : "")
+                        + " de « " + productName + " » — pensez à réapprovisionner."
+                : "« " + productName + " » est en rupture de stock.";
+        send(sellerId, "Stock bas", body, "LOW_STOCK", variantId.toString(),
+                Map.of("type", "LOW_STOCK", "variantId", variantId.toString()));
+    }
+
     // ── Consultation (écran "Notifications" de l'app) ───────────────────────────
 
     @Transactional(readOnly = true)

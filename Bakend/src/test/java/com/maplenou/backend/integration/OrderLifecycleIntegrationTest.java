@@ -475,9 +475,50 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         returnRequest3Id = thisReturnId;
     }
 
+    @Test
+    @Order(12)
+    void paymentCrossingLowStockThresholdAlertsSeller() throws Exception {
+        JsonNode product = post("/api/shops/mine/products",
+                new CreateProductRequest("Produit Stock Bas " + rand, "desc", new BigDecimal("2000.00"), null, categoryId,
+                        List.of(new CreateVariantRequest("Standard", null, 10, "SKU-LOWSTOCK-" + rand)), null,
+                        null, null, null),
+                sellerToken, 201);
+        UUID lowStockProductIdLocal = UUID.fromString(product.get("id").asText());
+        lowStockProductId = lowStockProductIdLocal;
+        UUID lowStockVariantId = UUID.fromString(product.get("variants").get(0).get("id").asText());
+        patch("/api/shops/mine/products/" + lowStockProductIdLocal,
+                new UpdateProductRequest(null, null, null, null, null, ProductStatus.ACTIVE, null, null, null, null), sellerToken, 200);
+
+        // Stock 10 -> 4 (seuil par défaut : 5) en une seule commande : doit déclencher l'alerte.
+        post("/api/cart/items", new AddToCartRequest(lowStockVariantId, 6), buyerToken, 200);
+        JsonNode order = post("/api/orders", new PlaceOrderRequest(addressId, null, null, null), buyerToken, 201);
+        UUID thisOrderId = UUID.fromString(order.get("id").asText());
+
+        postWithHeader("/api/webhooks/payment/confirmed",
+                new com.maplenou.backend.order.dto.PaymentWebhookRequest(thisOrderId.toString(), "PAY-LOWSTOCK-" + rand),
+                "X-Webhook-Secret", webhookSecret, 200);
+
+        // Notification envoyée @Async : quelques tentatives avant d'abandonner, pas de sleep fixe.
+        boolean found = false;
+        for (int attempt = 0; attempt < 20 && !found; attempt++) {
+            JsonNode notifications = get("/api/notifications", sellerToken, 200);
+            for (JsonNode n : notifications.get("content")) {
+                if ("LOW_STOCK".equals(n.get("type").asText()) && lowStockVariantId.toString().equals(n.get("referenceId").asText())) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) Thread.sleep(150);
+        }
+        assertTrue(found, "le vendeur doit recevoir une notification de stock bas après franchissement du seuil");
+
+        orderRepository.deleteById(thisOrderId);
+    }
+
     private UUID order3Id;
     private UUID delivery3Id;
     private UUID returnRequest3Id;
+    private UUID lowStockProductId;
 
     @AfterAll
     void cleanup() {
@@ -502,6 +543,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (promoCodeId != null) promoCodeRepository.deleteById(promoCodeId); } catch (Exception ignored) { }
         try { if (buyerId != null) cartRepository.findByUserId(buyerId).ifPresent(cartRepository::delete); } catch (Exception ignored) { }
         try { if (productId != null) productRepository.deleteById(productId); } catch (Exception ignored) { }
+        try { if (lowStockProductId != null) productRepository.deleteById(lowStockProductId); } catch (Exception ignored) { }
         try { if (shopId != null) shopRepository.deleteById(shopId); } catch (Exception ignored) { }
         try { if (sellerProfileId != null) sellerProfileRepository.deleteById(sellerProfileId); } catch (Exception ignored) { }
         try { if (categoryId != null) categoryRepository.deleteById(categoryId); } catch (Exception ignored) { }

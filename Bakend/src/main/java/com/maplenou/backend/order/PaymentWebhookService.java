@@ -27,6 +27,9 @@ import java.util.UUID;
 @Slf4j
 public class PaymentWebhookService {
 
+    /** Alerte le vendeur dès que le stock d'une variante tombe à ce seuil ou en dessous. */
+    private static final int LOW_STOCK_THRESHOLD = 5;
+
     private final OrderRepository orderRepository;
     private final SubOrderRepository subOrderRepository;
     private final ProductVariantRepository variantRepository;
@@ -72,6 +75,8 @@ public class PaymentWebhookService {
                         "Un article n'est plus disponible en stock.");
                 return;
             }
+
+            alertSellerIfStockJustCrossedThreshold(item);
         }
 
         // Tout le stock décrémenté → commande PAID
@@ -86,6 +91,26 @@ public class PaymentWebhookService {
                         so.getShop().getOwner().getId(), so.getId(), so.getSubtotal()));
 
         log.info("Commande {} passée en PAID (réf. paiement : {})", orderId, paymentReference);
+    }
+
+    /**
+     * Détecte le franchissement du seuil de stock bas sur CETTE décrémentation précise (stock
+     * avant > seuil, stock après <= seuil) — pas juste "stock après <= seuil", qui enverrait une
+     * alerte à chaque nouvelle vente tant que le stock reste bas. "Avant" est recalculé à partir
+     * du stock lu après coup + la quantité décrémentée, pour ne jamais relire l'entité en mémoire
+     * (périmée après une mise à jour en masse, voir ProductVariantRepository.decrementStock).
+     */
+    private void alertSellerIfStockJustCrossedThreshold(SubOrderItem item) {
+        UUID variantId = item.getProductVariant().getId();
+        Integer stockAfter = variantRepository.findStockQuantityById(variantId);
+        if (stockAfter == null) return;
+
+        int stockBefore = stockAfter + item.getQuantity();
+        if (stockAfter <= LOW_STOCK_THRESHOLD && stockBefore > LOW_STOCK_THRESHOLD) {
+            var product = item.getProductVariant().getProduct();
+            notificationService.lowStock(
+                    product.getShop().getOwner().getId(), variantId, product.getName(), stockAfter);
+        }
     }
 
     @Transactional
