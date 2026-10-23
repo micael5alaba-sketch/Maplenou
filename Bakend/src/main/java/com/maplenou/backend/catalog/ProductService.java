@@ -482,8 +482,19 @@ public class ProductService {
         return generateUniqueSku(productSlug);
     }
 
+    /** SKU_PREFIX_MAX_LENGTH : la colonne sku fait varchar(100) ; "-" + 6 caractères de suffixe
+     * en occupent 7, donc le préfixe doit rester sous 93 — 90 pour garder de la marge. Un nom de
+     * produit proche de sa limite de 200 caractères (plausible via dictée vocale sur mobile)
+     * produit sinon un slug trop long pour cette colonne, qui plantait l'insertion en base avec
+     * une 500 "erreur inattendue" au lieu d'un SKU simplement tronqué. */
+    private static final int SKU_PREFIX_MAX_LENGTH = 90;
+
     private String generateUniqueSku(String base) {
         String prefix = base.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "-");
+        if (prefix.length() > SKU_PREFIX_MAX_LENGTH) {
+            prefix = prefix.substring(0, SKU_PREFIX_MAX_LENGTH);
+        }
+        prefix = prefix.replaceAll("-+$", "");
         String sku;
         do {
             sku = prefix + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);

@@ -46,6 +46,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
     private UUID parentCategoryId;
     private UUID subCategoryId;
     private UUID productId;
+    private UUID longNameProductId;
     private String buyerToken;
     private String sellerToken;
     private String adminToken;
@@ -143,6 +144,20 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
                         null, null, null),
                 sellerToken, 400);
 
+        // Nom de produit proche de sa limite de 200 caractères, sans SKU fourni (généré côté
+        // serveur) : signalé en production (plantait en 500, "value too long for type character
+        // varying(100)" — le SKU auto-généré reprenait le slug entier, sans troncature, pour une
+        // colonne limitée à 100 caractères). Doit réussir, avec un SKU tronqué en conséquence.
+        String longName = "Produit Nom Tres Long " + rand + " " + "x".repeat(160);
+        JsonNode longNameProduct = post("/api/shops/mine/products",
+                new CreateProductRequest(longName, null, new BigDecimal("2000.00"), null, subCategoryId,
+                        List.of(new CreateVariantRequest("Standard", null, 1, null)), null,
+                        null, null, null),
+                sellerToken, 201);
+        longNameProductId = UUID.fromString(longNameProduct.get("id").asText());
+        String generatedSku = longNameProduct.get("variants").get(0).get("sku").asText();
+        assertTrue(generatedSku.length() <= 100, "le SKU généré doit respecter la limite de la colonne (100) : " + generatedSku.length());
+
         JsonNode myProducts = get("/api/shops/mine/products", sellerToken, 200);
         assertTrue(myProducts.get("content").isArray());
 
@@ -223,6 +238,7 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         try { if (buyerId != null) favoriteRepository.findByUserIdAndProductId(buyerId, productId).ifPresent(favoriteRepository::delete); } catch (Exception ignored) { }
         try { if (buyerId != null) cartRepository.findByUserId(buyerId).ifPresent(cartRepository::delete); } catch (Exception ignored) { }
         try { if (productId != null) productRepository.deleteById(productId); } catch (Exception ignored) { }
+        try { if (longNameProductId != null) productRepository.deleteById(longNameProductId); } catch (Exception ignored) { }
         try { if (shopId != null) shopRepository.deleteById(shopId); } catch (Exception ignored) { }
         try { if (sellerProfileId != null) sellerProfileRepository.deleteById(sellerProfileId); } catch (Exception ignored) { }
         try { if (subCategoryId != null) categoryRepository.deleteById(subCategoryId); } catch (Exception ignored) { }
