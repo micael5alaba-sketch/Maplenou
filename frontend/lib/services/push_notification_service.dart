@@ -2,7 +2,10 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 
+import '../navigation.dart';
+import '../screens/seller_conversation_screen.dart';
 import 'api_client.dart';
 
 /// Handler appelé par le système quand une notification arrive alors que
@@ -37,10 +40,33 @@ class PushNotificationService {
       // une explicitement. Pas fait dans ce lot : nouvelle dépendance + config native Android/iOS
       // à tester sur un vrai appareil, hors de portée de cette session.
 
+      // Notification tapée pendant que l'app est en arrière-plan.
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      // App démarrée à froid en tapant directement sur la notification (terminée avant).
+      final initialMessage = await messaging.getInitialMessage();
+      if (initialMessage != null) _handleNotificationTap(initialMessage);
+
       _initialized = true;
     } catch (_) {
       // Firebase indisponible ou permission refusée : le reste de l'app continue sans push.
     }
+  }
+
+  /// Signalé dans le rapport de modification du 28/10/2026 : taper sur une notification de
+  /// nouveau message n'ouvrait rien de précis, juste l'app sur son écran par défaut. Seul le
+  /// type NEW_MESSAGE est traité ici (c'est la seule demande explicite) — les autres types de
+  /// notification continuent d'ouvrir l'app normalement, sans navigation forcée.
+  void _handleNotificationTap(RemoteMessage message) {
+    final data = message.data;
+    if (data['type'] != 'NEW_MESSAGE') return;
+    final conversationId = data['conversationId'] as String?;
+    if (conversationId == null) return;
+
+    final navigatorState = navigatorKey.currentState;
+    if (navigatorState == null) return;
+    navigatorState.push(
+      MaterialPageRoute(builder: (_) => SellerConversationScreen(conversationId: conversationId)),
+    );
   }
 
   Future<void> _registerToken(String token) async {

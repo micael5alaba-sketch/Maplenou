@@ -33,6 +33,11 @@ class ActivitySection extends StatelessWidget {
           title: 'Mes Avis',
           onTap: () => onItemTap('Mes Avis'),
         ),
+        ProfileMenuRow(
+          icon: Icons.chat_bubble_outline_rounded,
+          title: 'Messagerie',
+          onTap: () => onItemTap('Messagerie'),
+        ),
       ],
     );
   }

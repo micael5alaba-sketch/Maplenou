@@ -22,6 +22,7 @@ import '../widgets/profile_menu_row.dart';
 import '../widgets/support_section.dart';
 import 'about_screen.dart';
 import 'addresses_screen.dart';
+import 'buyer_messages_screen.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'change_password_screen.dart';
@@ -97,6 +98,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (label == 'Mes Avis') {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyReviewsScreen()));
+      return;
+    }
+    if (label == 'Messagerie') {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BuyerMessagesScreen()));
       return;
     }
     _showComingSoon(label);

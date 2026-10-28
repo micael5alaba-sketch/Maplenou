@@ -7,18 +7,21 @@ import '../theme/app_color_scheme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input_bar.dart';
 
-/// One conversation thread — reached from [SellerMessagesScreen].
+/// One conversation thread — reached from [SellerMessagesScreen],
+/// [BuyerMessagesScreen], or directly from a tapped push notification (voir
+/// [PushNotificationService] — dans ce cas [participantName] est inconnu
+/// tant que les messages n'ont pas chargé, l'en-tête affiche un nom générique).
 ///
 /// Backed by [SellerMessagingService] (`GET/POST /api/conversations/{id}/messages`).
 class SellerConversationScreen extends StatefulWidget {
   final String conversationId;
-  final String participantName;
+  final String? participantName;
   final String? participantAvatarUrl;
 
   const SellerConversationScreen({
     super.key,
     required this.conversationId,
-    required this.participantName,
+    this.participantName,
     this.participantAvatarUrl,
   });
 
@@ -41,6 +44,15 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
   void initState() {
     super.initState();
     _messagesFuture = _service.getMessages(widget.conversationId);
+    _messagesFuture.then((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -97,7 +109,10 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
                       ),
                     );
                   }
-                  final messages = snapshot.data ?? const [];
+                  // Le backend renvoie les messages du plus récent au plus ancien (pagination) ;
+                  // on les inverse pour un affichage chronologique façon WhatsApp (ancien en haut,
+                  // récent en bas) — signalé comme inversé dans le rapport de modification.
+                  final messages = (snapshot.data ?? const []).reversed.toList();
                   return ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
@@ -130,7 +145,7 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
             backgroundImage: widget.participantAvatarUrl != null ? NetworkImage(widget.participantAvatarUrl!) : null,
             child: widget.participantAvatarUrl == null
                 ? Text(
-                    widget.participantName.isNotEmpty ? widget.participantName[0].toUpperCase() : '?',
+                    (widget.participantName?.isNotEmpty ?? false) ? widget.participantName![0].toUpperCase() : '?',
                     style: TextStyle(fontWeight: FontWeight.bold, color: colors.primary, fontSize: 13),
                   )
                 : null,
@@ -138,7 +153,7 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              widget.participantName,
+              widget.participantName ?? 'Conversation',
               style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark),
             ),
           ),

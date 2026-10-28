@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:url_launcher/url_launcher.dart';
@@ -32,13 +34,52 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
-  late Future<OrderTrackingModel> _trackingFuture;
+  OrderTrackingModel? _tracking;
+  Object? _loadError;
+  bool _loading = true;
   bool _courierRated = false;
+  Timer? _pollTimer;
+
+  /// Signalé dans le rapport de modification du 28/10/2026 : l'écran chargeait le suivi une
+  /// seule fois à l'ouverture — un acheteur déjà sur cet écran quand le livreur marquait la
+  /// commande "Livrée" restait bloqué sur l'ancien statut jusqu'à quitter puis rouvrir l'écran.
+  /// Rafraîchissement silencieux (ne touche pas _loading, pas de clignotement) toutes les 15s
+  /// tant que la livraison n'est pas marquée livrée.
+  static const _pollInterval = Duration(seconds: 15);
 
   @override
   void initState() {
     super.initState();
-    _trackingFuture = OrderTrackingService().getTracking(widget.orderId);
+    _load(showSpinner: true);
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _load(showSpinner: false));
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({required bool showSpinner}) async {
+    if (showSpinner && mounted) setState(() => _loading = true);
+    try {
+      final tracking = await OrderTrackingService().getTracking(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _tracking = tracking;
+        _loading = false;
+        _loadError = null;
+      });
+      if (tracking.isDelivered) _pollTimer?.cancel();
+    } catch (e) {
+      if (!mounted) return;
+      // Un rafraîchissement silencieux qui échoue garde le dernier état connu affiché —
+      // seul l'échec du tout premier chargement bloque l'écran sur un message d'erreur.
+      setState(() {
+        _loading = false;
+        if (_tracking == null) _loadError = e;
+      });
+    }
   }
 
   Future<void> _contactCourier(String deliveryId, String courierName) async {
@@ -176,18 +217,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           children: [
             _buildHeader(context, colors),
             Expanded(
-              child: FutureBuilder<OrderTrackingModel>(
-                future: _trackingFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return _buildErrorState(colors, snapshot.error);
-                  }
-                  return _buildContent(colors, snapshot.data!);
-                },
-              ),
+              child: _loading && _tracking == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : _tracking == null
+                      ? _buildErrorState(colors, _loadError)
+                      : _buildContent(colors, _tracking!),
             ),
           ],
         ),
@@ -211,9 +245,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             ),
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => setState(() {
-                _trackingFuture = OrderTrackingService().getTracking(widget.orderId);
-              }),
+              onPressed: () => _load(showSpinner: true),
               child: const Text('Réessayer'),
             ),
           ],
@@ -260,6 +292,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Widget _buildOrderStatusCard(AppColorScheme colors, OrderTrackingModel tracking) {
+    String? currentStepLabel;
+    for (final step in tracking.steps) {
+      if (step.isCurrent) {
+        currentStepLabel = step.label;
+        break;
+      }
+    }
+    final statusLabel = tracking.isDelivered ? 'Livrée' : (currentStepLabel ?? 'En cours');
+    final statusIcon = tracking.isDelivered ? Icons.check_circle_outline_rounded : Icons.local_shipping_outlined;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -285,9 +327,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.local_shipping_outlined, size: 14, color: colors.primary),
+                Icon(statusIcon, size: 14, color: colors.primary),
                 const SizedBox(width: 4),
-                Text('En cours', style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+                Text(statusLabel, style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
               ],
             ),
           ),

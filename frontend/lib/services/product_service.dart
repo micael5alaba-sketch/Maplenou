@@ -43,6 +43,12 @@ class ProductService {
     )).products;
   }
 
+  /// Tous les produits d'une boutique (`GET /api/products?shopId=...`) — alimente
+  /// [ShopDetailScreen]. `shopId` vient de [ShopModel.id], obtenu via `ShopService.getBySlug`.
+  Future<List<ProductModel>> getShopProducts(String shopId, {int size = 50}) async {
+    return (await _fetchCatalog(shopId: shopId, size: size)).products;
+  }
+
   /// Fiche complète d'un produit (`GET /api/products/{slug}`) : variantes
   /// réelles, images, description, spécifications — voir
   /// `ProductDetailResponse` côté backend. Renvoyé en JSON brut ; c'est
@@ -62,6 +68,7 @@ class ProductService {
 
   Future<CatalogPage> _fetchCatalog({
     String? categoryId,
+    String? shopId,
     num? minPrice,
     num? maxPrice,
     String? search,
@@ -70,6 +77,7 @@ class ProductService {
   }) async {
     final query = <String, String>{'size': '$size'};
     if (categoryId != null) query['categoryId'] = categoryId;
+    if (shopId != null) query['shopId'] = shopId;
     if (minPrice != null) query['minPrice'] = '$minPrice';
     if (maxPrice != null) query['maxPrice'] = '$maxPrice';
     if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();

@@ -5,6 +5,15 @@ import 'api_client.dart';
 class ShopService {
   final _client = ApiClient();
 
+  /// Fiche publique d'une boutique (`GET /api/shops/{slug}`, pas d'authentification requise) —
+  /// reachée depuis [ShopDetailScreen] (bouton "Voir la boutique" sur une fiche produit, signalé
+  /// manquant dans le rapport de modification du 28/10/2026 : le backend était prêt, mais rien
+  /// côté app ne permettait à un acheteur de visiter la boutique d'un vendeur).
+  Future<ShopModel> getBySlug(String slug) async {
+    final data = await _client.get('/api/shops/$slug') as Map<String, dynamic>;
+    return ShopModel.fromJson(data);
+  }
+
   /// `null` si le vendeur (déjà approuvé) n'a pas encore créé sa boutique
   /// (404 attendu dans ce cas, pas une erreur à afficher).
   Future<ShopModel?> getMine() async {

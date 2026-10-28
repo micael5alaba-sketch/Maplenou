@@ -35,6 +35,15 @@ class _CourierConversationScreenState extends State<CourierConversationScreen> {
   void initState() {
     super.initState();
     _messagesFuture = _service.getMessages(widget.conversationId);
+    _messagesFuture.then((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -81,7 +90,9 @@ class _CourierConversationScreenState extends State<CourierConversationScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final messages = snapshot.data ?? const [];
+                  // Même correction que SellerConversationScreen : le backend renvoie du plus
+                  // récent au plus ancien, on inverse pour un affichage chronologique.
+                  final messages = (snapshot.data ?? const []).reversed.toList();
                   return ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),

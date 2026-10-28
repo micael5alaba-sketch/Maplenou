@@ -70,6 +70,7 @@ class ProductDetailService {
       name: detailJson['name'] as String,
       shopId: detailJson['shopId'] as String,
       shopName: detailJson['shopName'] as String? ?? 'Boutique',
+      shopSlug: detailJson['shopSlug'] as String? ?? '',
       images: images.isEmpty && product.imageUrl != null ? [product.imageUrl!] : images,
       badges: _mockBadges(product),
       price: (detailJson['basePrice'] as num),

@@ -24,6 +24,7 @@ import '../widgets/variant_option_selector.dart';
 import 'cart_screen.dart';
 import 'checkout_screen.dart';
 import 'seller_conversation_screen.dart';
+import 'shop_detail_screen.dart';
 
 /// Generic product detail page — one single layout reused for every
 /// product type in the marketplace (mode, électronique, beauté, maison,
@@ -293,10 +294,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               Icon(Icons.storefront_outlined, size: 16, color: colors.textMuted),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(
-                  detail.shopName,
-                  style: TextStyle(color: colors.textMuted, fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
+                child: GestureDetector(
+                  onTap: detail.shopSlug.isEmpty
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => ShopDetailScreen(shopSlug: detail.shopSlug)),
+                          ),
+                  child: Text(
+                    detail.shopName,
+                    style: TextStyle(
+                      color: colors.textMuted,
+                      fontWeight: FontWeight.w500,
+                      decoration: detail.shopSlug.isEmpty ? null : TextDecoration.underline,
+                      decorationColor: colors.textMuted,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
               TextButton.icon(

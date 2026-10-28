@@ -13,6 +13,7 @@ class ProductDetailModel {
   final String name;
   final String shopId;
   final String shopName;
+  final String shopSlug;
   final List<String> images;
   final List<String> badges;
   final num price;
@@ -36,6 +37,7 @@ class ProductDetailModel {
     required this.name,
     required this.shopId,
     required this.shopName,
+    required this.shopSlug,
     required this.images,
     this.badges = const [],
     required this.price,
