@@ -73,4 +73,14 @@ class ShopService {
     ) as Map<String, dynamic>;
     return ShopModel.fromJson(data);
   }
+
+  /// Remplace l'horaire d'ouverture complet (au plus 7 entrées) — point 1 du rapport de
+  /// modification du 28/10/2026.
+  Future<ShopModel> updateOpeningHours(List<OpeningHourModel> hours) async {
+    final data = await _client.put(
+      '/api/shops/mine/opening-hours',
+      body: {'hours': hours.map((h) => h.toJson()).toList()},
+    ) as Map<String, dynamic>;
+    return ShopModel.fromJson(data);
+  }
 }

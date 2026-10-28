@@ -32,6 +32,7 @@ class ShopDetailScreen extends StatefulWidget {
 class _ShopDetailScreenState extends State<ShopDetailScreen> {
   late Future<(ShopModel, List<ProductModel>)> _loadFuture;
   bool _isContacting = false;
+  bool _hoursExpanded = false;
 
   @override
   void initState() {
@@ -161,6 +162,10 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _buildShopCard(colors, shop),
+        if (shop.openingHours.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildOpeningHoursCard(colors, shop),
+        ],
         const SizedBox(height: 20),
         Text('Produits (${products.length})', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
         const SizedBox(height: 12),
@@ -260,5 +265,91 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Horaires d'ouverture — point 1 du rapport de modification du 28/10/2026 : un acheteur
+  /// visitant une boutique n'avait aucun moyen de savoir si/quand elle est ouverte.
+  Widget _buildOpeningHoursCard(AppColorScheme colors, ShopModel shop) {
+    final now = DateTime.now();
+    final todayMatches = shop.openingHours.where((h) => h.dayOfWeek == now.weekday);
+    final today = todayMatches.isEmpty ? null : todayMatches.first;
+    final statusText = _todayStatus(today, now);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _hoursExpanded,
+          onExpansionChanged: (value) => setState(() => _hoursExpanded = value),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: Icon(Icons.access_time_rounded, color: colors.primary, size: 20),
+          title: Text('Horaires d\'ouverture', style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 14)),
+          subtitle: Text(statusText.label, style: TextStyle(color: statusText.isOpen ? colors.primary : colors.textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                children: [
+                  for (final entry in shop.openingHours)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 90,
+                            child: Text(
+                              entry.dayLabel,
+                              style: TextStyle(
+                                color: colors.textDark,
+                                fontWeight: entry.dayOfWeek == now.weekday ? FontWeight.bold : FontWeight.normal,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            entry.closed ? 'Fermé' : '${_formatTime(entry.opensAt)} - ${_formatTime(entry.closesAt)}',
+                            style: TextStyle(color: entry.closed ? colors.textMuted : colors.textDark, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  ({String label, bool isOpen}) _todayStatus(OpeningHourModel? today, DateTime now) {
+    if (today == null) return (label: 'Horaires non renseignés', isOpen: false);
+    if (today.closed) return (label: 'Fermé aujourd\'hui', isOpen: false);
+    final opens = _parseMinutes(today.opensAt);
+    final closes = _parseMinutes(today.closesAt);
+    final nowMinutes = now.hour * 60 + now.minute;
+    if (opens != null && closes != null && nowMinutes >= opens && nowMinutes < closes) {
+      return (label: 'Ouvert jusqu\'à ${_formatTime(today.closesAt)}', isOpen: true);
+    }
+    return (label: 'Fermé · ouvre à ${_formatTime(today.opensAt)}', isOpen: false);
+  }
+
+  int? _parseMinutes(String? time) {
+    if (time == null) return null;
+    final parts = time.split(':');
+    if (parts.length < 2) return null;
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+  }
+
+  String _formatTime(String? time) {
+    if (time == null) return '--:--';
+    final parts = time.split(':');
+    if (parts.length < 2) return time;
+    return '${parts[0]}:${parts[1]}';
   }
 }

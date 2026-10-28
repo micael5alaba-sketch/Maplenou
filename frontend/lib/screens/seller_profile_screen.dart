@@ -23,6 +23,7 @@ import 'sales_history_screen.dart';
 import 'seller_conversation_screen.dart';
 import 'seller_dashboard_screen.dart';
 import 'seller_messages_screen.dart';
+import 'seller_opening_hours_screen.dart';
 import 'vendor_catalog_screen.dart';
 import 'wallet_screen.dart';
 import 'home_screen.dart';
@@ -243,6 +244,13 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
               subtitle: 'Discuter avec vos clients',
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
+            ),
+            ProfileMenuRow(
+              icon: Icons.access_time_rounded,
+              title: "Horaires d'ouverture",
+              subtitle: 'Visible sur votre fiche boutique',
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerOpeningHoursScreen())),
             ),
             ProfileMenuRow(
               icon: Icons.swap_horiz_rounded,

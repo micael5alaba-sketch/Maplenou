@@ -1,3 +1,47 @@
+/// Miroir de `OpeningHourEntry` (`catalog/dto/OpeningHourEntry.java`).
+/// dayOfWeek : 1 = lundi ... 7 = dimanche (convention ISO-8601).
+class OpeningHourModel {
+  final int dayOfWeek;
+  final String? opensAt;
+  final String? closesAt;
+  final bool closed;
+
+  const OpeningHourModel({
+    required this.dayOfWeek,
+    this.opensAt,
+    this.closesAt,
+    required this.closed,
+  });
+
+  factory OpeningHourModel.fromJson(Map<String, dynamic> json) {
+    return OpeningHourModel(
+      dayOfWeek: json['dayOfWeek'] as int,
+      opensAt: json['opensAt'] as String?,
+      closesAt: json['closesAt'] as String?,
+      closed: json['closed'] as bool,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'dayOfWeek': dayOfWeek,
+        'opensAt': opensAt,
+        'closesAt': closesAt,
+        'closed': closed,
+      };
+
+  static const List<String> dayLabels = [
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche',
+  ];
+
+  String get dayLabel => dayLabels[dayOfWeek - 1];
+}
+
 /// Miroir de `ShopResponse` (`catalog/dto/ShopResponse.java`).
 class ShopModel {
   final String id;
@@ -13,6 +57,7 @@ class ShopModel {
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
+  final List<OpeningHourModel> openingHours;
 
   const ShopModel({
     required this.id,
@@ -28,6 +73,7 @@ class ShopModel {
     this.latitude,
     this.longitude,
     required this.createdAt,
+    this.openingHours = const [],
   });
 
   bool get isApproved => status == 'APPROVED';
@@ -53,6 +99,9 @@ class ShopModel {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
+      openingHours: (json['openingHours'] as List<dynamic>? ?? [])
+          .map((e) => OpeningHourModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
