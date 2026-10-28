@@ -5,6 +5,7 @@ import com.maplenou.backend.catalog.ShopStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record ShopResponse(
@@ -21,7 +22,8 @@ public record ShopResponse(
         String taxId,
         BigDecimal latitude,
         BigDecimal longitude,
-        Instant createdAt
+        Instant createdAt,
+        List<OpeningHourEntry> openingHours
 ) {
     public static ShopResponse from(Shop shop) {
         return new ShopResponse(
@@ -38,7 +40,8 @@ public record ShopResponse(
                 shop.getTaxId(),
                 shop.getLatitude(),
                 shop.getLongitude(),
-                shop.getCreatedAt()
+                shop.getCreatedAt(),
+                shop.getOpeningHours().stream().map(OpeningHourEntry::from).toList()
         );
     }
 }

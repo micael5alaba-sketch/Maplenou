@@ -5,6 +5,7 @@ import com.maplenou.backend.catalog.dto.CreateShopRequest;
 import com.maplenou.backend.catalog.dto.ProductSummaryResponse;
 import com.maplenou.backend.common.CursorPage;
 import com.maplenou.backend.catalog.dto.ShopResponse;
+import com.maplenou.backend.catalog.dto.UpdateOpeningHoursRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopStatusRequest;
 import com.maplenou.backend.user.User;
@@ -56,6 +57,16 @@ public class ShopController {
     public ShopResponse updateMine(@AuthenticationPrincipal User currentUser,
                                     @Valid @RequestBody UpdateShopRequest request) {
         return ShopResponse.from(shopService.updateMine(currentUser, request));
+    }
+
+    /** Remplace l'horaire d'ouverture complet (au plus 7 entrées, une par jour) — signalé
+     * manquant dans le rapport de modification du 28/10/2026. */
+    @PutMapping("/api/shops/mine/opening-hours")
+    @PreAuthorize("hasRole('SELLER')")
+    @SecurityRequirement(name = "bearerAuth")
+    public ShopResponse updateOpeningHours(@AuthenticationPrincipal User currentUser,
+                                            @Valid @RequestBody UpdateOpeningHoursRequest request) {
+        return ShopResponse.from(shopService.updateOpeningHours(currentUser, request));
     }
 
     // ----- Public -----

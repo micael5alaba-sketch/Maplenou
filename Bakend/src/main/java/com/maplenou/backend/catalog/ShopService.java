@@ -4,6 +4,8 @@ import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.catalog.dto.AdminCreateShopRequest;
 import com.maplenou.backend.catalog.dto.CreateShopRequest;
+import com.maplenou.backend.catalog.dto.OpeningHourEntry;
+import com.maplenou.backend.catalog.dto.UpdateOpeningHoursRequest;
 import com.maplenou.backend.catalog.dto.UpdateShopRequest;
 import com.maplenou.backend.common.HtmlSanitizer;
 import com.maplenou.backend.common.exception.ApiException;
@@ -19,11 +21,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.time.LocalTime;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+/**
+ * {@code @Transactional(readOnly = true)} au niveau classe : spring.jpa.open-in-view=false ferme
+ * la session dès que la méthode de service retourne, avant que ShopController construise
+ * ShopResponse — sans une transaction active ici (certaines méthodes, comme {@code getMine},
+ * n'en avaient pas du tout), le champ EAGER {@code Shop.openingHours} levait
+ * LazyInitializationException dès qu'un deuxième accès (hors session) y touchait. Les méthodes
+ * d'écriture gardent leur propre {@code @Transactional} (non readOnly), qui prend le dessus.
+ */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ShopService {
 
     private final ShopRepository shopRepository;
@@ -64,12 +76,16 @@ public class ShopService {
                 .status(ShopStatus.APPROVED)
                 .build();
 
-        return shopRepository.save(shop);
+        Shop saved = shopRepository.save(shop);
+        saved.getOpeningHours().size();
+        return saved;
     }
 
     public Shop getMine(User owner) {
-        return shopRepository.findByOwnerId(owner.getId())
+        Shop shop = shopRepository.findByOwnerId(owner.getId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Aucune boutique pour ce compte"));
+        shop.getOpeningHours().size(); // force l'initialisation pendant que la session est active
+        return shop;
     }
 
     @Transactional
@@ -104,35 +120,75 @@ public class ShopService {
             shop.setLongitude(request.longitude());
         }
 
-        return shopRepository.save(shop);
+        Shop saved = shopRepository.save(shop);
+        saved.getOpeningHours().size();
+        return saved;
+    }
+
+    /** Remplace l'horaire d'ouverture complet — signalé manquant dans le rapport de
+     * modification du 28/10/2026. orphanRemoval=true sur Shop.openingHours : vider puis
+     * repeupler la collection supprime correctement les anciennes lignes en base. */
+    @Transactional
+    public Shop updateOpeningHours(User owner, UpdateOpeningHoursRequest request) {
+        Shop shop = getMine(owner);
+
+        shop.getOpeningHours().clear();
+        for (OpeningHourEntry entry : request.hours()) {
+            shop.getOpeningHours().add(ShopOpeningHour.builder()
+                    .shop(shop)
+                    .dayOfWeek((short) entry.dayOfWeek())
+                    .opensAt(entry.closed() ? null : parseTime(entry.opensAt()))
+                    .closesAt(entry.closed() ? null : parseTime(entry.closesAt()))
+                    .closed(entry.closed())
+                    .build());
+        }
+
+        Shop saved = shopRepository.save(shop);
+        saved.getOpeningHours().size();
+        return saved;
+    }
+
+    private LocalTime parseTime(String value) {
+        if (value == null || value.isBlank()) return null;
+        return LocalTime.parse(value);
     }
 
     // ----- Public -----
 
     public Shop getBySlug(String slug) {
-        return shopRepository.findBySlug(slug)
+        Shop shop = shopRepository.findBySlug(slug)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Boutique introuvable"));
+        shop.getOpeningHours().size();
+        return shop;
     }
 
     public Shop getById(UUID id) {
-        return shopRepository.findById(id)
+        Shop shop = shopRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Boutique introuvable"));
+        shop.getOpeningHours().size();
+        return shop;
     }
 
     /** Public : uniquement les boutiques approuvées, jamais PENDING/REJECTED/SUSPENDED
      * (contrairement à {@link #listAll}/{@link #listByStatus}, réservées à l'admin). */
     public Page<Shop> listPublic(Pageable pageable) {
-        return shopRepository.findByStatus(ShopStatus.APPROVED, pageable);
+        Page<Shop> page = shopRepository.findByStatus(ShopStatus.APPROVED, pageable);
+        page.forEach(s -> s.getOpeningHours().size());
+        return page;
     }
 
     // ----- Admin -----
 
     public Page<Shop> listAll(Pageable pageable) {
-        return shopRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<Shop> page = shopRepository.findAllByOrderByCreatedAtDesc(pageable);
+        page.forEach(s -> s.getOpeningHours().size());
+        return page;
     }
 
     public Page<Shop> listByStatus(ShopStatus status, Pageable pageable) {
-        return shopRepository.findByStatus(status, pageable);
+        Page<Shop> page = shopRepository.findByStatus(status, pageable);
+        page.forEach(s -> s.getOpeningHours().size());
+        return page;
     }
 
     /** Admin : crée une boutique pour un vendeur déjà approuvé — directement APPROVED,
@@ -164,6 +220,7 @@ public class ShopService {
                 .build();
 
         Shop saved = shopRepository.save(shop);
+        saved.getOpeningHours().size();
         auditService.log(actorId, AuditAction.SHOP_STATUS_CHANGED, "SHOP", saved.getId(),
                 "Boutique créée directement par l'admin pour " + owner.getFullName(), ip);
         return saved;
@@ -174,6 +231,7 @@ public class ShopService {
         Shop shop = getById(shopId);
         shop.setStatus(newStatus);
         Shop saved = shopRepository.save(shop);
+        saved.getOpeningHours().size();
         notificationService.shopStatusChanged(
                 saved.getOwner().getId(), saved.getName(), newStatus.name());
         auditService.log(actorId, AuditAction.SHOP_STATUS_CHANGED, "SHOP", shopId,

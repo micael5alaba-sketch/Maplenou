@@ -6,6 +6,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -68,6 +70,14 @@ public class Shop {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    /** EAGER délibérément (pas LAZY comme Product.variants) : au plus 7 lignes, et
+     * spring.jpa.open-in-view=false ferme la session avant que ShopController construise
+     * ShopResponse — une collection LAZY y lèverait LazyInitializationException. */
+    @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("dayOfWeek ASC")
+    @Builder.Default
+    private List<ShopOpeningHour> openingHours = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

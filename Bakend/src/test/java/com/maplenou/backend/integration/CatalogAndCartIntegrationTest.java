@@ -122,6 +122,26 @@ class CatalogAndCartIntegrationTest extends AbstractIntegrationTest {
         String publicShopSlug = updatedShop.get("slug").asText();
         JsonNode publicShop = get("/api/shops/" + publicShopSlug, null, 200);
         assertEquals(shopId.toString(), publicShop.get("id").asText());
+        assertTrue(publicShop.get("openingHours").isArray() && publicShop.get("openingHours").isEmpty(),
+                "pas d'horaires configurés par défaut");
+
+        // Horaires d'ouverture — signalé manquant dans le rapport de modification du 28/10/2026.
+        JsonNode withHours = put("/api/shops/mine/opening-hours",
+                new UpdateOpeningHoursRequest(List.of(
+                        new OpeningHourEntry(1, "08:00", "18:00", false),
+                        new OpeningHourEntry(7, null, null, true))),
+                sellerToken, 200);
+        JsonNode hours = withHours.get("openingHours");
+        assertEquals(2, hours.size());
+        assertEquals(1, hours.get(0).get("dayOfWeek").asInt());
+        assertEquals("08:00", hours.get(0).get("opensAt").asText());
+        assertFalse(hours.get(0).get("closed").asBoolean());
+        assertEquals(7, hours.get(1).get("dayOfWeek").asInt());
+        assertTrue(hours.get(1).get("closed").asBoolean());
+
+        // Visible publiquement sans authentification, pas seulement côté vendeur.
+        JsonNode publicShopWithHours = get("/api/shops/" + publicShopSlug, null, 200);
+        assertEquals(2, publicShopWithHours.get("openingHours").size());
 
         JsonNode adminShopList = get("/api/admin/shops?status=APPROVED", adminToken, 200);
         assertTrue(adminShopList.get("content").isArray());
