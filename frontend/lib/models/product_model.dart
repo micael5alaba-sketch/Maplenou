@@ -63,8 +63,9 @@ class ProductModel {
       name: json['name'] as String,
       slug: json['slug'] as String,
       imageUrl: json['thumbnailUrl'] as String?,
-      price: json['basePrice'] as num,
-      oldPrice: json['oldPrice'] as num?,
+      // Prix paye par l'acheteur (commission incluse) ; repli sur le prix de base d'un ancien backend.
+      price: (json['displayPrice'] ?? json['basePrice']) as num,
+      oldPrice: (json['displayOldPrice'] ?? json['oldPrice']) as num?,
       rating: (json['averageRating'] as num?)?.toDouble(),
       reviewCount: reviewCount?.toInt(),
     );

@@ -49,7 +49,7 @@ class SaleTransactionModel {
       customerName: json['buyerName'] as String,
       itemsSummary: itemsSummary,
       dateTime: DateTime.parse(json['createdAt'] as String),
-      amount: json['subtotal'] as num,
+      amount: (json['feeCategory'] != null ? json['netAmount'] : json['subtotal']) as num,
       status: json['status'] == 'DELIVERED' ? SaleStatus.completed : SaleStatus.cancelled,
     );
   }

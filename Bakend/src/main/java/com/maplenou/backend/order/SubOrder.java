@@ -35,15 +35,23 @@ public class SubOrder {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal;
 
-    /** Taux de commission appliqué : 0.2500 ou 0.2250 */
+    /** Taux de commission integre au prix affiche : 0.0500 (Standard) ou 0.0300 (Prix eleves).
+     * Les commandes anterieures au 05/11/2026 portent l'ancien taux 0.2500 / 0.2250. */
     @Column(name = "commission_rate", nullable = false, precision = 5, scale = 4)
     private BigDecimal commissionRate;
 
     @Column(name = "commission_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal commissionAmount;
 
+    /** Ce que recoit le vendeur : somme des prix de base de ses produits (commission non preleve). */
     @Column(name = "net_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal netAmount;
+
+    /** Categorie tarifaire du vendeur au moment de la commande (historique, jamais reecrit).
+     * Null pour les commandes anterieures au modele de commission integree. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fee_category", length = 20)
+    private com.maplenou.backend.seller.SellerFeeCategory feeCategory;
 
     /** Frais de livraison réellement facturé pour cette sous-commande (tarif de base de la
      * zone + distance réelle boutique↔adresse × prix/km, voir DeliveryPricingService).

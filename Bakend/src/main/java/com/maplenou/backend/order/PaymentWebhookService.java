@@ -88,7 +88,7 @@ public class PaymentWebhookService {
         notificationService.orderPaid(order.getBuyer().getId(), order.getId());
         order.getSubOrders().forEach(so ->
                 notificationService.newSubOrderForSeller(
-                        so.getShop().getOwner().getId(), so.getId(), so.getSubtotal()));
+                        so.getShop().getOwner().getId(), so.getId(), so.getNetAmount()));
 
         log.info("Commande {} passée en PAID (réf. paiement : {})", orderId, paymentReference);
     }

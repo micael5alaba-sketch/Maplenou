@@ -64,7 +64,7 @@ export default function SellerFeesPage() {
     <div>
       <PageHeader
         title="Changements de catégorie tarifaire"
-        subtitle="Demandes de passage STANDARD ↔ HIGH_PRICE (barème de commission à 2 tranches)"
+        subtitle="Demandes de passage STANDARD ↔ HIGH_PRICE (catégories tarifaires : commission intégrée 5 % / 3 %)"
       />
 
       <div className="mb-4 flex gap-2">

@@ -477,7 +477,9 @@ client + vendeur).
 | id | UUID | PK |
 | order | → Order | ManyToOne obligatoire |
 | shop | → Shop | ManyToOne obligatoire |
-| subtotal, commissionRate, commissionAmount, netAmount | BigDecimal | commission = 25% ou 22,5% |
+| subtotal, commissionRate, commissionAmount, netAmount | BigDecimal | commission intégrée au prix affiché : 5 % (Standard) ou 3 % (Prix élevés) ; subtotal = payé par l'acheteur, net = prix de base vendeur (commandes antérieures au 05/11/2026 : ancien 25 % / 22,5 %) |
+| feeCategory | enum SellerFeeCategory | catégorie du vendeur au moment de la commande (null = ancien modèle) |
+| SubOrderItem.baseUnitPrice | BigDecimal | prix de base vendeur de la ligne (unitPrice = prix affiché) |
 | status | SubOrderStatus (enum) | PENDING / PREPARING / READY_FOR_PICKUP / IN_DELIVERY / DELIVERED / CANCELLED / RETURN_REQUESTED / RETURNED |
 | items | → SubOrderItem[] | OneToMany, cascade ALL |
 | payout | → Payout | ManyToOne, nullable (rattaché une fois payé) |

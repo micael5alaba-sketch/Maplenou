@@ -188,6 +188,15 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         assertTrue(order.get("discountAmount").decimalValue().compareTo(BigDecimal.ZERO) > 0);
         subOrderId = UUID.fromString(order.get("subOrders").get(0).get("id").asText());
 
+        // Commission intégrée au prix affiché (catégorie Standard = 5 %) : base 10 000 x 3 ->
+        // l'acheteur paie 10 500 x 3 = 31 500, dont 1 500 de commission ; le vendeur reçoit 30 000.
+        JsonNode so = order.get("subOrders").get(0);
+        assertEquals(0, new BigDecimal("31500").compareTo(so.get("subtotal").decimalValue()));
+        assertEquals(0, new BigDecimal("1500").compareTo(so.get("commissionAmount").decimalValue()));
+        assertEquals(0, new BigDecimal("30000").compareTo(so.get("netAmount").decimalValue()));
+        assertEquals(0, new BigDecimal("10500").compareTo(so.get("items").get(0).get("unitPrice").decimalValue()));
+        assertEquals(0, new BigDecimal("10000").compareTo(so.get("items").get(0).get("baseUnitPrice").decimalValue()));
+
         // Le code promo a déjà été utilisé par cet acheteur -> une deuxième commande avec le même code échoue
         post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 200);
         post("/api/orders", new PlaceOrderRequest(addressId, "PROMO" + rand, null, null), buyerToken, 409);
@@ -240,6 +249,10 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         assertTrue(mySubOrders.get("content").isArray());
 
         JsonNode detail = get("/api/sub-orders/" + subOrderId, sellerToken, 200);
+        // Détail vendeur : taux, catégorie conservée avec la commande et prix de base par ligne
+        assertEquals(0, new BigDecimal("0.05").compareTo(detail.get("commissionRate").decimalValue()));
+        assertEquals("STANDARD", detail.get("feeCategory").asText());
+        assertEquals(0, new BigDecimal("30000").compareTo(detail.get("netAmount").decimalValue()));
         assertEquals("PENDING", detail.get("status").asText());
 
         // Transition invalide : PENDING -> READY_FOR_PICKUP directement

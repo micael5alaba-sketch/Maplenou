@@ -102,7 +102,8 @@ class VendorOrderModel {
       customerName: json['buyerName'] as String,
       productNames: items.map((i) => (i as Map<String, dynamic>)['productName'] as String).toList(),
       rawStatus: json['status'] as String,
-      amount: json['subtotal'] as num,
+      // Commande au nouveau modele (commission integree) : le vendeur gagne le net (prix de base).
+      amount: (json['feeCategory'] != null ? json['netAmount'] : json['subtotal']) as num,
     );
   }
 }

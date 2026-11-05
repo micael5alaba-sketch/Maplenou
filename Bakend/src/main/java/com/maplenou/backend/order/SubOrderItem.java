@@ -40,8 +40,13 @@ public class SubOrderItem {
     @Column(name = "snapshot_sku", nullable = false, length = 100)
     private String snapshotSku;
 
+    /** Prix affiche paye par l'acheteur (commission incluse). */
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
+
+    /** Prix de base defini par le vendeur (null pour les commandes anterieures). */
+    @Column(name = "base_unit_price", precision = 12, scale = 2)
+    private BigDecimal baseUnitPrice;
 
     @Column(nullable = false)
     private short quantity;

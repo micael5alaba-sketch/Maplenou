@@ -24,7 +24,8 @@ public record SubOrderResponse(
         BigDecimal deliveryDistanceKm,
         List<SubOrderItemResponse> items,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        com.maplenou.backend.seller.SellerFeeCategory feeCategory  // categorie du vendeur a la commande (null = ancien modele)
 ) {
     public static SubOrderResponse from(SubOrder so) {
         return new SubOrderResponse(
@@ -43,7 +44,8 @@ public record SubOrderResponse(
                 so.getDeliveryDistanceKm(),
                 so.getItems().stream().map(SubOrderItemResponse::from).toList(),
                 so.getCreatedAt(),
-                so.getUpdatedAt()
+                so.getUpdatedAt(),
+                so.getFeeCategory()
         );
     }
 }

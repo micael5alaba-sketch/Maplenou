@@ -3,6 +3,7 @@ package com.maplenou.backend.catalog.dto;
 import com.maplenou.backend.catalog.Product;
 import com.maplenou.backend.catalog.ProductSpecification;
 import com.maplenou.backend.catalog.ProductStatus;
+import com.maplenou.backend.order.CommissionService;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,7 +30,9 @@ public record ProductDetailResponse(
         BigDecimal packageWeightKg,
         String estimatedDeliveryDelay,
         boolean deliveryAvailable,
-        Instant createdAt
+        Instant createdAt,
+        BigDecimal displayPrice,     // prix paye par l'acheteur (commission incluse) ; basePrice = prix vendeur
+        BigDecimal displayOldPrice
 ) {
     public static ProductDetailResponse from(Product p) {
         return new ProductDetailResponse(
@@ -51,7 +54,9 @@ public record ProductDetailResponse(
                 p.getPackageWeightKg(),
                 p.getEstimatedDeliveryDelay(),
                 p.isDeliveryAvailable(),
-                p.getCreatedAt()
+                p.getCreatedAt(),
+                CommissionService.displayPriceFor(p, p.getBasePrice()),
+                CommissionService.displayPriceFor(p, p.getOldPrice())
         );
     }
 }

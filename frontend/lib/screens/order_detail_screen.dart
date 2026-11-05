@@ -141,6 +141,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final commissionRate = detail['commissionRate'] as num;
     final commissionAmount = detail['commissionAmount'] as num;
     final netAmount = detail['netAmount'] as num;
+    // Modele de commission integree au prix affiche (feeCategory renseignee) : le vendeur recoit
+    // son prix de base, la commission n'est pas deduite. Anciennes commandes : ancien affichage.
+    final isIntegratedCommission = detail['feeCategory'] != null;
+    final commissionPercent = (commissionRate * 100).toStringAsFixed(commissionRate * 100 % 1 == 0 ? 0 : 1);
     final createdAt = DateTime.parse(detail['createdAt'] as String);
     final nextAction = _nextActionLabel[status];
 
@@ -177,10 +181,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _buildCard(colors, [
           Text('Répartition', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
           const SizedBox(height: 10),
-          _buildAmountRow(colors, 'Sous-total', formatFcfa(subtotal)),
-          _buildAmountRow(colors, 'Commission ($commissionRate%)', '- ${formatFcfa(commissionAmount)}'),
-          const Divider(height: 20),
-          _buildAmountRow(colors, 'Montant net vendeur', formatFcfa(netAmount), emphasize: true),
+          if (isIntegratedCommission) ...[
+            _buildAmountRow(colors, 'Total payé par le client', formatFcfa(subtotal)),
+            _buildAmountRow(colors, 'Dont commission Maplenou ($commissionPercent %)', formatFcfa(commissionAmount)),
+            const Divider(height: 20),
+            _buildAmountRow(colors, 'Vous recevez (prix de base)', formatFcfa(netAmount), emphasize: true),
+          ] else ...[
+            _buildAmountRow(colors, 'Sous-total', formatFcfa(subtotal)),
+            _buildAmountRow(colors, 'Commission ($commissionPercent%)', '- ${formatFcfa(commissionAmount)}'),
+            const Divider(height: 20),
+            _buildAmountRow(colors, 'Montant net vendeur', formatFcfa(netAmount), emphasize: true),
+          ],
         ]),
         if (nextAction != null) ...[
           const SizedBox(height: 20),
@@ -202,8 +213,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildItemRow(AppColorScheme colors, Map<String, dynamic> item) {
     final quantity = item['quantity'] as int;
-    final unitPrice = item['unitPrice'] as num;
-    final lineTotal = item['lineTotal'] as num;
+    // Le vendeur voit son prix de base (le client paie le prix affiche, commission incluse).
+    final baseUnitPrice = item['baseUnitPrice'] as num?;
+    final unitPrice = baseUnitPrice ?? item['unitPrice'] as num;
+    final lineTotal = baseUnitPrice != null ? baseUnitPrice * quantity : item['lineTotal'] as num;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(

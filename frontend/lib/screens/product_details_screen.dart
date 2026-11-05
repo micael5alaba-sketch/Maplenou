@@ -379,7 +379,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          formatFcfa(detail.price),
+          formatFcfa(detail.variantForSelection(_selectedOptions)?.displayPrice ?? detail.price),
           style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.primary),
         ),
         if (detail.oldPrice != null) ...[

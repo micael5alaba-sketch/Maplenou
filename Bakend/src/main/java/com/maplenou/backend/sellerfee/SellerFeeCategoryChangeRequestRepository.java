@@ -18,6 +18,10 @@ public interface SellerFeeCategoryChangeRequestRepository extends JpaRepository<
 
     Page<SellerFeeCategoryChangeRequest> findByStatus(SellerFeeCategoryChangeStatus status, Pageable pageable);
 
+    /** Tous les changements approuvés dont la date d'effet est passée, pas encore appliqués (tâche quotidienne). */
+    List<SellerFeeCategoryChangeRequest> findByStatusAndAppliedFalseAndEffectiveFromLessThanEqual(
+            SellerFeeCategoryChangeStatus status, LocalDate today);
+
     /** Changements approuvés mais pas encore appliqués pour CE vendeur, dont la date d'effet est passée. */
     List<SellerFeeCategoryChangeRequest> findBySellerProfileIdAndStatusAndAppliedFalseAndEffectiveFromLessThanEqual(
             UUID sellerProfileId, SellerFeeCategoryChangeStatus status, LocalDate today);

@@ -1,47 +1,52 @@
 package com.maplenou.backend.order;
 
+import com.maplenou.backend.seller.SellerFeeCategory;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/** Commission integree au prix affiche : 5 % (Standard) / 3 % (Prix eleves) sur le prix de base. */
 class CommissionServiceTest {
 
-    private final CommissionService service = new CommissionService();
-
     @Test
-    void appliesHighRateAtThreshold() {
-        // 20 000 FCFA pile => taux bas (<=)
-        assertEquals(0, new BigDecimal("0.2500").compareTo(service.rateFor(new BigDecimal("20000"))));
+    void standardCategoryRateIsFivePercent() {
+        assertEquals(0, new BigDecimal("0.0500").compareTo(CommissionService.rateFor(SellerFeeCategory.STANDARD)));
     }
 
     @Test
-    void appliesLowRateBelowThreshold() {
-        assertEquals(0, new BigDecimal("0.2500").compareTo(service.rateFor(new BigDecimal("10000"))));
+    void highPriceCategoryRateIsThreePercent() {
+        assertEquals(0, new BigDecimal("0.0300").compareTo(CommissionService.rateFor(SellerFeeCategory.HIGH_PRICE)));
     }
 
     @Test
-    void appliesReducedRateAboveThreshold() {
-        assertEquals(0, new BigDecimal("0.2250").compareTo(service.rateFor(new BigDecimal("20000.01"))));
+    void documentExampleStandard() {
+        // Exemple du document : base 10 000, commission 500, prix affiche 10 500
+        BigDecimal base = new BigDecimal("10000");
+        assertEquals(0, new BigDecimal("500").compareTo(CommissionService.commissionPerUnit(base, SellerFeeCategory.STANDARD)));
+        assertEquals(0, new BigDecimal("10500").compareTo(CommissionService.displayPrice(base, SellerFeeCategory.STANDARD)));
     }
 
     @Test
-    void computesCommissionAmountBelowThreshold() {
-        // 10 000 * 25% = 2 500.00
-        assertEquals(0, new BigDecimal("2500.00").compareTo(service.amountFor(new BigDecimal("10000"))));
+    void highPriceCategoryExample() {
+        // 30 000 * 3 % = 900 => 30 900
+        BigDecimal base = new BigDecimal("30000");
+        assertEquals(0, new BigDecimal("900").compareTo(CommissionService.commissionPerUnit(base, SellerFeeCategory.HIGH_PRICE)));
+        assertEquals(0, new BigDecimal("30900").compareTo(CommissionService.displayPrice(base, SellerFeeCategory.HIGH_PRICE)));
     }
 
     @Test
-    void computesCommissionAmountAboveThreshold() {
-        // 30 000 * 22.5% = 6 750.00
-        assertEquals(0, new BigDecimal("6750.00").compareTo(service.amountFor(new BigDecimal("30000"))));
+    void commissionIsRoundedToWholeFcfaPerUnit() {
+        // 1 250 * 5 % = 62,5 => 63 (HALF_UP) ; prix affiche 1 313 ; jamais de centimes de FCFA
+        BigDecimal base = new BigDecimal("1250");
+        assertEquals(0, new BigDecimal("63").compareTo(CommissionService.commissionPerUnit(base, SellerFeeCategory.STANDARD)));
+        assertEquals(0, new BigDecimal("1313").compareTo(CommissionService.displayPrice(base, SellerFeeCategory.STANDARD)));
     }
 
     @Test
-    void netAmountIsSubtotalMinusCommission() {
-        BigDecimal subtotal = new BigDecimal("10000");
-        BigDecimal expectedNet = subtotal.subtract(service.amountFor(subtotal));
-        assertEquals(0, expectedNet.compareTo(service.netFor(subtotal)));
+    void minimumPriceStillCarriesCommission() {
+        // 500 FCFA (prix minimum de vente) * 5 % = 25
+        assertEquals(0, new BigDecimal("525").compareTo(CommissionService.displayPrice(new BigDecimal("500"), SellerFeeCategory.STANDARD)));
     }
 }

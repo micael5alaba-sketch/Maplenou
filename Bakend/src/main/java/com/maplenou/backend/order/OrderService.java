@@ -6,6 +6,7 @@ import com.maplenou.backend.cart.CartItemRepository;
 import com.maplenou.backend.cart.CartRepository;
 import com.maplenou.backend.catalog.ProductStatus;
 import com.maplenou.backend.catalog.Shop;
+import com.maplenou.backend.seller.SellerFeeCategory;
 import com.maplenou.backend.catalog.ProductVariant;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.delivery.DeliveryPricingService;
@@ -41,7 +42,6 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final AddressRepository addressRepository;
     private final OrderRepository orderRepository;
-    private final CommissionService commissionService;
     private final PromoCodeService promoCodeService;
     private final FedaPayCheckoutService fedaPayCheckoutService;
     private final DeliveryPricingService deliveryPricingService;
@@ -179,15 +179,22 @@ public class OrderService {
         for (List<CartItem> shopItems : byShop.values()) {
             Shop shop = shopItems.get(0).getVariant().getProduct().getShop();
 
-            // Calcul du sous-total de la boutique
-            BigDecimal subtotal = shopItems.stream()
-                    .map(ci -> effectivePrice(ci.getVariant()).multiply(BigDecimal.valueOf(ci.getQuantity())))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            BigDecimal rate   = commissionService.rateFor(subtotal);
-            BigDecimal comm   = commissionService.amountFor(subtotal);
-            BigDecimal net    = commissionService.netFor(subtotal);
-            totalAmount       = totalAmount.add(subtotal);
+            // Commission integree au prix affiche, selon la categorie du vendeur A CE MOMENT :
+            // sous-total = ce que paie l'acheteur (prix affiches), net = prix de base du vendeur.
+            SellerFeeCategory category = CommissionService.categoryOf(shop);
+            BigDecimal rate = CommissionService.rateFor(category);
+            BigDecimal subtotal = BigDecimal.ZERO;
+            BigDecimal comm = BigDecimal.ZERO;
+            BigDecimal net = BigDecimal.ZERO;
+            for (CartItem ci : shopItems) {
+                BigDecimal qty = BigDecimal.valueOf(ci.getQuantity());
+                BigDecimal base = CommissionService.effectiveBasePrice(ci.getVariant());
+                BigDecimal unitCommission = CommissionService.commissionPerUnit(base, category);
+                subtotal = subtotal.add(base.add(unitCommission).multiply(qty));
+                comm = comm.add(unitCommission.multiply(qty));
+                net = net.add(base.multiply(qty));
+            }
+            totalAmount = totalAmount.add(subtotal);
 
             // Frais de livraison dynamique (zone + distance réelle boutique↔adresse, voir
             // DeliveryPricingService) — une boutique à la fois, chacune pouvant être à une
@@ -199,7 +206,7 @@ public class OrderService {
 
             // Construire les lignes du sous-ordre
             List<SubOrderItem> items = shopItems.stream()
-                    .map(ci -> buildItem(ci))
+                    .map(ci -> buildItem(ci, category))
                     .toList();
 
             SubOrder so = SubOrder.builder()
@@ -208,6 +215,7 @@ public class OrderService {
                     .commissionRate(rate)
                     .commissionAmount(comm)
                     .netAmount(net)
+                    .feeCategory(category)
                     .deliveryFee(deliveryQuote.fee())
                     .deliveryDistanceKm(deliveryQuote.distanceKm())
                     .status(SubOrderStatus.PENDING)
@@ -268,15 +276,10 @@ public class OrderService {
 
     // ----- Utilitaires privés -----
 
-    private BigDecimal effectivePrice(ProductVariant variant) {
-        return variant.getPriceOverride() != null
-                ? variant.getPriceOverride()
-                : variant.getProduct().getBasePrice();
-    }
-
-    private SubOrderItem buildItem(CartItem ci) {
+    private SubOrderItem buildItem(CartItem ci, SellerFeeCategory category) {
         ProductVariant v = ci.getVariant();
-        BigDecimal price = effectivePrice(v);
+        BigDecimal base = CommissionService.effectiveBasePrice(v);
+        BigDecimal price = CommissionService.displayPrice(base, category);
         BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(ci.getQuantity()));
 
         return SubOrderItem.builder()
@@ -285,6 +288,7 @@ public class OrderService {
                 .snapshotVariantLabel(v.getLabel())
                 .snapshotSku(v.getSku())
                 .unitPrice(price)
+                .baseUnitPrice(base)
                 .quantity(ci.getQuantity())
                 .lineTotal(lineTotal)
                 .build();

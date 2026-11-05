@@ -1,5 +1,6 @@
 package com.maplenou.backend.cart;
 
+import com.maplenou.backend.order.CommissionService;
 import com.maplenou.backend.cart.dto.FavoriteResponse;
 import com.maplenou.backend.catalog.Product;
 import com.maplenou.backend.catalog.ProductRepository;
@@ -66,7 +67,7 @@ public class FavoriteService {
                 product.getId(),
                 product.getName(),
                 product.getSlug(),
-                product.getBasePrice(),
+                CommissionService.displayPriceFor(product, product.getBasePrice()), // prix affiche (commission incluse)
                 thumbnail,
                 product.getShop().getId(),
                 product.getShop().getName(),

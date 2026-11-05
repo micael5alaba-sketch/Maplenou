@@ -97,7 +97,7 @@ public class SellerKpiService {
         for (SubOrder so : subOrders) {
             if (so.getCreatedAt().isBefore(since)) continue;
             LocalDate day = LocalDate.ofInstant(so.getCreatedAt(), ZoneOffset.UTC);
-            byDay.merge(day, so.getSubtotal(), BigDecimal::add);
+            byDay.merge(day, so.getNetAmount(), BigDecimal::add);
         }
         return byDay.entrySet().stream()
                 .map(e -> new SellerKpiResponse.SalesPointResponse(e.getKey().toString(), e.getValue()))

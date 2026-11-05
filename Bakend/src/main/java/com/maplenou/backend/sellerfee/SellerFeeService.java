@@ -23,6 +23,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -286,6 +287,26 @@ public class SellerFeeService {
                 (adminNotes != null ? " | " + adminNotes : ""), ip);
 
         return request;
+    }
+
+    /**
+     * Applique chaque jour (00:05 UTC) les changements de catégorie approuvés dont la date d'effet
+     * est arrivée. Indispensable depuis la commission intégrée au prix : la catégorie détermine
+     * le prix affiché à tous les acheteurs, elle doit donc basculer au 1er du mois même si le
+     * vendeur n'ouvre pas son application ce jour-là.
+     */
+    @Scheduled(cron = "0 5 0 * * *", zone = "UTC")
+    @Transactional
+    public void applyDueCategoryChanges() {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        for (SellerFeeCategoryChangeRequest request : categoryChangeRequestRepository
+                .findByStatusAndAppliedFalseAndEffectiveFromLessThanEqual(SellerFeeCategoryChangeStatus.APPROVED, today)) {
+            SellerProfile profile = request.getSellerProfile();
+            profile.setFeeCategory(request.getRequestedCategory());
+            request.setApplied(true);
+            sellerProfileRepository.save(profile);
+            categoryChangeRequestRepository.save(request);
+        }
     }
 
     // ----- Privé -----

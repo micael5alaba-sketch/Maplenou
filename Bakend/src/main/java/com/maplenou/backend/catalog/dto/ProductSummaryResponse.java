@@ -1,6 +1,7 @@
 package com.maplenou.backend.catalog.dto;
 
 import com.maplenou.backend.catalog.Product;
+import com.maplenou.backend.order.CommissionService;
 import com.maplenou.backend.catalog.ProductStatus;
 
 import java.math.BigDecimal;
@@ -19,7 +20,9 @@ public record ProductSummaryResponse(
         UUID categoryId,
         String thumbnailUrl,   // première image ou null
         double averageRating,  // 0 si aucun avis
-        long reviewCount
+        long reviewCount,
+        BigDecimal displayPrice,     // prix paye par l'acheteur : prix de base + commission integree
+        BigDecimal displayOldPrice   // ancien prix barre, meme majoration (null = pas de promo)
 ) {
     // Sans statistiques d'avis (ex: appelant qui ne les a pas chargées en masse).
     public static ProductSummaryResponse from(Product p) {
@@ -40,7 +43,9 @@ public record ProductSummaryResponse(
                 p.getCategory().getId(),
                 thumbnail,
                 averageRating,
-                reviewCount
+                reviewCount,
+                CommissionService.displayPriceFor(p, p.getBasePrice()),
+                CommissionService.displayPriceFor(p, p.getOldPrice())
         );
     }
 }

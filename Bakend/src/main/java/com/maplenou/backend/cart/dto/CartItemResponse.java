@@ -1,5 +1,6 @@
 package com.maplenou.backend.cart.dto;
 
+import com.maplenou.backend.order.CommissionService;
 import com.maplenou.backend.cart.CartItem;
 import com.maplenou.backend.catalog.Product;
 import com.maplenou.backend.catalog.ProductStatus;
@@ -28,10 +29,9 @@ public record CartItemResponse(
         ProductVariant variant = item.getVariant();
         Product product = variant.getProduct();
 
-        // Le prix effectif est la surcharge de variante, sinon le prix de base du produit.
-        BigDecimal effectivePrice = variant.getPriceOverride() != null
-                ? variant.getPriceOverride()
-                : product.getBasePrice();
+        // Prix paye par l'acheteur : prix effectif vendeur (surcharge de variante, sinon prix de
+        // base du produit) + commission integree selon la categorie du vendeur.
+        BigDecimal effectivePrice = CommissionService.displayPriceFor(product, CommissionService.effectiveBasePrice(variant));
 
         String thumbnail = product.getImages().isEmpty()
                 ? null

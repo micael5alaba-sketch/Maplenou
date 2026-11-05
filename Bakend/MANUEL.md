@@ -256,7 +256,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 | `seller` | Candidature vendeur, validation admin (PENDING/APPROVED/SUSPENDED/REJECTED) |
 | `catalog` | Catégories, boutiques (`Shop`), produits, variantes, images |
 | `cart` | Panier, favoris |
-| `order` | Commandes, sous-commandes par boutique, commission à 2 tranches, webhook de paiement |
+| `order` | Commandes, sous-commandes par boutique, commission intégrée au prix affiché (5 % / 3 % selon la catégorie vendeur), webhook de paiement |
 | `delivery` | Zones de livraison, affectation livreur, statuts, preuve de livraison, navigation |
 | `returns` | Demandes de retour (fenêtre 30 jours), décision vendeur/admin, restauration de stock |
 | `review` | Avis produits et boutiques (liés à un achat livré vérifié) |

@@ -13,7 +13,8 @@ public record SubOrderItemResponse(
         String sku,
         BigDecimal unitPrice,
         int quantity,
-        BigDecimal lineTotal
+        BigDecimal lineTotal,
+        BigDecimal baseUnitPrice   // prix de base vendeur (unitPrice = prix affiche commission incluse)
 ) {
     public static SubOrderItemResponse from(SubOrderItem item) {
         return new SubOrderItemResponse(
@@ -24,7 +25,8 @@ public record SubOrderItemResponse(
                 item.getSnapshotSku(),
                 item.getUnitPrice(),
                 item.getQuantity(),
-                item.getLineTotal()
+                item.getLineTotal(),
+                item.getBaseUnitPrice()
         );
     }
 }

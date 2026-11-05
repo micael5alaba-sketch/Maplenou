@@ -95,13 +95,25 @@ branches `CANCELLED`, `RETURN_REQUESTED`, `RETURNED`.
 
 ## 5. Règles métier validées par le chef de projet (à coder telles quelles)
 
-### Commission (barème à deux tranches, pas un taux unique)
+### Commission INTEGREE au prix affiche (document "Frais vendeurs et commissions acheteurs", en vigueur depuis le 05/11/2026)
+**Remplace l'ancien barème 25 % / 22,5 % prélevé sur le vendeur** (les commandes antérieures
+gardent leurs anciens montants, jamais réécrits).
 - Prix minimum de mise en vente d'un produit : **500 FCFA**
-- 500 à 20 000 FCFA inclus → **25 %**
-- Plus de 20 000 FCFA → **22,5 %**
-- Point encore ouvert : commission sur le produit seul, ou aussi sur les frais de livraison ?
-  → **par défaut, calculer sur le sous-total produits uniquement**, dans une méthode isolée
-  et facilement ajustable.
+- Le vendeur définit un **prix de base** ; l'acheteur voit et paie **prix de base + commission**,
+  jamais un supplément ajouté au paiement. Le vendeur reçoit son prix de base (net = somme des
+  prix de base) : la commission n'est pas prélevée sur son solde.
+- Taux selon la catégorie tarifaire du vendeur (`SellerFeeCategory`, appliqué à tous ses produits) :
+  **Standard 5 %** / **Prix élevés 3 %**. Calculée sur le prix de base, hors livraison.
+- Arrondi au FCFA entier **par unité** (`CommissionService.commissionPerUnit`) pour que prix
+  affiché, total de ligne et commission restent cohérents. Logique isolée dans `CommissionService`
+  (méthodes statiques, utilisées aussi par les DTO).
+- Champs exposés : `displayPrice`/`displayOldPrice` (fiche produit, listes, variantes) ; le panier et
+  les favoris renvoient directement le prix affiché ; `basePrice` reste le prix vendeur (écrans
+  vendeur/édition) — ne jamais renvoyer le prix affiché dans un champ que le vendeur re-sauvegarde.
+- Par commande : `SubOrder.feeCategory` (catégorie au moment de l'achat), `commissionRate`,
+  `commissionAmount`, `netAmount` ; par ligne : `unitPrice` (affiché) et `baseUnitPrice` (vendeur).
+- Changement de catégorie approuvé : effectif au 1er du mois suivant, jamais rétroactif
+  (tâche quotidienne `SellerFeeService.applyDueCategoryChanges`, car la catégorie fixe les prix affichés).
 
 ### Reversement vendeur
 - Hebdomadaire pour la version test.

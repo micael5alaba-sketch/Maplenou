@@ -73,8 +73,9 @@ class ProductDetailService {
       shopSlug: detailJson['shopSlug'] as String? ?? '',
       images: images.isEmpty && product.imageUrl != null ? [product.imageUrl!] : images,
       badges: _mockBadges(product),
-      price: (detailJson['basePrice'] as num),
-      oldPrice: detailJson['oldPrice'] as num?,
+      // Prix paye par l'acheteur (commission incluse) ; repli sur le prix de base d'un ancien backend.
+      price: ((detailJson['displayPrice'] ?? detailJson['basePrice']) as num),
+      oldPrice: (detailJson['displayOldPrice'] ?? detailJson['oldPrice']) as num?,
       rating: product.rating,
       reviewCount: product.reviewCount,
       variants: variants,
