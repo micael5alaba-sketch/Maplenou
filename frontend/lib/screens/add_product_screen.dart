@@ -501,7 +501,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Widget _buildVariantsSection(AppColorScheme colors) {
     return _buildCard(colors, 'Variantes', [
       Text(
-        "Une ligne par variante vendue séparément (ex: \"S\", \"M / Rouge\"...) — chacune avec son propre stock, et un prix différent du prix de base si besoin.",
+        "Une ligne par variante vendue séparément (ex: \"S\", ou \"M / Rouge\" pour que l'acheteur choisisse la taille et la couleur séparément) — chacune avec son propre stock, et un prix différent du prix de base si besoin.",
         style: TextStyle(fontSize: 12, color: colors.textMuted),
       ),
       for (var i = 0; i < _variants.length; i++) ...[

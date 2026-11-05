@@ -281,7 +281,10 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(20)),
                         child: Text(
-                          '${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau',
+                          delivery.courierToShopKm != null
+                              ? 'Vous → boutique ${delivery.courierToShopKm!.toStringAsFixed(1)} km · '
+                                  'Boutique → client ${delivery.distanceKm!.toStringAsFixed(1)} km'
+                              : '${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau',
                           style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark, fontSize: 13),
                         ),
                       ),

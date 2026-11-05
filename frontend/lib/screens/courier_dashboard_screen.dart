@@ -4,6 +4,7 @@ import '../models/courier_dashboard_model.dart';
 import '../services/api_client.dart';
 import '../services/courier_dashboard_service.dart';
 import '../services/courier_documents_service.dart';
+import '../services/courier_presence_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/active_delivery_card.dart';
 import '../widgets/app_drawer.dart';
@@ -39,6 +40,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = CourierDashboardService();
   final _documentsService = CourierDocumentsService();
+  final _presenceService = CourierPresenceService();
   late Future<CourierDashboardModel> _dashboardFuture;
   late Future<bool> _verifiedFuture;
   bool _isOnline = false;
@@ -52,7 +54,15 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
     _verifiedFuture = _documentsService.isFullyVerified();
   }
 
+  @override
+  void dispose() {
+    _presenceService.stop();
+    super.dispose();
+  }
+
   void _setOnline(bool isOnline) {
+    // Position visible par l'admin (carte d'affectation) uniquement tant que le livreur est en ligne.
+    isOnline ? _presenceService.start() : _presenceService.stop();
     setState(() {
       _isOnline = isOnline;
       _dashboardFuture = _service.getDashboard(isOnline: isOnline);

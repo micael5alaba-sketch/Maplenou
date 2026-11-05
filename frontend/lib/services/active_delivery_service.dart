@@ -21,6 +21,7 @@ class ActiveDeliveryService {
       clientName: navigation.dropoff.label,
       deliveryAddress: navigation.dropoff.address,
       distanceKm: _deliveryService.straightLineDistanceKm(navigation),
+      courierToShopKm: delivery.status == 'ASSIGNED' ? await _deliveryService.courierToShopKm(navigation) : null,
       pickupLatitude: navigation.pickup.latitude,
       pickupLongitude: navigation.pickup.longitude,
       dropoffLatitude: navigation.dropoff.latitude,

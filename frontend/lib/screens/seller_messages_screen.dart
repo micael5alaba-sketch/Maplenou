@@ -156,6 +156,7 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
         child: Row(
           children: [
             _buildTab(colors, 'Clients', ConversationKind.client),
+            _buildTab(colors, 'Livreurs', ConversationKind.courierShop),
             _buildTab(colors, 'Support', ConversationKind.support),
           ],
         ),

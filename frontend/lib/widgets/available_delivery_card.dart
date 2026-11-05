@@ -39,12 +39,25 @@ class AvailableDeliveryCard extends StatelessWidget {
           _buildPoint(colors, colors.accentOrange, 'Point de collecte', delivery.pickupLabel, delivery.pickupAddress),
           const SizedBox(height: 10),
           _buildPoint(colors, colors.primary, 'Point de livraison', delivery.dropoffLabel, delivery.dropoffAddress),
-          if (delivery.distanceKm != null || delivery.estimatedEarning != null) ...[
+          if (delivery.distanceKm != null || delivery.estimatedEarning != null || delivery.courierToShopKm != null) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
+                if (delivery.courierToShopKm != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: colors.inputFill, borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.two_wheeler_rounded, size: 14, color: colors.textMuted),
+                        const SizedBox(width: 6),
+                        Text('Vous → boutique : ${delivery.courierToShopKm!.toStringAsFixed(1)} km', style: TextStyle(fontSize: 12, color: colors.textDark)),
+                      ],
+                    ),
+                  ),
                 if (delivery.distanceKm != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -54,7 +67,7 @@ class AvailableDeliveryCard extends StatelessWidget {
                       children: [
                         Icon(Icons.straighten_rounded, size: 14, color: colors.textMuted),
                         const SizedBox(width: 6),
-                        Text('${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau', style: TextStyle(fontSize: 12, color: colors.textDark)),
+                        Text('Boutique → client : ${delivery.distanceKm!.toStringAsFixed(1)} km à vol d\'oiseau', style: TextStyle(fontSize: 12, color: colors.textDark)),
                       ],
                     ),
                   ),

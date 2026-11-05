@@ -11,6 +11,10 @@ class ActiveDeliveryDetailModel {
   final String deliveryAddress;
   final double? distanceKm;
 
+  /// Premier tronçon : distance livreur -> boutique (position GPS du livreur au chargement),
+  /// en plus de [distanceKm] qui est le tronçon boutique -> client. `null` si indisponible.
+  final double? courierToShopKm;
+
   /// Coordonnées du retrait/dépôt — absentes si l'adresse correspondante n'a
   /// pas été géolocalisée (pas de géocodage d'adresse texte côté backend,
   /// seulement la position GPS capturée si l'utilisateur l'a autorisée à la
@@ -36,6 +40,7 @@ class ActiveDeliveryDetailModel {
     required this.clientName,
     required this.deliveryAddress,
     this.distanceKm,
+    this.courierToShopKm,
     this.pickupLatitude,
     this.pickupLongitude,
     this.dropoffLatitude,

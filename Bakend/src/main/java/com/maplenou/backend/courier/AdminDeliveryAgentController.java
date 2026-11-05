@@ -1,5 +1,6 @@
 package com.maplenou.backend.courier;
 
+import com.maplenou.backend.courier.dto.CourierLocationResponse;
 import com.maplenou.backend.courier.dto.CreateDeliveryAgentRequest;
 import com.maplenou.backend.user.User;
 import com.maplenou.backend.user.dto.UserResponse;
@@ -12,6 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +30,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminDeliveryAgentController {
 
     private final CourierAdminService courierAdminService;
+    private final CourierLocationService courierLocationService;
+
+    /** Dernière position connue des livreurs actifs — alimente la carte d'affectation de l'admin. */
+    @GetMapping("/locations")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<CourierLocationResponse> locations(@PageableDefault(size = 100) Pageable pageable) {
+        return courierLocationService.listForAdmin(pageable);
+    }
 
     /** Création directe d'un compte livreur interne (cahier des charges §3.3, "option B"). */
     @PostMapping

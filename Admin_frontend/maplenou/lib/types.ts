@@ -207,6 +207,19 @@ export interface DeliveryResponse {
   assignedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;
+  /** Position de la boutique (point de retrait), null si la boutique n'est pas géolocalisée. */
+  shopLatitude: number | null;
+  shopLongitude: number | null;
+}
+
+/** Dernière position connue d'un livreur (ping de l'app livreur quand il est "En ligne"). */
+export interface CourierLocationResponse {
+  agentId: string;
+  fullName: string;
+  phoneNumber: string;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
 }
 
 export interface AuditLogResponse {

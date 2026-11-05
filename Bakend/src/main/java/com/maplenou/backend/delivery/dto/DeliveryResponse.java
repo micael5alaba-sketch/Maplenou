@@ -4,6 +4,7 @@ import com.maplenou.backend.delivery.Delivery;
 import com.maplenou.backend.delivery.DeliveryStatus;
 import com.maplenou.backend.delivery.ProofType;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -24,7 +25,10 @@ public record DeliveryResponse(
         Instant assignedAt,
         Instant deliveredAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** Position de la boutique (point de retrait), pour la carte d'affectation admin. */
+        BigDecimal shopLatitude,
+        BigDecimal shopLongitude
 ) {
     public static DeliveryResponse from(Delivery d) {
         return new DeliveryResponse(
@@ -44,7 +48,9 @@ public record DeliveryResponse(
                 d.getAssignedAt(),
                 d.getDeliveredAt(),
                 d.getCreatedAt(),
-                d.getUpdatedAt()
+                d.getUpdatedAt(),
+                d.getSubOrder().getShop().getLatitude(),
+                d.getSubOrder().getShop().getLongitude()
         );
     }
 }

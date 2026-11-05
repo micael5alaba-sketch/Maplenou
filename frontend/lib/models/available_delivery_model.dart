@@ -14,6 +14,9 @@ class AvailableDeliveryModel {
   final String dropoffLabel;
   final String dropoffAddress;
   final double? distanceKm;
+
+  /// Distance livreur -> boutique (position GPS du livreur), avant le tronçon boutique -> client.
+  final double? courierToShopKm;
   final double? estimatedEarning;
 
   const AvailableDeliveryModel({
@@ -24,6 +27,7 @@ class AvailableDeliveryModel {
     required this.dropoffLabel,
     required this.dropoffAddress,
     this.distanceKm,
+    this.courierToShopKm,
     this.estimatedEarning,
   });
 }

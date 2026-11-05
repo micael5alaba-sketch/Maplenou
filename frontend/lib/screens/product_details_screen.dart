@@ -66,11 +66,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     _detailFuture = ProductDetailService()
         .buildDetail(widget.product, catalog: widget.relatedCatalog)
         .then((detail) {
-      for (final group in detail.variantGroups) {
-        if (group.options.isNotEmpty) {
-          _selectedOptions[group.label] = group.options.first;
-        }
-      }
+      _selectedOptions.addAll(detail.initialSelection());
       return detail;
     });
     FavoritesService().addListener(_onFavoritesChanged);
@@ -117,16 +113,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   /// groupe de choix (un seul modèle), c'est simplement l'unique variante.
   String? _resolveSelectedVariantId(ProductDetailModel detail) {
     if (!detail.hasVariants) return null;
-    if (detail.variants.length == 1) return detail.variants.first.id;
-    final selectedLabel = _selectedOptions['Choix'];
-    if (selectedLabel == null) return null;
-    return detail.variantByLabel(selectedLabel)?.id;
+    return detail.variantForSelection(_selectedOptions)?.id;
   }
 
   Future<void> _addToCart(ProductDetailModel detail, {bool showConfirmation = true}) async {
     final variantId = _resolveSelectedVariantId(detail);
     if (variantId == null) {
-      _showMessage('Ce produit n\'est plus disponible à la vente.');
+      _showMessage(detail.variantGroups.length > 1
+          ? 'Cette combinaison n\'existe pas, choisissez-en une autre.'
+          : 'Ce produit n\'est plus disponible à la vente.');
       return;
     }
 

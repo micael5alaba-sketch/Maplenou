@@ -22,6 +22,7 @@ class AvailableDeliveriesService {
         dropoffLabel: navigation.dropoff.label,
         dropoffAddress: navigation.dropoff.address,
         distanceKm: _deliveryService.straightLineDistanceKm(navigation),
+        courierToShopKm: await _deliveryService.courierToShopKm(navigation),
         estimatedEarning: navigation.estimatedEarning,
       ));
     }
