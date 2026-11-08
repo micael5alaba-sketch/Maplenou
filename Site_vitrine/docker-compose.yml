@@ -1,0 +1,38 @@
+# Maplenou public website — independent of the customer-service stack (ServiceClient/) and of Bakend.
+#   cp .env.example .env        (Windows: copy .env.example .env)
+#   docker compose up -d --build --wait
+#   → http://localhost:${SITE_HOST_PORT}   (3002 by default)
+# Every value comes from .env; nothing is hard-coded here.
+name: maplenou-site
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:?set LOG_MAX_SIZE in .env}
+    max-file: ${LOG_MAX_FILES:?set LOG_MAX_FILES in .env}
+
+services:
+  site:
+    build: .
+    image: maplenou-site-vitrine:local
+    restart: unless-stopped
+    ports:
+      - "${SITE_HOST_PORT:?set SITE_HOST_PORT in .env}:3000"
+    environment:
+      MAPLENOU_API_URL: ${MAPLENOU_API_URL:?set MAPLENOU_API_URL in .env}
+      APP_URL: ${APP_URL?set APP_URL in .env (may be empty)}
+      ANDROID_APP_URL: ${ANDROID_APP_URL?set ANDROID_APP_URL in .env (may be empty)}
+      IOS_APP_URL: ${IOS_APP_URL?set IOS_APP_URL in .env (may be empty)}
+      SERVICE_CLIENT_URL: ${SERVICE_CLIENT_URL:?set SERVICE_CLIENT_URL in .env}
+      HELP_CENTER_URL: ${HELP_CENTER_URL:?set HELP_CENTER_URL in .env}
+      SITE_PUBLIC_URL: ${SITE_PUBLIC_URL:?set SITE_PUBLIC_URL in .env}
+      SOCIAL_FACEBOOK_URL: ${SOCIAL_FACEBOOK_URL?set SOCIAL_FACEBOOK_URL in .env (may be empty)}
+      SOCIAL_INSTAGRAM_URL: ${SOCIAL_INSTAGRAM_URL?set SOCIAL_INSTAGRAM_URL in .env (may be empty)}
+      SOCIAL_TIKTOK_URL: ${SOCIAL_TIKTOK_URL?set SOCIAL_TIKTOK_URL in .env (may be empty)}
+      SOCIAL_WHATSAPP_URL: ${SOCIAL_WHATSAPP_URL?set SOCIAL_WHATSAPP_URL in .env (may be empty)}
+      SOCIAL_X_URL: ${SOCIAL_X_URL?set SOCIAL_X_URL in .env (may be empty)}
+      SOCIAL_YOUTUBE_URL: ${SOCIAL_YOUTUBE_URL?set SOCIAL_YOUTUBE_URL in .env (may be empty)}
+    # Bakend runs on the computer (Bakend/start-all.ps1): reach it as host.docker.internal on Linux too
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging: *logging
