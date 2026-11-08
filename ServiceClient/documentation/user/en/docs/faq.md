@@ -49,3 +49,11 @@ Answers to the most common questions about Maplenou customer service. Click a qu
 
 ??? question "Why am I back on the sign-in screen?"
     Your session has expired, or you signed out. The message <span class="ui">Your session has expired. Please sign in again.</span> then appears. Sign in again: your tickets are kept.
+
+## Questions about seller fees
+
+??? question "Why was an amount deducted from my payout?"
+    It is your monthly seller fee: 500 FCFA in the Standard category, 2,000 FCFA in the High price category. Your first 3 completed sales are exempt; after that, a single fee is due per month, and only for a month in which you have at least one completed sale. It is deducted from your balance before the payout (for example 8,000 FCFA available − 500 FCFA = 7,500 FCFA paid). The commission is never taken from your balance: it is included in the price the buyer pays. If the same fee seems to have been taken twice, create a ticket in the <span class="ui">Payment</span> category.
+
+??? question "How is the displayed price of my products calculated?"
+    The price shown to the buyer is your base price plus the Maplenou commission: 5 % in the Standard category, 3 % in the High price category, delivery excluded. Example: a base price of 10,000 FCFA is shown as 10,500 FCFA, and you receive 10,000 FCFA. A cancelled or refunded order does not count as a sale.

@@ -7,9 +7,10 @@ UI library, self-hosted fonts (`@fontsource-variable/*`, no Google Fonts request
 ## Rules
 
 - **Facts, not marketing invention.** Prices, commissions, delays, zones and documents come from Bakend
-  (`Bakend/CLAUDE.md`, `order/CommissionService`) and the customer-service rules (`ServiceClient/docs`,
-  `SlaTargets`). Change a fact here only when it changed there. The example receipt on the home page is labelled
-  "Exemple".
+  (`Bakend/CLAUDE.md`, `order/CommissionService`; fees: the owner's document "Maplenou - Exigences des nouveaux
+  frais vendeurs et commissions acheteurs", not stored in the repository) and the customer-service rules
+  (`ServiceClient/docs`, `SlaTargets`). Change a fact here only when it changed there. The example receipt on the
+  home page is labelled "Exemple".
 - **Two languages.** Every text lives in `src/lib/messages.ts` (`fr` is the reference, `en` has the same keys —
   enforced by the type and `messages.test.ts`). No text in components.
 - **Themes:** light, dark, system — CSS variables in `src/app/globals.css`, never raw colours in components. Dark

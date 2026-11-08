@@ -43,6 +43,20 @@ La colonne de gauche est réservée au support.
     ne paie aucun supplément et le vendeur reçoit son prix de base : la commission n'est jamais retirée du
     reversement. Les commandes passées avant ce changement gardent l'ancien modèle (25 % / 22,5 % prélevés sur le vendeur).
 
+    - Exemple (Standard) : prix de base 10 000 FCFA + commission 500 FCFA = **10 500 FCFA** affichés, livraison en plus.
+    - **Frais mensuel vendeur** : 500 FCFA (Standard) ou 2 000 FCFA (Prix élevés). Les 3 premières ventes finalisées
+      sont sans frais ; à partir de la 4ᵉ, **un seul** frais par mois, seulement pour un mois avec au moins une vente
+      finalisée. Il est déduit du solde disponible **avant** le versement (8 000 FCFA disponibles − 500 FCFA = 7 500 FCFA
+      versés) ; si le solde ne suffit pas, le reste demeure dû pour le prochain versement. Un même frais n'est jamais
+      prélevé deux fois.
+    - Une commande **annulée ou remboursée** ne compte pas comme vente ; la commission comprise dans son prix est
+      remboursée avec elle.
+    - Le vendeur choisit sa catégorie à l'inscription ; Maplenou peut demander une correction si elle ne correspond
+      pas aux produits. Un changement approuvé s'applique au 1er du mois suivant, aux nouvelles commandes seulement.
+    - Le vendeur est notifié à la 4ᵉ vente (début du frais), à chaque déduction et à chaque remboursement comportant
+      une commission. Dans l'application, il voit le résumé de ses frais (catégorie, montant, mois, statut),
+      l'historique des déductions et le montant net estimé avant un retrait.
+
 Les panneaux n'apparaissent que si le ticket est lié à une référence. À la création, le demandeur peut lier une commande ou une livraison qui le concerne (un client : une commande qu'il a achetée ; un vendeur : une commande qu'il a vendue ; un livreur : une livraison qui lui est confiée). Les références de paiement, livraison, vendeur et remboursement sont ensuite déduites automatiquement de la commande.
 
 !!! info "Service momentanément indisponible"

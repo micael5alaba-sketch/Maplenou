@@ -11,6 +11,10 @@ describe("Maplenou fees (Bakend CommissionService, SellerFeeCategory)", () => {
     expect(buyerPrice(25_000, "high")).toEqual({ rate: 0.03, commission: 750, display: 25_750, sellerReceives: 25_000 });
   });
 
+  it("matches the example of the fees document (10 000 FCFA, Standard → 10 500 FCFA)", () => {
+    expect(buyerPrice(10_000, "standard")).toEqual({ rate: 0.05, commission: 500, display: 10_500, sellerReceives: 10_000 });
+  });
+
   it("rounds the commission to the whole FCFA per unit, half up (like Java HALF_UP)", () => {
     expect(buyerPrice(510, "standard").commission).toBe(26); // 25.5 → 26
     expect(buyerPrice(1_150, "high").commission).toBe(35); // 34.5 → 35

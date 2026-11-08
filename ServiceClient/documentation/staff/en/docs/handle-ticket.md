@@ -43,6 +43,19 @@ The left column is reserved for support.
     buyer pays nothing extra and the seller receives their base price: the commission is never taken from the
     payout. Orders placed before this change keep the former model (25 % / 22.5 % taken from the seller).
 
+    - Example (Standard): base price 10,000 FCFA + commission 500 FCFA = **10,500 FCFA** shown, delivery extra.
+    - **Monthly seller fee**: 500 FCFA (Standard) or 2,000 FCFA (High price). The first 3 completed sales are free;
+      from the 4th, **one** fee per month, only for a month with at least one completed sale. It is deducted from
+      the available balance **before** the payout (8,000 FCFA available − 500 FCFA = 7,500 FCFA paid); if the
+      balance is too low, the rest stays due for the next payout. The same fee is never taken twice.
+    - A **cancelled or refunded** order does not count as a sale; the commission included in its price is refunded
+      with it.
+    - The seller chooses the category at sign-up; Maplenou may ask for a correction if it does not match the
+      products. An approved change applies from the 1st of the next month, to new orders only.
+    - The seller is notified at the 4th sale (fee starts), at each deduction and at each refund that includes a
+      commission. In the app, the seller sees the fee summary (category, amount, month, status), the history of
+      deductions and the estimated net amount before a withdrawal.
+
 Panels appear only when the ticket is linked to a reference. When creating the ticket, the requester can link an order or a delivery they are part of (a customer: an order they bought; a seller: an order they sold; a driver: a delivery assigned to them). The payment, delivery, seller and refund references are then derived automatically from the order.
 
 !!! info "Service temporarily unavailable"
