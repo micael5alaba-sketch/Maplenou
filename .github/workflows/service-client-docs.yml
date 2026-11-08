@@ -1,0 +1,81 @@
+name: Service client — Documentation
+
+# Builds the six Zensical sites (user, staff, developer x FR/EN) in strict mode on every change,
+# and publishes ONLY the public user guide to GitHub Pages (staff and developer guides are internal).
+
+on:
+  push:
+    branches:
+      - main
+      - "ci/**"
+    paths: ["ServiceClient/docs/**", "ServiceClient/documentation/**", "ServiceClient/zensical.toml", "ServiceClient/uv.lock", ".github/workflows/service-client-docs.yml"]
+  pull_request:
+    branches:
+      - main
+    paths: ["ServiceClient/docs/**", "ServiceClient/documentation/**", "ServiceClient/zensical.toml", "ServiceClient/uv.lock", ".github/workflows/service-client-docs.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: ServiceClient
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Install Zensical (locked)
+        run: uv sync --locked
+
+      - name: Build every site (strict)
+        run: uv run python documentation/build.py --strict
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Install Zensical (locked)
+        run: uv sync --locked
+
+      - name: Build the public user guide
+        # GitHub Pages is static: the assistant widget shows its "unavailable" message unless
+        # ASSISTANT_ENDPOINT points to a public assistant instance started with ASSISTANT_SITES=user.
+        run: uv run python documentation/build.py --sites user --strict --endpoint "${{ vars.ASSISTANT_PUBLIC_ENDPOINT || '/api/assistant' }}"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ServiceClient/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

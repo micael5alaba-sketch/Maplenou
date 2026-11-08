@@ -1,0 +1,252 @@
+### Maplenou Customer Service API — manual test collection
+# Works with the VS Code "REST Client" extension (humao.rest-client) and JetBrains HTTP Client.
+# Prerequisite: the stack runs with the demo profile (docker compose up -d) — see docs/guide/backend-processing.md.
+# Click "Send Request" above each block, from top to bottom: tokens are captured and reused.
+# Postman: import backend/http/postman/*.json (same steps, with automatic checks). Swagger UI: /swagger-ui.html.
+
+@api = http://localhost:8081
+@jean = 11111111-1111-4111-8111-111111111111
+@sophie = 44444444-4444-4444-8444-444444444444
+@amina = 66666666-6666-4666-8666-666666666666
+
+### 0. Health (public)
+GET {{api}}/actuator/health
+
+### 1. Demo personas (demo profile only)
+GET {{api}}/api/v1/dev/users
+
+### 2. Token for Jean K. (customer)
+# @name jeanLogin
+POST {{api}}/api/v1/dev/token
+Content-Type: application/json
+
+{ "userId": "{{jean}}" }
+
+### 3. Token for Sophie N. (support agent)
+# @name sophieLogin
+POST {{api}}/api/v1/dev/token
+Content-Type: application/json
+
+{ "userId": "{{sophie}}" }
+
+### 4. Token for Amina K. (support manager)
+# @name aminaLogin
+POST {{api}}/api/v1/dev/token
+Content-Type: application/json
+
+{ "userId": "{{amina}}" }
+
+### 5. Active categories (cached; returns an ETag — resend with If-None-Match to get 304)
+# @name categories
+GET {{api}}/api/v1/support/categories
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 5b. Same request revalidated: 304 Not Modified, no body
+GET {{api}}/api/v1/support/categories
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+If-None-Match: {{categories.response.headers.ETag}}
+
+### 6. Jean's orders and deliveries (ecosystem context, demo adapter)
+GET {{api}}/api/v1/support/me/references
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 7. Jean creates a ticket
+# @name created
+POST {{api}}/api/v1/support/tickets
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "subject": "Colis non reçu",
+  "description": "Ma commande est marquée livrée mais je n'ai rien reçu.",
+  "categoryCode": "DELIVERY",
+  "priority": "HIGH",
+  "urgent": false
+}
+
+### 8. Jean tries the Critical priority -> 422 CRITICAL_PRIORITY_RESERVED (BR-036)
+POST {{api}}/api/v1/support/tickets
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "subject": "Test", "description": "Test", "categoryCode": "OTHER", "priority": "CRITICAL" }
+
+### 9. Sophie sees the queue (open tickets, newest first)
+GET {{api}}/api/v1/support/tickets?open=true&sort=createdAt,desc
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+### 10. Sophie takes the ticket (agentId null = assign to me)
+PUT {{api}}/api/v1/support/tickets/{{created.response.body.id}}/assign
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{}
+
+### 11. Sophie writes an internal note (never visible to Jean)
+POST {{api}}/api/v1/support/tickets/{{created.response.body.id}}/internal-notes
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "body": "Appeler le livreur avant 16 h.", "clientMessageId": "note-1" }
+
+### 12. Sophie replies to Jean (first response: SLA first-response target met)
+POST {{api}}/api/v1/support/tickets/{{created.response.body.id}}/messages
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "body": "Bonjour Jean, nous vérifions auprès du livreur.", "clientMessageId": "reply-1" }
+
+### 13. Ecosystem context of the ticket (order, payment, delivery) — support only
+GET {{api}}/api/v1/support/tickets/{{created.response.body.id}}/context
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+### 14. Jean reads his ticket: no internal note, no SLA data (BR-014)
+GET {{api}}/api/v1/support/tickets/{{created.response.body.id}}/messages
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 15. Jean's notifications (AGENT_REPLIED…) with ticketNumber/detail for English rendering
+GET {{api}}/api/v1/support/notifications?size=10
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 16. Sophie resolves the ticket
+PUT {{api}}/api/v1/support/tickets/{{created.response.body.id}}/status
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "status": "RESOLVED", "comment": "Colis retrouvé et livré." }
+
+### 17. Jean asks to reopen
+# @name reopen
+POST {{api}}/api/v1/support/tickets/{{created.response.body.id}}/reopen-requests
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "reason": "Le colis livré n'est pas le mien." }
+
+### 18. Sophie approves (ticket back to IN_PROGRESS, new resolution SLA period)
+PUT {{api}}/api/v1/support/tickets/{{created.response.body.id}}/reopen-requests/{{reopen.response.body.id}}
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "decision": "APPROVE", "note": "Nous reprenons la demande." }
+
+### 19. Full history (append-only audit)
+GET {{api}}/api/v1/support/tickets/{{created.response.body.id}}/history
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+### 20. Manager dashboard and report
+GET {{api}}/api/v1/support/dashboard
+Authorization: Bearer {{aminaLogin.response.body.accessToken}}
+
+###
+GET {{api}}/api/v1/support/reports/summary?from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{aminaLogin.response.body.accessToken}}
+
+### 21. Jean cannot open the back-office dashboard -> 403
+GET {{api}}/api/v1/support/dashboard
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 22. Push channel of the server ("firebase" or "log-only") and Jean's registered devices
+GET {{api}}/api/v1/support/notifications/push-status
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 23. Register a device token (a fake one is enough to test the API; real ones come from Firebase)
+POST {{api}}/api/v1/support/notifications/devices
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+Content-Type: application/json
+
+{ "token": "http-client-test-token", "platform": "WEB" }
+
+### 24. Send Jean a test push now (log-only mode: written to the backend log)
+POST {{api}}/api/v1/support/notifications/devices/test
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 25. Unregister the device
+DELETE {{api}}/api/v1/support/notifications/devices/http-client-test-token
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 26. SLA clock mode (always = 24/7, weekends and holidays count — default)
+GET {{api}}/api/v1/support/admin/sla-settings
+Authorization: Bearer {{aminaLogin.response.body.accessToken}}
+
+### 27. Sign in with a Maplenou account (only with MAPLENOU_LOGIN_ENABLED=true and Bakend running)
+POST {{api}}/api/v1/auth/maplenou/login
+Content-Type: application/json
+
+{ "phoneNumber": "+22890000000", "password": "your-password" }
+
+# ---------------------------------------------------------------- iteration 6 (UPGRADE-PLAN items)
+
+### 28. Vocabulary: statuses (with their kind), manual transitions and priorities — every client
+GET {{api}}/api/v1/support/vocabulary
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+### 29. Jean opens a ticket about an order
+# @name orderTicket
+POST {{api}}/api/v1/support/tickets
+Content-Type: application/json
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+{ "subject": "Produit cassé", "description": "Le vase est arrivé cassé.", "categoryCode": "RETURN_REFUND", "orderRef": "CMD-2026-0456" }
+
+### 30. Sophie takes it, then inserts a canned reply
+PUT {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/assign
+Content-Type: application/json
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+{}
+
+### 31. Canned replies
+GET {{api}}/api/v1/support/canned-replies
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+### 32. Ask Maplenou to open a return for Jean (ECOSYSTEM_MODE=demo answers without calling Bakend)
+POST {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/actions/refund-request
+Content-Type: application/json
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+{ "reason": "Produit reçu cassé, photo dans le ticket.", "productCondition": "DAMAGED" }
+
+### 33. Waiting for the customer: the resolution clock pauses (sla.pausedSince)
+PUT {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/status
+Content-Type: application/json
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+{ "status": "WAITING_FOR_CUSTOMER", "comment": "Photo du colis ?" }
+
+### 34. AI help status, suggestion decision, reply draft (needs AI_ASSIST_ENABLED=true and the assistant)
+GET {{api}}/api/v1/support/ai/status
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+###
+POST {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/ai/draft-reply
+Content-Type: application/json
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+{ "language": "fr" }
+
+### 35. Resolve, then Jean rates the answer (1 to 5, once)
+PUT {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/status
+Content-Type: application/json
+Authorization: Bearer {{sophieLogin.response.body.accessToken}}
+
+{ "status": "RESOLVED", "comment": "Retour ouvert chez le vendeur." }
+
+###
+POST {{api}}/api/v1/support/tickets/{{orderTicket.response.body.id}}/satisfaction
+Content-Type: application/json
+Authorization: Bearer {{jeanLogin.response.body.accessToken}}
+
+{ "rating": 5, "comment": "Merci !" }
+
+### 36. CSV export of the open tickets (managers and administrators)
+GET {{api}}/api/v1/support/tickets/export.csv?open=true&lang=fr
+Authorization: Bearer {{aminaLogin.response.body.accessToken}}
+
+### 37. SLA targets per priority
+GET {{api}}/api/v1/support/admin/sla-policies
+Authorization: Bearer {{aminaLogin.response.body.accessToken}}
+
+### 38. Prometheus metrics (METRICS_TOKEN in .env; 404 when it is empty)
+GET {{api}}/actuator/prometheus
+Authorization: Bearer local-metrics-token-0123456789

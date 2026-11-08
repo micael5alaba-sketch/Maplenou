@@ -1,0 +1,65 @@
+name: Service client — End-to-end
+
+# Full scenario in a real browser: PostgreSQL + backend (demo profile) + frontend + Playwright.
+on:
+  push:
+    branches: [main, "ci/**"]
+    paths: ["ServiceClient/backend/**", "ServiceClient/frontend/**", ".github/workflows/service-client-e2e.yml"]
+  pull_request:
+    paths: ["ServiceClient/backend/**", "ServiceClient/frontend/**", ".github/workflows/service-client-e2e.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: maplenou_support
+          POSTGRES_USER: maplenou
+          POSTGRES_PASSWORD: maplenou
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U maplenou" --health-interval 5s --health-retries 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: "21", cache: maven }
+      - uses: actions/setup-node@v5
+        with: { node-version: "22", cache: npm, cache-dependency-path: ServiceClient/frontend/package-lock.json }
+      - name: Build backend
+        working-directory: ServiceClient/backend
+        run: chmod +x mvnw && ./mvnw -B -q package -DskipTests
+      - name: Start backend (demo profile)
+        working-directory: ServiceClient/backend
+        run: |
+          SPRING_PROFILES_ACTIVE=demo ATTACHMENTS_DIR=/tmp/attachments \
+            nohup java -jar target/maplenou-support-*.jar > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:8081/actuator/health && break; sleep 2; done
+      - name: Build and start frontend
+        working-directory: ServiceClient/frontend
+        run: |
+          npm ci --legacy-peer-deps
+          npm run build
+          BACKEND_URL=http://localhost:8081 nohup npx next start -p 3001 > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/login > /dev/null && break; sleep 2; done
+      - name: Run Playwright
+        working-directory: ServiceClient/frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Upload report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            ServiceClient/frontend/playwright-report
+            /tmp/backend.log
+            /tmp/frontend.log

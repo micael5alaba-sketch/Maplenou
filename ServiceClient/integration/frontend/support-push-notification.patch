@@ -1,0 +1,43 @@
+diff --git a/frontend/lib/services/push_notification_service.dart b/frontend/lib/services/push_notification_service.dart
+index 0458687..b8bfadc 100644
+--- a/frontend/lib/services/push_notification_service.dart
++++ b/frontend/lib/services/push_notification_service.dart
+@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
+ import 'package:firebase_messaging/firebase_messaging.dart';
+ import 'package:flutter/foundation.dart' show kIsWeb;
+ import 'package:flutter/material.dart';
++import 'package:url_launcher/url_launcher.dart';
+ 
+ import '../navigation.dart';
+ import '../screens/seller_conversation_screen.dart';
+@@ -58,6 +59,12 @@ class PushNotificationService {
+   /// notification continuent d'ouvrir l'app normalement, sans navigation forcée.
+   void _handleNotificationTap(RemoteMessage message) {
+     final data = message.data;
++    // Notification du service client (ServiceClient, relayée par Bakend `supportbridge`) : elle porte
++    // `url` = <SUPPORT_APP_URL>/?ticket=<id>, ouverte dans le navigateur où le ticket s'affiche.
++    if (data['source'] == 'support') {
++      _openSupportTicket(data['url'] as String?);
++      return;
++    }
+     if (data['type'] != 'NEW_MESSAGE') return;
+     final conversationId = data['conversationId'] as String?;
+     if (conversationId == null) return;
+@@ -69,6 +76,17 @@ class PushNotificationService {
+     );
+   }
+ 
++  Future<void> _openSupportTicket(String? url) async {
++    final uri = url == null ? null : Uri.tryParse(url);
++    // seuls les liens web sont ouverts (jamais un schéma arbitraire reçu dans une notification)
++    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) return;
++    try {
++      await launchUrl(uri, mode: LaunchMode.externalApplication);
++    } catch (_) {
++      // pas de navigateur disponible : l'app reste ouverte sur son écran courant
++    }
++  }
++
+   Future<void> _registerToken(String token) async {
+     try {
+       await ApiClient().post('/api/notifications/tokens', body: {

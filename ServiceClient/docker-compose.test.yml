@@ -1,0 +1,94 @@
+# Run every test suite in containers — no Java, Node or Python needed on your machine.
+#
+#   docker compose -f docker-compose.test.yml run --rm backend-tests     # 53 unit + 66 integration tests
+#   docker compose -f docker-compose.test.yml run --rm frontend-tests    # lint, types, unit tests, build
+#   docker compose -f docker-compose.test.yml run --rm assistant-tests   # documentation assistant
+#   docker compose -f docker-compose.test.yml down -v                    # clean up
+#
+# Browser end-to-end tests run against the full stack:
+#   docker compose up -d --build --wait
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml run --rm e2e
+#
+# Or simply use scripts/test.ps1 (Windows) / scripts/test.sh (macOS, Linux).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:?Set LOG_MAX_SIZE in .env (copy .env.example)}
+    max-file: ${LOG_MAX_FILES:?Set LOG_MAX_FILES in .env}
+
+services:
+  test-db:
+    image: postgres:16-alpine          # same image as the main stack: no extra download
+    environment:
+      POSTGRES_DB: ${TEST_POSTGRES_DB:?Set TEST_POSTGRES_DB in .env}
+      POSTGRES_USER: ${TEST_POSTGRES_USER:?Set TEST_POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:?Set TEST_POSTGRES_PASSWORD in .env}
+    tmpfs:
+      - /var/lib/postgresql/data       # in memory: nothing written to disk
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      retries: 30
+    logging: *logging
+
+  backend-tests:
+    image: eclipse-temurin:21-jdk-noble   # same base as the backend builder: no extra download
+    depends_on:
+      test-db:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - maven-cache:/root/.m2             # dependencies downloaded once, reused by every run
+    environment:
+      TEST_DATABASE_URL: jdbc:postgresql://test-db:5432/${TEST_POSTGRES_DB}
+      TEST_DATABASE_USERNAME: ${TEST_POSTGRES_USER}
+      TEST_DATABASE_PASSWORD: ${TEST_POSTGRES_PASSWORD}
+    command: ["sh", "-c", "chmod +x mvnw && ./mvnw -B verify"]
+    logging: *logging
+
+  frontend-tests:
+    image: node:22-alpine                 # same base as the frontend image
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules   # reused between runs, never written into your folder
+      - /app/.next
+      - npm-cache:/root/.npm
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    command:
+      - sh
+      - -c
+      - npm ci --legacy-peer-deps --no-audit --no-fund --prefer-offline && npm run lint && npm run typecheck && npm test && npm run build
+    logging: *logging
+
+  assistant-tests:
+    # unit tests use their own small search indexes and a fake Ollama (no model download needed)
+    build:
+      context: ./assistant
+      target: test
+    logging: *logging
+
+  e2e:
+    # The Playwright image version must match @playwright/test in frontend/package.json.
+    image: mcr.microsoft.com/playwright:v1.56.0-noble
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - e2e-node-modules:/app/node_modules
+      - npm-cache:/root/.npm
+    environment:
+      E2E_BASE_URL: http://frontend:3000
+    command:
+      - sh
+      - -c
+      - npm ci --legacy-peer-deps --no-audit --no-fund --prefer-offline && npx playwright test
+    logging: *logging
+
+volumes:
+  maven-cache:
+  npm-cache:
+  frontend-node-modules:
+  e2e-node-modules:

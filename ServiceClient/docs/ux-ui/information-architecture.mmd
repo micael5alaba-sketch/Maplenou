@@ -1,0 +1,26 @@
+flowchart LR
+    R[Requester] --> H[Aide & Support]
+    H --> MT[Mes tickets]
+    H --> CT[Créer un ticket]
+    MT --> RT[Ticket]
+    CT --> RT
+    RT --> OV[Vue d'ensemble]
+    RT --> CO[Conversation]
+    RT --> AT[Pièces jointes]
+    RT --> HI[Historique visible]
+
+    S[Support] --> DB[Tableau de bord]
+    S --> TK[Tickets]
+    TK --> Q[File d'attente]
+    TK --> MY[Mes tickets]
+    Q --> ST[Support Ticket]
+    MY --> ST
+    ST --> SO[Vue d'ensemble]
+    ST --> SC[Conversation]
+    ST --> IN[Notes internes]
+    ST --> CX[Contexte autorisé]
+    ST --> SL[SLA]
+    ST --> AU[Historique / Audit]
+
+    AUTH[Authorization] -. controls .-> RT
+    AUTH -. controls .-> ST

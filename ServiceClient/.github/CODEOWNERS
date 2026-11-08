@@ -1,0 +1,8 @@
+# Reviewers requested automatically on pull requests (https://docs.github.com/articles/about-code-owners).
+# Replace @OWNER with the GitHub user or team of Maplenou (e.g. @maplenou/support-team).
+*                 @OWNER
+/backend/         @OWNER
+/frontend/        @OWNER
+/assistant/       @OWNER
+/documentation/   @OWNER
+/docs/            @OWNER

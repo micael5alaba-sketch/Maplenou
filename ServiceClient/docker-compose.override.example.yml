@@ -1,0 +1,8 @@
+# Copy to docker-compose.override.yml (git-ignored) to publish PostgreSQL to your machine,
+# e.g. for a SQL client or to run the backend natively against the Compose database.
+# The host port comes from POSTGRES_HOST_PORT in .env (5433 by default, so it never collides
+# with a PostgreSQL already installed on 5432).
+services:
+  postgres:
+    ports:
+      - "${HOST_BIND_ADDRESS:?Set HOST_BIND_ADDRESS in .env}:${POSTGRES_HOST_PORT:?Set POSTGRES_HOST_PORT in .env}:5432"

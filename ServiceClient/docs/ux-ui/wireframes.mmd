@@ -1,0 +1,28 @@
+flowchart TD
+    subgraph REQUESTER[Requester]
+        A1[Help & Support]
+        A2[My Tickets]
+        A3[Create Ticket]
+        A4[Ticket Detail]
+        A1 --> A2
+        A1 --> A3
+        A2 --> A4
+        A3 --> A4
+    end
+    subgraph SUPPORT[Support]
+        B1[Support Dashboard]
+        B2[Ticket Queue]
+        B3[Support My Tickets]
+        B4[Support Ticket Detail]
+        B1 --> B2
+        B1 --> B3
+        B2 --> B4
+        B3 --> B4
+    end
+    subgraph STATES[Shared States]
+        L[Loading]
+        E[Empty]
+        ER[Error]
+        U[Unauthorized]
+        C[Confirmation]
+    end

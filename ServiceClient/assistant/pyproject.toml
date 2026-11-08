@@ -1,0 +1,23 @@
+[project]
+name = "maplenou-docs-assistant"
+version = "0.2.0"
+description = "Maplenou documentation assistant: answers from the documentation with references, using Ollama"
+requires-python = ">=3.12"
+dependencies = [
+    "starlette==0.48.0",
+    "uvicorn==0.37.0",
+    "httpx==0.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+filterwarnings = ["ignore::DeprecationWarning:starlette.*"]

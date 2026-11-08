@@ -1,0 +1,9 @@
+# Keep shell scripts with LF endings even when committed from Windows (CI and Docker run them on Linux)
+* text=auto
+backend/mvnw text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.jar binary
+# Patches for the owner of the Maplenou repository: keep their bytes exactly (git apply)
+integration/**/*.patch -text

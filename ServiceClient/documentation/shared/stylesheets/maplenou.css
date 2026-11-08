@@ -1,0 +1,29 @@
+/* Maplenou brand on top of the Zensical theme (same tokens as frontend/src/app/globals.css). */
+:root > * {
+  --md-primary-fg-color: #157f3c;
+  --md-primary-fg-color--light: #e7f5ec;
+  --md-primary-fg-color--dark: #0f6b31;
+  --md-accent-fg-color: #6d28d9;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1d6b3a;
+  --md-primary-fg-color--light: #2fa45a;
+  --md-primary-fg-color--dark: #173523;
+  --md-accent-fg-color: #a78bfa;
+  --md-typeset-a-color: #6fd394;
+}
+/* audience ribbon shown next to the site title */
+.md-header__title .md-header__topic:first-child::after {
+  content: var(--maplenou-audience, "");
+  display: inline-flex; align-items: center; align-self: center; height: 1.6em; line-height: 1;
+  margin-left: .6rem; padding: .1rem .45rem; border-radius: .3rem;
+  font-size: .6rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--md-primary-fg-color); color: var(--md-primary-bg-color, #fff);
+}
+/* UI labels written as <span class="ui">Créer un ticket</span> or `ui:` style keys */
+.md-typeset kbd.ui, .md-typeset .ui {
+  font-family: inherit; font-weight: 600; font-size: .9em;
+  padding: .05em .4em; border-radius: .25em; border: 1px solid var(--md-default-fg-color--lighter);
+  background: var(--md-code-bg-color); box-shadow: none;
+}
+.md-typeset .status { display: inline-block; padding: .05em .55em; border-radius: 1em; font-size: .8em; font-weight: 600; }

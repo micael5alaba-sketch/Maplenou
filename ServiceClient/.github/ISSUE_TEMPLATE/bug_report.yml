@@ -1,0 +1,34 @@
+name: Bug report / Anomalie
+description: Something does not work as documented. / Quelque chose ne fonctionne pas comme prévu.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component / Composant
+      options: [backend, frontend, assistant, documentation, docker / CI]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Étapes pour reproduire
+      description: Use demo data only — never real customer data.
+      placeholder: "1. Sign in as Jean K.\n2. …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result / Résultat attendu et obtenu
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Business rule or requirement (BR-xxx, FR-xxx, AC-xxx), if known
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment / Environnement
+      description: Docker or native, OS, browser, language (FR/EN), theme.
