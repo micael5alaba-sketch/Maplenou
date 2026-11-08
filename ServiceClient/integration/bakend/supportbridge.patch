@@ -1,0 +1,1217 @@
+diff --git a/Bakend/.gitignore b/Bakend/.gitignore
+index 103e062..7a2d782 100644
+--- a/Bakend/.gitignore
++++ b/Bakend/.gitignore
+@@ -42,3 +42,5 @@ logs/
+ dump.rdb
+ hs_err_pid*.log
+ replay_pid*.log
++# Valeurs locales de docker-compose (SUPPORT_SERVICE_TOKEN…) : jamais committées
++.env
+diff --git a/Bakend/CLAUDE.md b/Bakend/CLAUDE.md
+index cbacf44..25a49bc 100644
+--- a/Bakend/CLAUDE.md
++++ b/Bakend/CLAUDE.md
+@@ -189,6 +189,22 @@ Pour la liste exacte des modules et de ce qui est fait/pas fait à une date donn
+ périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décisions structurantes**
+ (pourquoi, pas l'état d'avancement).
+ 
++### 8.bis Service client et site public (29/10/2026)
++
++- Le **service client** (tickets, SLA 24 h/24 7 j/7, agents, rapports, centre d'aide) est un service séparé dans
++  `../ServiceClient` (Spring Boot + Next.js + PostgreSQL à lui, ports 3001/8081). Il **ne touche jamais à la base
++  de Bakend** : il connecte les utilisateurs via `/api/auth/login` (+ `/api/auth/2fa/verify-login`) et lit les
++  commandes, paiements, livraisons et anciens tickets via le package `supportbridge` (`/internal/v1/**`, jeton
++  partagé `SUPPORT_SERVICE_TOKEN`). Il ne fait que lire, sauf quatre actions demandées par un agent depuis un
++  ticket (`SupportBridgeActionService` : retour pour l'acheteur, remise à disposition d'une course, message au livreur,
++  push relayé), qui passent par les services métier existants et sont tracées dans `AuditLog` (`SUPPORT_*`). Les anciens tickets `TKT-AAAA-NNNNNN` de Bakend s'importent une fois
++  dans le service client (bouton « Importer les anciens tickets »).
++- Le **site public** (`../Site_vitrine`, port 3002) ne lit que les points publics `GET /api/categories`,
++  `/api/products`, `/api/delivery-pricing-tiers`.
++- Toute modification de ces DTO (`supportbridge/SupportBridgeDtos`) doit rester compatible avec
++  `ServiceClient/backend/.../context/adapter/out/maplenou` (`HttpEcosystemGateway`, `HttpEcosystemActions`,
++  `HttpLegacyTicketSource`, vérifiés par `BakendContractTest`) et `notification/adapter/out/maplenou/BakendPushRelay`.
++
+ ---
+ 
+ ## 9. Contraintes de performance et scalabilité (à respecter dès la première ligne de code, pas en correctif)
+diff --git a/Bakend/MANUEL.md b/Bakend/MANUEL.md
+index 3f4c7ef..736ef3e 100644
+--- a/Bakend/MANUEL.md
++++ b/Bakend/MANUEL.md
+@@ -115,6 +115,9 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
+ | `ADMIN_ALLOWED_IPS` | Liste blanche IP/CIDR pour `/api/admin/**` (ex: `41.207.12.34,10.8.0.0/24`), IPv4 uniquement | vide = pas de restriction |
+ | `CLOUDINARY_URL` | Format `cloudinary://<api_key>:<api_secret>@<cloud_name>` | placeholder non fonctionnel |
+ | `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §9, non fonctionnelle tant que désactivée) | désactivé |
++| `SUPPORT_SERVICE_TOKEN` | Jeton partagé avec le Service client (`../ServiceClient`, même valeur des deux côtés, 32 caractères aléatoires au moins) : ouvre l'API interne `/internal/v1/**` (lecture + quatre actions demandées depuis un ticket, voir §9, `supportbridge`). En local : ligne `$env:SUPPORT_SERVICE_TOKEN = "…"` dans `.env.local.ps1` | vide = API interne désactivée (404) |
++| `SUPPORT_SENDER_USER_ID` | Identifiant du compte `ADMIN` qui signe les messages du service client aux livreurs | vide = le plus ancien admin actif |
++| `SUPPORT_LEGACY_READ_ONLY` | Passage au service client : `true` = la page admin des anciens tickets support (`/api/admin/support-tickets/{id}/resolve`) répond 409, les tickets se traitent dans le Service client, qui importe les nouveaux et suit leurs changements (`LEGACY_SYNC_ENABLED=true` de son côté). Les clients créent toujours leurs tickets depuis l'app | `false` |
+ | `FIREBASE_SERVICE_ACCOUNT_PATH` | Emplacement du fichier de clé Firebase (`classpath:...` = embarqué, `file:/chemin` = fichier externe monté, utilisé par Docker — voir §3) | `classpath:firebase-service-account.json` |
+ 
+ Le compte de service Firebase doit être placé dans
+@@ -271,6 +274,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
+ | `content` | Pages de contenu statiques (CGU/CGV/FAQ) |
+ | `newsletter` | Capture d'emails (pas d'envoi automatique) |
+ | `shipping` | Scaffold transporteur tiers (Colissimo) — voir §11 |
++| `supportbridge` | API interne pour le Service client (`../ServiceClient`) : **lecture** de la commande (avec ses sous-commandes), du paiement, de la livraison, du vendeur, du remboursement, des commandes et livraisons d'un compte, des anciens tickets support ; **quatre actions** demandées par un agent depuis un ticket, chacune par le service métier existant et tracée dans `AuditLog` (`SUPPORT_*`) : ouvrir une demande de retour pour l'acheteur (`POST /orders/{n}/return-requests`), remettre une course ASSIGNED/FAILED à disposition (`POST /deliveries/{id}/reschedule`), écrire au livreur dans sa conversation support (`POST /drivers/{id}/support-messages`), relayer une notification push (`POST /users/{id}/push`) (`/internal/v1/**`, en-tête `X-Maplenou-Service-Token`). Masquée de Swagger ; 404 tant que `SUPPORT_SERVICE_TOKEN` est vide ; ne jamais l'exposer sur Internet |
+ 
+ ---
+ 
+diff --git a/Bakend/docker-compose.yml b/Bakend/docker-compose.yml
+index 7d48f81..ae62dc2 100644
+--- a/Bakend/docker-compose.yml
++++ b/Bakend/docker-compose.yml
+@@ -38,6 +38,11 @@ services:
+       # Le vrai fichier doit exister sur la machine hôte (jamais dans Git, voir MANUEL.md §4) --
+       # ce montage le rend visible dans le conteneur à l'emplacement lu par FirebaseConfig.
+       FIREBASE_SERVICE_ACCOUNT_PATH: file:/app/firebase-service-account.json
++      # Jeton partagé avec le Service client (../ServiceClient) : lu depuis Bakend/.env ou l'environnement.
++      # Vide = API interne /internal/v1/** désactivée (MANUEL.md §5).
++      SUPPORT_SERVICE_TOKEN: ${SUPPORT_SERVICE_TOKEN:-}
++      SUPPORT_SENDER_USER_ID: ${SUPPORT_SENDER_USER_ID:-}
++      SUPPORT_LEGACY_READ_ONLY: ${SUPPORT_LEGACY_READ_ONLY:-false}
+     volumes:
+       - ./src/main/resources/firebase-service-account.json:/app/firebase-service-account.json:ro
+     depends_on:
+diff --git a/Bakend/mvnw b/Bakend/mvnw
+old mode 100644
+new mode 100755
+diff --git a/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java b/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
+index c0cd31f..9c9d07e 100644
+--- a/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
++++ b/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
+@@ -33,5 +33,9 @@ public enum AuditAction {
+     MAINTENANCE_ENABLED,
+     MAINTENANCE_DISABLED,
+     PASSWORD_CHANGED,
+-    REFRESH_TOKEN_REUSE_DETECTED
++    REFRESH_TOKEN_REUSE_DETECTED,
++    // Actions demandées par le Service client depuis un ticket (supportbridge, DEC-CS11-07)
++    SUPPORT_RETURN_REQUESTED,
++    SUPPORT_DELIVERY_RESCHEDULED,
++    SUPPORT_DRIVER_MESSAGED
+ }
+diff --git a/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java b/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
+index 0619d7b..99cb51a 100644
+--- a/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
++++ b/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
+@@ -68,6 +68,9 @@ public class SecurityConfig {
+                         // permitAll générique ci-dessous (Spring Security s'arrête au premier match).
+                         .requestMatchers(HttpMethod.GET, "/api/auth/firebase-token").authenticated()
+                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
++                        // API interne du Service client : pas de JWT utilisateur, le jeton de service est vérifié
++                        // par supportbridge.SupportBridgeTokenFilter (404 tant que SUPPORT_SERVICE_TOKEN est vide)
++                        .requestMatchers("/internal/v1/**").permitAll()
+                         // Lecture catalogue publique ; écriture protégée par @PreAuthorize
+                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                         .requestMatchers(HttpMethod.GET, "/api/shops/**").permitAll()
+diff --git a/Bakend/src/main/java/com/maplenou/backend/support/SupportTicketService.java b/Bakend/src/main/java/com/maplenou/backend/support/SupportTicketService.java
+index b394d3c..7ef36f6 100644
+--- a/Bakend/src/main/java/com/maplenou/backend/support/SupportTicketService.java
++++ b/Bakend/src/main/java/com/maplenou/backend/support/SupportTicketService.java
+@@ -14,6 +14,7 @@ import com.maplenou.backend.support.dto.ResolveSupportTicketRequest;
+ import com.maplenou.backend.support.dto.SupportTicketResponse;
+ import com.maplenou.backend.user.User;
+ import lombok.RequiredArgsConstructor;
++import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.Pageable;
+ import org.springframework.http.HttpStatus;
+@@ -40,6 +41,14 @@ public class SupportTicketService {
+     private final MessagingService messagingService;
+     private final AuditService auditService;
+ 
++    /**
++     * Passage au service client (ServiceClient) : à true, les tickets se traitent uniquement là-bas (il les importe
++     * et suit leurs changements) ; la page admin de cet ancien module devient consultation seule, pour qu'un même
++     * ticket ne soit jamais traité à deux endroits. Les utilisateurs peuvent toujours en créer depuis l'app.
++     */
++    @Value("${app.support.legacy-read-only:false}")
++    private boolean legacyReadOnly;
++
+     @Transactional
+     public SupportTicketResponse create(User requester, CreateSupportTicketRequest request) {
+         Delivery delivery = null;
+@@ -102,6 +111,10 @@ public class SupportTicketService {
+ 
+     @Transactional
+     public SupportTicketResponse resolve(UUID ticketId, ResolveSupportTicketRequest request, User admin, String ip) {
++        if (legacyReadOnly) {
++            throw new ApiException(HttpStatus.CONFLICT,
++                    "Ce ticket est désormais traité dans le service client Maplenou (SUPPORT_LEGACY_READ_ONLY=true).");
++        }
+         SupportTicket ticket = supportTicketRepository.findById(ticketId)
+                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Ticket introuvable"));
+ 
+diff --git a/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeActionService.java b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeActionService.java
+new file mode 100644
+index 0000000..a123fd2
+--- /dev/null
++++ b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeActionService.java
+@@ -0,0 +1,213 @@
++package com.maplenou.backend.supportbridge;
++
++import com.maplenou.backend.audit.AuditAction;
++import com.maplenou.backend.audit.AuditService;
++import com.maplenou.backend.common.exception.ApiException;
++import com.maplenou.backend.delivery.Delivery;
++import com.maplenou.backend.delivery.DeliveryStatus;
++import com.maplenou.backend.messaging.MessagingService;
++import com.maplenou.backend.messaging.dto.ConversationResponse;
++import com.maplenou.backend.messaging.dto.SendMessageRequest;
++import com.maplenou.backend.notification.FcmService;
++import com.maplenou.backend.order.Order;
++import com.maplenou.backend.order.SubOrder;
++import com.maplenou.backend.order.SubOrderStatus;
++import com.maplenou.backend.returns.ProductCondition;
++import com.maplenou.backend.returns.ReturnRequestService;
++import com.maplenou.backend.returns.dto.CreateReturnRequest;
++import com.maplenou.backend.returns.dto.ReturnRequestResponse;
++import com.maplenou.backend.supportbridge.SupportBridgeDtos.*;
++import com.maplenou.backend.user.Role;
++import com.maplenou.backend.user.User;
++import jakarta.persistence.EntityManager;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.http.HttpStatus;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.UUID;
++
++/**
++ * Les seules écritures que le Service client peut demander à Bakend (DEC-CS11-07), toujours depuis un ticket
++ * et au nom d'un agent : ouvrir une demande de retour pour l'acheteur, remettre une livraison à disposition des
++ * livreurs, écrire au livreur dans la messagerie support, et relayer une notification push vers l'app mobile.
++ *
++ * Chaque action passe par le service métier existant (mêmes règles que dans l'app : fenêtre de 30 jours, un seul
++ * retour par sous-commande…) et laisse une trace dans {@code AuditLog} avec le numéro du ticket.
++ */
++@Slf4j
++@Service
++public class SupportBridgeActionService {
++
++    private final EntityManager em;
++    private final ReturnRequestService returns;
++    private final MessagingService messaging;
++    private final FcmService fcm;
++    private final AuditService audit;
++    private final String senderUserId;
++
++    public SupportBridgeActionService(EntityManager em, ReturnRequestService returns, MessagingService messaging,
++                                      FcmService fcm, AuditService audit,
++                                      @Value("${app.support-bridge.sender-user-id:}") String senderUserId) {
++        this.em = em;
++        this.returns = returns;
++        this.messaging = messaging;
++        this.fcm = fcm;
++        this.audit = audit;
++        this.senderUserId = senderUserId;
++    }
++
++    // ---------------------------------------------------------------- retour / remboursement
++
++    @Transactional
++    public ActionResult requestReturn(String orderNumber, ReturnRequestAction req) {
++        Order order = em.createQuery("SELECT o FROM Order o WHERE o.orderNumber = :n", Order.class)
++                .setParameter("n", orderNumber == null ? "" : orderNumber.trim())
++                .getResultStream().findFirst()
++                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Commande introuvable"));
++        SubOrder sub = pickSubOrder(order, req.subOrderId());
++        ProductCondition condition = req.productCondition() == null || req.productCondition().isBlank()
++                ? ProductCondition.GOOD : ProductCondition.valueOf(req.productCondition());
++        String reason = prefix(req.origin()) + req.reason();
++        ReturnRequestResponse created = returns.create(order.getBuyer(),
++                new CreateReturnRequest(sub.getId(), reason, condition));
++        log(req.origin(), AuditAction.SUPPORT_RETURN_REQUESTED, "ReturnRequest", created.id(),
++                "Commande " + order.getOrderNumber() + ", sous-commande " + sub.getId());
++        return new ActionResult(created.id().toString(), created.refundStatus().name());
++    }
++
++    private static SubOrder pickSubOrder(Order order, String subOrderId) {
++        List<SubOrder> subs = order.getSubOrders();
++        if (subOrderId == null || subOrderId.isBlank()) {
++            if (subs.size() != 1) {
++                throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT,
++                        "La commande contient " + subs.size() + " boutiques : précisez la sous-commande concernée.");
++            }
++            return subs.get(0);
++        }
++        return subs.stream().filter(s -> s.getId().toString().equals(subOrderId.trim())).findFirst()
++                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
++                        "Cette sous-commande n'appartient pas à la commande"));
++    }
++
++    // ---------------------------------------------------------------- livraison
++
++    /**
++     * Retire la course au livreur actuel (ASSIGNED, ou FAILED après un échec) et la remet dans la liste des courses
++     * disponibles (PENDING). Une course en route (IN_TRANSIT) ou livrée ne peut pas être retirée.
++     */
++    @Transactional
++    public ActionResult rescheduleDelivery(String deliveryId, RescheduleAction req) {
++        UUID id = parseUuid(deliveryId)
++                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Livraison introuvable"));
++        Delivery delivery = Optional.ofNullable(em.find(Delivery.class, id, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE))
++                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Livraison introuvable"));
++        DeliveryStatus status = delivery.getStatus();
++        if (status != DeliveryStatus.ASSIGNED && status != DeliveryStatus.FAILED) {
++            throw new ApiException(HttpStatus.CONFLICT, switch (status) {
++                case PENDING -> "La livraison attend déjà un livreur.";
++                case IN_TRANSIT -> "Le livreur est en route : la course ne peut pas lui être retirée.";
++                default -> "La livraison est terminée.";
++            });
++        }
++        User previous = delivery.getAgent();
++        delivery.setAgent(null);
++        delivery.setAssignedAt(null);
++        delivery.setStatus(DeliveryStatus.PENDING);
++        String note = prefix(req.origin()) + req.reason();
++        String notes = delivery.getNotes() == null || delivery.getNotes().isBlank() ? note : delivery.getNotes() + "\n" + note;
++        delivery.setNotes(notes.length() > 1000 ? notes.substring(notes.length() - 1000) : notes);
++        SubOrder sub = delivery.getSubOrder();
++        if (sub.getStatus() == SubOrderStatus.IN_DELIVERY) {
++            sub.setStatus(SubOrderStatus.READY_FOR_PICKUP);
++        }
++        log(req.origin(), AuditAction.SUPPORT_DELIVERY_RESCHEDULED, "Delivery", delivery.getId(),
++                "Statut " + status + " -> PENDING" + (previous == null ? "" : ", livreur " + previous.getId()));
++        if (previous != null) {
++            pushQuietly(previous.getId(), "Course retirée",
++                    "Le service client a remis une de vos courses à disposition des autres livreurs.",
++                    Map.of("type", "DELIVERY_UNASSIGNED", "deliveryId", delivery.getId().toString()));
++        }
++        return new ActionResult(delivery.getId().toString(), DeliveryStatus.PENDING.name());
++    }
++
++    // ---------------------------------------------------------------- message au livreur
++
++    @Transactional
++    public ActionResult messageDriver(UUID driverId, DriverMessageAction req) {
++        User driver = em.find(User.class, driverId);
++        if (driver == null || driver.getRole() != Role.DELIVERY_AGENT || !driver.isActive()) {
++            throw new ApiException(HttpStatus.NOT_FOUND, "Livreur introuvable");
++        }
++        User sender = supportSender();
++        ConversationResponse conversation = messaging.startOrGetSupportConversation(driver);
++        String agent = req.agentName() == null || req.agentName().isBlank() ? "" : " (" + req.agentName() + ")";
++        String content = "Service client" + agent + (req.ticketNumber() == null ? "" : " — ticket " + req.ticketNumber())
++                + " :\n" + req.message();
++        messaging.sendMessage(sender, conversation.id(), new SendMessageRequest(
++                content.length() > 2000 ? content.substring(0, 2000) : content));
++        log(req.origin(), AuditAction.SUPPORT_DRIVER_MESSAGED, "User", driver.getId(), "Conversation " + conversation.id());
++        return new ActionResult(conversation.id().toString(), "SENT");
++    }
++
++    /** Compte qui signe les messages du support : {@code SUPPORT_SENDER_USER_ID}, sinon le plus ancien admin actif. */
++    private User supportSender() {
++        Optional<User> configured = parseUuid(senderUserId).map(id -> em.find(User.class, id))
++                .filter(u -> u.getRole() == Role.ADMIN && u.isActive());
++        return configured.or(() -> em.createQuery(
++                        "SELECT u FROM User u WHERE u.role = :r AND u.active = true ORDER BY u.createdAt", User.class)
++                        .setParameter("r", Role.ADMIN).setMaxResults(1).getResultStream().findFirst())
++                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT,
++                        "Aucun compte administrateur actif pour signer le message du service client."));
++    }
++
++    // ---------------------------------------------------------------- push relayé
++
++    /** Notification du Service client vers l'app mobile Maplenou (jetons FCM gérés par Bakend). */
++    public void relayPush(UUID userId, PushRelay req) {
++        if (em.find(User.class, userId) == null) {
++            throw new ApiException(HttpStatus.NOT_FOUND, "Utilisateur introuvable");
++        }
++        Map<String, String> data = new HashMap<>(req.data() == null ? Map.of() : req.data());
++        data.put("source", "support");
++        fcm.sendToUser(userId, req.title(), req.body(), data);
++    }
++
++    private void pushQuietly(UUID userId, String title, String body, Map<String, String> data) {
++        try {
++            fcm.sendToUser(userId, title, body, data);
++        } catch (RuntimeException e) {
++            log.warn("Notification push non envoyée à {} : {}", userId, e.getMessage());
++        }
++    }
++
++    // ---------------------------------------------------------------- outils
++
++    private static String prefix(ActionOrigin origin) {
++        return origin.ticketNumber() == null || origin.ticketNumber().isBlank()
++                ? "[Service client] " : "[Service client " + origin.ticketNumber() + "] ";
++    }
++
++    /** L'agent n'a pas forcément de compte Bakend (compte de démonstration) : l'auteur reste alors vide. */
++    private void log(ActionOrigin origin, AuditAction action, String type, UUID entityId, String details) {
++        UUID actor = parseUuid(origin.agentId()).filter(id -> em.find(User.class, id) != null).orElse(null);
++        String who = "Ticket " + origin.ticketNumber() + ", agent " + origin.agentName() + ". " + details;
++        audit.log(actor, action, type, entityId, who.length() > 1000 ? who.substring(0, 1000) : who, null);
++    }
++
++    private static Optional<UUID> parseUuid(String value) {
++        if (value == null || value.isBlank()) {
++            return Optional.empty();
++        }
++        try {
++            return Optional.of(UUID.fromString(value.trim()));
++        } catch (IllegalArgumentException e) {
++            return Optional.empty();
++        }
++    }
++}
+diff --git a/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeController.java b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeController.java
+new file mode 100644
+index 0000000..35856d1
+--- /dev/null
++++ b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeController.java
+@@ -0,0 +1,91 @@
++package com.maplenou.backend.supportbridge;
++
++import com.maplenou.backend.supportbridge.SupportBridgeDtos.*;
++import io.swagger.v3.oas.annotations.Hidden;
++import lombok.RequiredArgsConstructor;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.*;
++
++import java.util.List;
++import java.util.UUID;
++
++/**
++ * API interne pour le Service client : lecture (adaptateur HttpEcosystemGateway) et quatre actions demandées depuis un ticket
++ * (HttpEcosystemActions, BakendPushRelay — SupportBridgeActionService).
++ * Protégée par {@link SupportBridgeTokenFilter} ; absente de Swagger (usage de service à service uniquement).
++ */
++@Hidden
++@RestController
++@RequiredArgsConstructor
++@RequestMapping("/internal/v1")
++public class SupportBridgeController {
++
++    private final SupportBridgeService bridge;
++    private final SupportBridgeActionService actions;
++
++    @GetMapping("/orders/{ref}")
++    public ResponseEntity<OrderSummary> order(@PathVariable String ref) {
++        return ResponseEntity.of(bridge.order(ref));
++    }
++
++    @GetMapping("/payments/{ref}")
++    public ResponseEntity<PaymentSummary> payment(@PathVariable String ref) {
++        return ResponseEntity.of(bridge.payment(ref));
++    }
++
++    @GetMapping("/deliveries/{ref}")
++    public ResponseEntity<DeliverySummary> delivery(@PathVariable String ref) {
++        return ResponseEntity.of(bridge.delivery(ref));
++    }
++
++    @GetMapping("/sellers/{ref}")
++    public ResponseEntity<SellerSummary> seller(@PathVariable String ref) {
++        return ResponseEntity.of(bridge.seller(ref));
++    }
++
++    @GetMapping("/refunds/{ref}")
++    public ResponseEntity<RefundSummary> refund(@PathVariable String ref) {
++        return ResponseEntity.of(bridge.refund(ref));
++    }
++
++    @GetMapping("/users/{id}/orders")
++    public List<OrderSummary> ordersOf(@PathVariable UUID id) {
++        return bridge.ordersOf(id);
++    }
++
++    @GetMapping("/drivers/{id}/deliveries")
++    public List<DeliverySummary> deliveriesOf(@PathVariable UUID id) {
++        return bridge.deliveriesOf(id);
++    }
++
++    // ---------------------------------------------------------------- actions (DEC-CS11-07)
++
++    @PostMapping("/orders/{ref}/return-requests")
++    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
++    public ActionResult returnRequest(@PathVariable String ref, @jakarta.validation.Valid @RequestBody ReturnRequestAction body) {
++        return actions.requestReturn(ref, body);
++    }
++
++    @PostMapping("/deliveries/{ref}/reschedule")
++    public ActionResult reschedule(@PathVariable String ref, @jakarta.validation.Valid @RequestBody RescheduleAction body) {
++        return actions.rescheduleDelivery(ref, body);
++    }
++
++    @PostMapping("/drivers/{id}/support-messages")
++    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
++    public ActionResult driverMessage(@PathVariable UUID id, @jakarta.validation.Valid @RequestBody DriverMessageAction body) {
++        return actions.messageDriver(id, body);
++    }
++
++    @PostMapping("/users/{id}/push")
++    @ResponseStatus(org.springframework.http.HttpStatus.ACCEPTED)
++    public void push(@PathVariable UUID id, @jakarta.validation.Valid @RequestBody PushRelay body) {
++        actions.relayPush(id, body);
++    }
++
++    @GetMapping("/support-tickets")
++    public LegacyTicketPage legacyTickets(@RequestParam(defaultValue = "0") int page,
++                                          @RequestParam(defaultValue = "50") int size) {
++        return bridge.legacyTickets(page, size);
++    }
++}
+diff --git a/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeDtos.java b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeDtos.java
+new file mode 100644
+index 0000000..f17bf5e
+--- /dev/null
++++ b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeDtos.java
+@@ -0,0 +1,103 @@
++package com.maplenou.backend.supportbridge;
++
++import java.math.BigDecimal;
++import java.time.Instant;
++import java.util.List;
++import java.util.UUID;
++
++/**
++ * Réponses de l'API interne lue par le Service client. Les noms de champs sont ceux attendus par
++ * {@code ServiceClient/backend/.../context/EcosystemGateway} : ne pas les renommer sans changer les deux côtés.
++ */
++public final class SupportBridgeDtos {
++
++    private SupportBridgeDtos() {
++    }
++
++    /** Une commande (référence = numéro de commande). Vendeur renseigné quand la commande n'a qu'une boutique. */
++    public record OrderSummary(String ref, UUID customerId, String customerName, UUID sellerUserId, String sellerRef,
++                               String sellerName, Instant orderedAt, BigDecimal amount, String currency, String status,
++                               String paymentRef, String deliveryRef, String refundRef,
++                               List<SubOrderSummary> subOrders) {
++    }
++
++    /** Une sous-commande (une par boutique) : le Service client choisit celle concernée par un retour. */
++    public record SubOrderSummary(String id, String shopName, String status, BigDecimal subtotal) {
++    }
++
++    public record PaymentSummary(String ref, String orderRef, String status, BigDecimal amount, String currency,
++                                 String provider, BigDecimal commissionAmount, String payoutStatus,
++                                 BigDecimal payoutAmount, Instant paidAt) {
++    }
++
++    public record DeliverySummary(String ref, String orderRef, String customerName, UUID driverId, String driverName,
++                                  String status, Instant pickedUpAt, Instant lastUpdateAt, String destination,
++                                  String timeSlot) {
++    }
++
++    public record SellerSummary(String ref, UUID sellerUserId, String shopName, String ownerName,
++                                String accountStatus, BigDecimal balance, String currency) {
++    }
++
++    public record RefundSummary(String ref, String orderRef, String status, BigDecimal amount, String currency,
++                                Instant requestedAt) {
++    }
++
++    /** Ancien ticket (table support_tickets, V46), pour l'import unique dans le Service client. */
++    public record LegacyTicket(UUID id, String ticketNumber, UUID requesterId, String requesterName,
++                               String requesterPhone, String requesterEmail, String requesterRole, String category,
++                               String subject, String description, String relatedDeliveryRef, String photoUrl,
++                               String status, String resolutionNotes, Instant resolvedAt, Instant createdAt) {
++    }
++
++    public record LegacyTicketPage(List<LegacyTicket> items, int page, int size, long totalItems, boolean last) {
++    }
++
++    // ---------------------------------------------------------------- actions demandées par le Service client
++
++    /** Commun à toutes les actions : qui la demande, depuis quel ticket (traçabilité, AuditLog). */
++    public record ActionOrigin(String ticketNumber, String agentName, String agentId) {
++    }
++
++    public record ReturnRequestAction(
++            @jakarta.validation.constraints.Size(max = 40) String ticketNumber,
++            @jakarta.validation.constraints.Size(max = 120) String agentName,
++            @jakarta.validation.constraints.Size(max = 40) String agentId,
++            @jakarta.validation.constraints.Size(max = 60) String subOrderId,
++            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 10, max = 900) String reason,
++            @jakarta.validation.constraints.Pattern(regexp = "^(NEW|GOOD|DAMAGED)?$") String productCondition) {
++        ActionOrigin origin() {
++            return new ActionOrigin(ticketNumber, agentName, agentId);
++        }
++    }
++
++    public record RescheduleAction(
++            @jakarta.validation.constraints.Size(max = 40) String ticketNumber,
++            @jakarta.validation.constraints.Size(max = 120) String agentName,
++            @jakarta.validation.constraints.Size(max = 40) String agentId,
++            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500) String reason) {
++        ActionOrigin origin() {
++            return new ActionOrigin(ticketNumber, agentName, agentId);
++        }
++    }
++
++    public record DriverMessageAction(
++            @jakarta.validation.constraints.Size(max = 40) String ticketNumber,
++            @jakarta.validation.constraints.Size(max = 120) String agentName,
++            @jakarta.validation.constraints.Size(max = 40) String agentId,
++            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 1000) String message) {
++        ActionOrigin origin() {
++            return new ActionOrigin(ticketNumber, agentName, agentId);
++        }
++    }
++
++    public record PushRelay(
++            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 160) String title,
++            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500) String body,
++            @jakarta.validation.constraints.Size(max = 10) java.util.Map<String, String> data) {
++    }
++
++    /** Résultat d'une action : référence créée côté Bakend (retour, livraison…) et son statut. */
++    public record ActionResult(String ref, String status) {
++    }
++}
+diff --git a/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeService.java b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeService.java
+new file mode 100644
+index 0000000..af924cb
+--- /dev/null
++++ b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeService.java
+@@ -0,0 +1,194 @@
++package com.maplenou.backend.supportbridge;
++
++import com.maplenou.backend.catalog.Shop;
++import com.maplenou.backend.delivery.Delivery;
++import com.maplenou.backend.order.AddressSnapshot;
++import com.maplenou.backend.order.Order;
++import com.maplenou.backend.order.SubOrder;
++import com.maplenou.backend.returns.ReturnRequest;
++import com.maplenou.backend.seller.SellerProfile;
++import com.maplenou.backend.support.SupportTicket;
++import com.maplenou.backend.supportbridge.SupportBridgeDtos.*;
++import com.maplenou.backend.user.User;
++import jakarta.persistence.EntityManager;
++import lombok.RequiredArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.math.BigDecimal;
++import java.util.List;
++import java.util.Optional;
++import java.util.UUID;
++
++/**
++ * Lecture seule des données dont le Service client a besoin pour traiter un ticket (commande, paiement,
++ * livraison, boutique, retour) et pour importer les anciens tickets. Aucune écriture, aucune donnée de
++ * paiement sensible : montants, statuts et références uniquement.
++ *
++ * Requêtes JPQL locales (EntityManager) plutôt que de nouvelles méthodes dans les repositories des autres
++ * modules : ce pont n'ajoute rien aux modules existants.
++ */
++@Service
++@RequiredArgsConstructor
++@Transactional(readOnly = true)
++public class SupportBridgeService {
++
++    static final String CURRENCY = "XOF";
++    /** Nombre maximum d'éléments renvoyés par les listes « commandes d'un utilisateur » / « livraisons ». */
++    static final int RECENT_LIMIT = 20;
++
++    private final EntityManager em;
++
++    // ---------------------------------------------------------------- commandes
++
++    public Optional<OrderSummary> order(String orderNumber) {
++        return findOrder(orderNumber).map(this::toOrder);
++    }
++
++    /** Commandes passées par l'utilisateur, ou contenant une sous-commande de sa boutique, les plus récentes d'abord. */
++    public List<OrderSummary> ordersOf(UUID userId) {
++        List<Order> orders = em.createQuery("""
++                        SELECT o FROM Order o
++                        WHERE o.buyer.id = :id
++                           OR EXISTS (SELECT 1 FROM SubOrder so WHERE so.order = o AND so.shop.owner.id = :id)
++                        ORDER BY o.createdAt DESC""", Order.class)
++                .setParameter("id", userId)
++                .setMaxResults(RECENT_LIMIT)
++                .getResultList();
++        return orders.stream().map(this::toOrder).toList();
++    }
++
++    private Optional<Order> findOrder(String orderNumber) {
++        if (orderNumber == null || orderNumber.isBlank()) {
++            return Optional.empty();
++        }
++        return em.createQuery("SELECT o FROM Order o WHERE o.orderNumber = :n", Order.class)
++                .setParameter("n", orderNumber.trim())
++                .getResultStream().findFirst();
++    }
++
++    private OrderSummary toOrder(Order o) {
++        List<SubOrder> subs = o.getSubOrders();
++        SubOrder single = subs.size() == 1 ? subs.get(0) : null;
++        Shop shop = single == null ? null : single.getShop();
++        String sellerName = shop != null ? shop.getName() : subs.size() + " boutiques";
++        Delivery delivery = single == null ? null : deliveryOf(single).orElse(null);
++        ReturnRequest ret = single == null ? null : returnOf(single).orElse(null);
++        return new OrderSummary(o.getOrderNumber(), o.getBuyer().getId(), o.getBuyer().getFullName(),
++                shop == null ? null : shop.getOwner().getId(), shop == null ? null : shop.getSlug(), sellerName,
++                o.getCreatedAt(), o.getTotalAmount(), CURRENCY, o.getStatus().name(), o.getOrderNumber(),
++                delivery == null ? null : delivery.getId().toString(), ret == null ? null : ret.getId().toString(),
++                subs.stream().map(so -> new SubOrderSummary(so.getId().toString(), so.getShop().getName(),
++                        so.getStatus().name(), so.getSubtotal())).toList());
++    }
++
++    // ---------------------------------------------------------------- paiement (référence = numéro de commande)
++
++    public Optional<PaymentSummary> payment(String orderNumber) {
++        return findOrder(orderNumber).map(o -> {
++            BigDecimal commission = o.getSubOrders().stream().map(SubOrder::getCommissionAmount)
++                    .reduce(BigDecimal.ZERO, BigDecimal::add);
++            SubOrder single = o.getSubOrders().size() == 1 ? o.getSubOrders().get(0) : null;
++            String payoutStatus = single == null || single.getPayout() == null ? null
++                    : single.getPayout().getStatus().name();
++            BigDecimal payoutAmount = single == null ? null : single.getNetAmount();
++            String provider = o.getFedapayTransactionId() != null ? "FEDAPAY" : null;
++            return new PaymentSummary(o.getOrderNumber(), o.getOrderNumber(), o.getStatus().name(),
++                    o.getTotalAmount(), CURRENCY, provider, commission, payoutStatus, payoutAmount,
++                    o.getStatus().name().equals("CREATED") ? null : o.getUpdatedAt());
++        });
++    }
++
++    // ---------------------------------------------------------------- livraisons
++
++    public Optional<DeliverySummary> delivery(String ref) {
++        return parseUuid(ref).flatMap(id -> em.createQuery("SELECT d FROM Delivery d WHERE d.id = :id", Delivery.class)
++                .setParameter("id", id).getResultStream().findFirst()).map(this::toDelivery);
++    }
++
++    public List<DeliverySummary> deliveriesOf(UUID driverId) {
++        return em.createQuery("SELECT d FROM Delivery d WHERE d.agent.id = :id ORDER BY d.createdAt DESC",
++                        Delivery.class)
++                .setParameter("id", driverId).setMaxResults(RECENT_LIMIT)
++                .getResultList().stream().map(this::toDelivery).toList();
++    }
++
++    private Optional<Delivery> deliveryOf(SubOrder so) {
++        return em.createQuery("SELECT d FROM Delivery d WHERE d.subOrder = :so", Delivery.class)
++                .setParameter("so", so).getResultStream().findFirst();
++    }
++
++    private DeliverySummary toDelivery(Delivery d) {
++        Order o = d.getSubOrder().getOrder();
++        User agent = d.getAgent();
++        AddressSnapshot a = o.getDeliveryAddress();
++        String destination = a == null ? null : String.join(", ",
++                java.util.stream.Stream.of(a.getDistrict(), a.getCity()).filter(s -> s != null && !s.isBlank()).toList());
++        return new DeliverySummary(d.getId().toString(), o.getOrderNumber(), o.getBuyer().getFullName(),
++                agent == null ? null : agent.getId(), agent == null ? null : agent.getFullName(), d.getStatus().name(),
++                d.getAssignedAt(), d.getUpdatedAt() != null ? d.getUpdatedAt() : d.getCreatedAt(), destination, null);
++    }
++
++    // ---------------------------------------------------------------- vendeurs (référence = slug de la boutique)
++
++    public Optional<SellerSummary> seller(String slug) {
++        if (slug == null || slug.isBlank()) {
++            return Optional.empty();
++        }
++        return em.createQuery("SELECT s FROM Shop s WHERE s.slug = :slug", Shop.class)
++                .setParameter("slug", slug.trim()).getResultStream().findFirst().map(s -> {
++                    User owner = s.getOwner();
++                    SellerProfile profile = em.createQuery(
++                                    "SELECT p FROM SellerProfile p WHERE p.user.id = :id", SellerProfile.class)
++                            .setParameter("id", owner.getId()).getResultStream().findFirst().orElse(null);
++                    String status = profile != null ? profile.getStatus().name() : s.getStatus().name();
++                    return new SellerSummary(s.getSlug(), owner.getId(), s.getName(), owner.getFullName(), status,
++                            null, CURRENCY);
++                });
++    }
++
++    // ---------------------------------------------------------------- retours / remboursements
++
++    public Optional<RefundSummary> refund(String ref) {
++        return parseUuid(ref).flatMap(id -> em.createQuery("SELECT r FROM ReturnRequest r WHERE r.id = :id",
++                        ReturnRequest.class).setParameter("id", id).getResultStream().findFirst())
++                .map(r -> new RefundSummary(r.getId().toString(), r.getSubOrder().getOrder().getOrderNumber(),
++                        r.getRefundStatus().name(), r.getSubOrder().getSubtotal(), CURRENCY, r.getCreatedAt()));
++    }
++
++    private Optional<ReturnRequest> returnOf(SubOrder so) {
++        return em.createQuery("SELECT r FROM ReturnRequest r WHERE r.subOrder = :so", ReturnRequest.class)
++                .setParameter("so", so).getResultStream().findFirst();
++    }
++
++    // ---------------------------------------------------------------- anciens tickets (import unique)
++
++    public LegacyTicketPage legacyTickets(int page, int size) {
++        int safeSize = Math.max(1, Math.min(size, 100));
++        int safePage = Math.max(0, page);
++        long total = em.createQuery("SELECT COUNT(t) FROM SupportTicket t", Long.class).getSingleResult();
++        List<LegacyTicket> items = em.createQuery("SELECT t FROM SupportTicket t ORDER BY t.createdAt ASC, t.id ASC",
++                        SupportTicket.class)
++                .setFirstResult(safePage * safeSize).setMaxResults(safeSize)
++                .getResultList().stream().map(this::toLegacy).toList();
++        boolean last = (long) (safePage + 1) * safeSize >= total;
++        return new LegacyTicketPage(items, safePage, safeSize, total, last);
++    }
++
++    private LegacyTicket toLegacy(SupportTicket t) {
++        User u = t.getRequester();
++        String role = u.getRole() != null ? u.getRole().name() : null;
++        return new LegacyTicket(t.getId(), t.getTicketNumber(), u.getId(), u.getFullName(), u.getPhoneNumber(),
++                u.getEmail(), role, t.getCategory(), t.getSubject(), t.getDescription(),
++                t.getRelatedDelivery() == null ? null : t.getRelatedDelivery().getId().toString(), t.getPhotoUrl(),
++                t.getStatus().name(), t.getResolutionNotes(), t.getResolvedAt(), t.getCreatedAt());
++    }
++
++    private static Optional<UUID> parseUuid(String ref) {
++        try {
++            return ref == null ? Optional.empty() : Optional.of(UUID.fromString(ref.trim()));
++        } catch (IllegalArgumentException e) {
++            return Optional.empty();
++        }
++    }
++}
+diff --git a/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeTokenFilter.java b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeTokenFilter.java
+new file mode 100644
+index 0000000..eaa1119
+--- /dev/null
++++ b/Bakend/src/main/java/com/maplenou/backend/supportbridge/SupportBridgeTokenFilter.java
+@@ -0,0 +1,66 @@
++package com.maplenou.backend.supportbridge;
++
++import jakarta.servlet.FilterChain;
++import jakarta.servlet.ServletException;
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.servlet.http.HttpServletResponse;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.http.MediaType;
++import org.springframework.stereotype.Component;
++import org.springframework.web.filter.OncePerRequestFilter;
++
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++
++/**
++ * Protège l'API interne {@code /internal/v1/**} lue par le module Service client (dossier ServiceClient/).
++ *
++ * <ul>
++ *   <li>Désactivée par défaut : sans {@code SUPPORT_SERVICE_TOKEN}, toute requête reçoit une 404 (comme si
++ *       l'API n'existait pas), sur le même modèle que {@code FEDAPAY_ENABLED} ou {@code COLISSIMO_ENABLED}.</li>
++ *   <li>Activée : l'en-tête {@code X-Maplenou-Service-Token} doit être égal au jeton partagé, comparé en temps
++ *       constant ; sinon 401. Aucun JWT utilisateur n'est accepté ici : c'est un accès de service à service,
++ *       en lecture seule.</li>
++ * </ul>
++ * En production, le reverse proxy ne doit pas exposer {@code /internal/} sur Internet (réseau privé uniquement).
++ */
++@Component
++public class SupportBridgeTokenFilter extends OncePerRequestFilter {
++
++    public static final String HEADER = "X-Maplenou-Service-Token";
++    static final String PATH_PREFIX = "/internal/v1/";
++
++    private final byte[] expected;
++
++    public SupportBridgeTokenFilter(@Value("${app.support-bridge.token:}") String token) {
++        this.expected = token == null || token.isBlank() ? null : token.trim().getBytes(StandardCharsets.UTF_8);
++    }
++
++    @Override
++    protected boolean shouldNotFilter(HttpServletRequest request) {
++        return !request.getRequestURI().startsWith(PATH_PREFIX);
++    }
++
++    @Override
++    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
++            throws ServletException, IOException {
++        if (expected == null) {
++            write(response, 404, "Not Found");
++            return;
++        }
++        String given = request.getHeader(HEADER);
++        if (given == null || !MessageDigest.isEqual(expected, given.trim().getBytes(StandardCharsets.UTF_8))) {
++            write(response, 401, "Jeton de service invalide");
++            return;
++        }
++        chain.doFilter(request, response);
++    }
++
++    private static void write(HttpServletResponse response, int status, String message) throws IOException {
++        response.setStatus(status);
++        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
++        response.setCharacterEncoding("UTF-8");
++        response.getWriter().write("{\"status\":" + status + ",\"message\":\"" + message + "\"}");
++    }
++}
+diff --git a/Bakend/src/main/resources/application.properties b/Bakend/src/main/resources/application.properties
+index 432e7c0..e64d098 100644
+--- a/Bakend/src/main/resources/application.properties
++++ b/Bakend/src/main/resources/application.properties
+@@ -235,3 +235,13 @@ springdoc.api-docs.path=/v3/api-docs
+ springdoc.api-docs.enabled=${SWAGGER_ENABLED:true}
+ # Active ou desactive la page web interactive Swagger UI (meme logique que ci-dessus).
+ springdoc.swagger-ui.enabled=${SWAGGER_ENABLED:true}
++
++# ---------------------------------------------------------------- Pont vers le Service client (ServiceClient/)
++# Jeton partagé avec ServiceClient (SUPPORT_SERVICE_TOKEN des deux côtés, 32 caractères aléatoires au moins).
++# Vide = API interne /internal/v1/** désactivée (404). Ne jamais exposer /internal/ sur Internet.
++app.support-bridge.token=${SUPPORT_SERVICE_TOKEN:}
++# Compte ADMIN qui signe les messages envoyés aux livreurs depuis un ticket ; vide = le plus ancien admin actif.
++app.support-bridge.sender-user-id=${SUPPORT_SENDER_USER_ID:}
++# Passage au service client : true = la page admin des anciens tickets devient consultation seule (ServiceClient
++# les importe et suit leurs changements avec LEGACY_SYNC_ENABLED=true). Voir MANUEL.md (service client).
++app.support.legacy-read-only=${SUPPORT_LEGACY_READ_ONLY:false}
+diff --git a/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java b/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
+index 097b039..1c4c024 100644
+--- a/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
++++ b/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
+@@ -59,6 +59,8 @@ import java.util.UUID;
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+ @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
++// Jeton du pont Service client : permet de vérifier, à la fin du cycle, ce que ServiceClient lit (test @Order(13)).
++@org.springframework.test.context.TestPropertySource(properties = "app.support-bridge.token=lifecycle-bridge-token-0123456789")
+ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+ 
+     @Autowired private UserRepository userRepository;
+@@ -515,6 +517,159 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+         orderRepository.deleteById(thisOrderId);
+     }
+ 
++    /** Ce que le Service client (ServiceClient/) lit de cette commande via l'API interne /internal/v1. */
++    @Test
++    @Order(13)
++    void supportBridgeExposesTheOrderItsPaymentAndItsDelivery() throws Exception {
++        String number = get("/api/orders/" + orderId, buyerToken, 200).get("orderNumber").asText();
++        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
++        java.util.function.Function<String, JsonNode> internal = path -> {
++            try {
++                var res = http.send(java.net.http.HttpRequest.newBuilder(
++                                java.net.URI.create("http://localhost:" + port + path))
++                        .header("X-Maplenou-Service-Token", "lifecycle-bridge-token-0123456789").GET().build(),
++                        java.net.http.HttpResponse.BodyHandlers.ofString());
++                assertEquals(200, res.statusCode(), path + " -> " + res.body());
++                return objectMapper.readTree(res.body());
++            } catch (Exception e) {
++                throw new IllegalStateException(e);
++            }
++        };
++        JsonNode order = internal.apply("/internal/v1/orders/" + number);
++        assertEquals(buyerId.toString(), order.get("customerId").asText());
++        assertEquals("XOF", order.get("currency").asText());
++        JsonNode payment = internal.apply("/internal/v1/payments/" + number);
++        assertEquals(number, payment.get("orderRef").asText());
++        boolean listedForBuyer = false;
++        for (JsonNode o : internal.apply("/internal/v1/users/" + buyerId + "/orders")) {
++            listedForBuyer |= number.equals(o.get("ref").asText());
++        }
++        assertTrue(listedForBuyer, "la commande doit figurer dans les commandes de l'acheteur");
++        boolean listedForSeller = false;
++        for (JsonNode o : internal.apply("/internal/v1/users/" + sellerId + "/orders")) {
++            listedForSeller |= number.equals(o.get("ref").asText());
++        }
++        assertTrue(listedForSeller, "la commande doit figurer dans les commandes du vendeur");
++        JsonNode delivery = internal.apply("/internal/v1/deliveries/" + deliveryId);
++        assertEquals(number, delivery.get("orderRef").asText());
++        assertEquals(agentId.toString(), delivery.get("driverId").asText());
++        boolean listedForDriver = false;
++        for (JsonNode d : internal.apply("/internal/v1/drivers/" + agentId + "/deliveries")) {
++            listedForDriver |= deliveryId.toString().equals(d.get("ref").asText());
++        }
++        assertTrue(listedForDriver, "la livraison doit figurer dans les livraisons du livreur");
++    }
++
++    /**
++     * Actions que le Service client demande depuis un ticket (DEC-CS11-07) : remettre une course à disposition,
++     * ouvrir un retour pour l'acheteur, écrire au livreur, relayer une notification push.
++     */
++    @Test
++    @Order(14)
++    void supportBridgeActionsGoThroughTheBusinessRules() throws Exception {
++        post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 200);
++        JsonNode order = post("/api/orders", new PlaceOrderRequest(addressId, null, null, null), buyerToken, 201);
++        order4Id = UUID.fromString(order.get("id").asText());
++        UUID subId = UUID.fromString(order.get("subOrders").get(0).get("id").asText());
++        postWithHeader("/api/webhooks/payment/confirmed",
++                new com.maplenou.backend.order.dto.PaymentWebhookRequest(order4Id.toString(), "PAY-REF-4-" + rand),
++                "X-Webhook-Secret", webhookSecret, 200);
++        for (var st : new com.maplenou.backend.order.SubOrderStatus[]{
++                com.maplenou.backend.order.SubOrderStatus.PREPARING, com.maplenou.backend.order.SubOrderStatus.READY_FOR_PICKUP}) {
++            patch("/api/sub-orders/" + subId + "/status",
++                    new com.maplenou.backend.order.dto.UpdateSubOrderStatusRequest(st), sellerToken, 200);
++        }
++        JsonNode delivery = post("/api/deliveries/sub-orders/" + subId, null, adminToken, 201);
++        delivery4Id = UUID.fromString(delivery.get("id").asText());
++        patch("/api/deliveries/" + delivery4Id + "/assign", new AssignAgentRequest(agentId), adminToken, 200);
++
++        String number = get("/api/orders/" + order4Id, buyerToken, 200).get("orderNumber").asText();
++        java.util.Map<String, Object> origin = java.util.Map.of("ticketNumber", "TKT-2026-00042", "agentName", "Afi (support)");
++
++        // la commande expose ses sous-commandes pour choisir celle du retour
++        var summary = internalCall("GET", "/internal/v1/orders/" + number, null);
++        assertEquals(200, summary.statusCode());
++        assertEquals(subId.toString(), objectMapper.readTree(summary.body()).get("subOrders").get(0).get("id").asText());
++
++        // 1. course assignée -> remise à disposition
++        var rescheduled = internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
++                with(origin, "reason", "Le livreur ne répond pas au client"));
++        assertEquals(200, rescheduled.statusCode(), rescheduled.body());
++        assertEquals("PENDING", objectMapper.readTree(rescheduled.body()).get("status").asText());
++        assertEquals(409, internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
++                with(origin, "reason", "deuxième fois")).statusCode());
++
++        // 2. retour impossible tant que ce n'est pas livré (règle de ReturnRequestService)
++        String reason = "Produit reçu cassé selon le client";
++        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
++                with(origin, "reason", reason)).statusCode());
++
++        patch("/api/deliveries/" + delivery4Id + "/assign", new AssignAgentRequest(agentId), adminToken, 200);
++        patch("/api/deliveries/" + delivery4Id + "/status",
++                new UpdateDeliveryRequest(DeliveryStatus.IN_TRANSIT, null, null, null), agentToken, 200);
++        assertEquals(409, internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
++                with(origin, "reason", "en route")).statusCode());
++        patch("/api/deliveries/" + delivery4Id + "/status",
++                new UpdateDeliveryRequest(DeliveryStatus.DELIVERED, ProofType.PHOTO,
++                        "https://res.cloudinary.com/demo/image/upload/v1/proofs/p4.jpg", null), agentToken, 200);
++
++        var created = internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
++                with(with(origin, "reason", reason), "productCondition", "DAMAGED"));
++        assertEquals(201, created.statusCode(), created.body());
++        JsonNode result = objectMapper.readTree(created.body());
++        returnRequest4Id = UUID.fromString(result.get("ref").asText());
++        assertEquals("PENDING", result.get("status").asText());
++        JsonNode mine = get("/api/return-requests/my/" + returnRequest4Id, buyerToken, 200);
++        assertTrue(mine.get("reason").asText().startsWith("[Service client TKT-2026-00042] "));
++        // un seul retour : la sous-commande est désormais RETURN_REQUESTED
++        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
++                with(origin, "reason", reason)).statusCode());
++        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
++                with(origin, "reason", "court")).statusCode());
++        assertEquals(404, internalCall("POST", "/internal/v1/orders/CMD-INCONNUE/return-requests",
++                with(origin, "reason", reason)).statusCode());
++
++        // 3. message au livreur dans sa conversation support
++        var message = internalCall("POST", "/internal/v1/drivers/" + agentId + "/support-messages",
++                with(origin, "message", "Merci de rappeler le client avant 18 h."));
++        assertEquals(201, message.statusCode(), message.body());
++        String conversationId = objectMapper.readTree(message.body()).get("ref").asText();
++        JsonNode messages = get("/api/conversations/" + conversationId + "/messages", agentToken, 200);
++        assertTrue(messages.toString().contains("ticket TKT-2026-00042"));
++        assertEquals(404, internalCall("POST", "/internal/v1/drivers/" + buyerId + "/support-messages",
++                with(origin, "message", "pas un livreur")).statusCode());
++
++        // 4. push relayé (sans Firebase en test : accepté, rien n'est envoyé)
++        assertEquals(202, internalCall("POST", "/internal/v1/users/" + buyerId + "/push",
++                java.util.Map.of("title", "Nouvelle réponse", "body", "Votre ticket TKT-2026-00042 a une réponse.",
++                        "data", java.util.Map.of("type", "AGENT_REPLIED"))).statusCode());
++        assertEquals(404, internalCall("POST", "/internal/v1/users/" + UUID.randomUUID() + "/push",
++                java.util.Map.of("title", "t", "body", "b")).statusCode());
++
++        // traçabilité
++        assertTrue(auditLogRepository.findAll().stream().anyMatch(a ->
++                a.getAction() == com.maplenou.backend.audit.AuditAction.SUPPORT_RETURN_REQUESTED
++                        && returnRequest4Id.equals(a.getEntityId())));
++    }
++
++    private static java.util.Map<String, Object> with(java.util.Map<String, Object> base, String key, Object value) {
++        java.util.Map<String, Object> m = new java.util.HashMap<>(base);
++        m.put(key, value);
++        return m;
++    }
++
++    private java.net.http.HttpResponse<String> internalCall(String method, String path, Object body) throws Exception {
++        var b = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + port + path))
++                .header("X-Maplenou-Service-Token", "lifecycle-bridge-token-0123456789")
++                .header("Content-Type", "application/json");
++        b = body == null ? b.GET() : b.method(method,
++                java.net.http.HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));
++        return java.net.http.HttpClient.newHttpClient().send(b.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
++    }
++
++    private UUID order4Id;
++    private UUID delivery4Id;
++    private UUID returnRequest4Id;
+     private UUID order3Id;
+     private UUID delivery3Id;
+     private UUID returnRequest3Id;
+@@ -526,6 +681,8 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+         try { if (shopReviewId != null) shopReviewRepository.deleteById(shopReviewId); } catch (Exception ignored) { }
+         try { if (returnRequestId != null) returnRequestRepository.deleteById(returnRequestId); } catch (Exception ignored) { }
+         try { if (returnRequest3Id != null) returnRequestRepository.deleteById(returnRequest3Id); } catch (Exception ignored) { }
++        try { if (returnRequest4Id != null) returnRequestRepository.deleteById(returnRequest4Id); } catch (Exception ignored) { }
++        try { if (delivery4Id != null) deliveryRepository.deleteById(delivery4Id); } catch (Exception ignored) { }
+         try { if (deliveryId != null) deliveryRepository.deleteById(deliveryId); } catch (Exception ignored) { }
+         try { if (delivery3Id != null) deliveryRepository.deleteById(delivery3Id); } catch (Exception ignored) { }
+         try {
+@@ -539,6 +696,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+         try { if (orderId != null) orderRepository.deleteById(orderId); } catch (Exception ignored) { }
+         try { if (order2Id != null) orderRepository.deleteById(order2Id); } catch (Exception ignored) { }
+         try { if (order3Id != null) orderRepository.deleteById(order3Id); } catch (Exception ignored) { }
++        try { if (order4Id != null) orderRepository.deleteById(order4Id); } catch (Exception ignored) { }
+         try { if (payoutId != null) payoutRepository.deleteById(payoutId); } catch (Exception ignored) { }
+         try { if (promoCodeId != null) promoCodeRepository.deleteById(promoCodeId); } catch (Exception ignored) { }
+         try { if (buyerId != null) cartRepository.findByUserId(buyerId).ifPresent(cartRepository::delete); } catch (Exception ignored) { }
+diff --git a/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeDisabledIntegrationTest.java b/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeDisabledIntegrationTest.java
+new file mode 100644
+index 0000000..5662719
+--- /dev/null
++++ b/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeDisabledIntegrationTest.java
+@@ -0,0 +1,25 @@
++package com.maplenou.backend.integration;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.test.context.TestPropertySource;
++
++import java.net.URI;
++import java.net.http.HttpClient;
++import java.net.http.HttpRequest;
++import java.net.http.HttpResponse;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++
++/** Sans SUPPORT_SERVICE_TOKEN, l'API interne n'existe pas (404), même avec un en-tête. */
++@TestPropertySource(properties = "app.support-bridge.token=")
++class SupportBridgeDisabledIntegrationTest extends AbstractIntegrationTest {
++
++    @Test
++    void internalApiIsDisabledByDefault() throws Exception {
++        HttpResponse<String> res = HttpClient.newHttpClient().send(
++                HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/internal/v1/support-tickets"))
++                        .header("X-Maplenou-Service-Token", "quelconque").GET().build(),
++                HttpResponse.BodyHandlers.ofString());
++        assertEquals(404, res.statusCode());
++    }
++}
+diff --git a/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeIntegrationTest.java b/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeIntegrationTest.java
+new file mode 100644
+index 0000000..31b55d9
+--- /dev/null
++++ b/Bakend/src/test/java/com/maplenou/backend/integration/SupportBridgeIntegrationTest.java
+@@ -0,0 +1,82 @@
++package com.maplenou.backend.integration;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.maplenou.backend.auth.dto.RegisterRequest;
++import com.maplenou.backend.support.dto.CreateSupportTicketRequest;
++import com.maplenou.backend.supportbridge.SupportBridgeTokenFilter;
++import org.junit.jupiter.api.Test;
++import org.springframework.test.context.TestPropertySource;
++
++import java.net.URI;
++import java.net.http.HttpClient;
++import java.net.http.HttpRequest;
++import java.net.http.HttpResponse;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/**
++ * Pont interne vers le Service client (ServiceClient/) : jeton de service obligatoire, lecture seule,
++ * format attendu par HttpEcosystemGateway et par l'import des anciens tickets.
++ */
++@TestPropertySource(properties = "app.support-bridge.token=test-bridge-token-0123456789abcdef")
++class SupportBridgeIntegrationTest extends AbstractIntegrationTest {
++
++    private static final String TOKEN = "test-bridge-token-0123456789abcdef";
++    private final HttpClient http = HttpClient.newHttpClient();
++    private final long rand = System.nanoTime() % 10_000_000L;
++
++    private HttpResponse<String> internal(String path, String token) throws Exception {
++        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET();
++        if (token != null) {
++            b.header(SupportBridgeTokenFilter.HEADER, token);
++        }
++        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
++    }
++
++    @Test
++    void serviceTokenIsRequiredAndUserTokensAreNotAccepted() throws Exception {
++        assertEquals(401, internal("/internal/v1/orders/CMD-INCONNUE", null).statusCode());
++        assertEquals(401, internal("/internal/v1/orders/CMD-INCONNUE", "mauvais-jeton").statusCode());
++        assertEquals(404, internal("/internal/v1/orders/CMD-INCONNUE", TOKEN).statusCode());
++        assertEquals(404, internal("/internal/v1/deliveries/pas-un-uuid", TOKEN).statusCode());
++        assertEquals(404, internal("/internal/v1/sellers/boutique-inexistante", TOKEN).statusCode());
++    }
++
++    @Test
++    void ordersOfANewUserAreEmptyAndLegacyTicketsAreExported() throws Exception {
++        String phone = "+22893" + String.format("%07d", rand);
++        JsonNode registered = post("/api/auth/register",
++                new RegisterRequest("Client Pont Support", phone, "Passw0rd!", null), null, 201);
++        String userId = registered.get("user").get("id").asText();
++        String access = registered.get("accessToken").asText();
++
++        HttpResponse<String> orders = internal("/internal/v1/users/" + userId + "/orders", TOKEN);
++        assertEquals(200, orders.statusCode());
++        assertEquals("[]", orders.body().replace(" ", ""));
++
++        JsonNode ticket = post("/api/support-tickets", new CreateSupportTicketRequest(
++                "Livraison", "Colis non reçu", "Le colis est marqué livré.", null, null), access, 201);
++        String number = ticket.get("ticketNumber").asText();
++
++        boolean found = false;
++        for (int page = 0; page < 1000 && !found; page++) {
++            HttpResponse<String> res = internal("/internal/v1/support-tickets?size=100&page=" + page, TOKEN);
++            assertEquals(200, res.statusCode());
++            JsonNode body = objectMapper.readTree(res.body());
++            for (JsonNode item : body.get("items")) {
++                if (number.equals(item.get("ticketNumber").asText())) {
++                    assertEquals(userId, item.get("requesterId").asText());
++                    assertEquals(phone, item.get("requesterPhone").asText());
++                    assertEquals("Livraison", item.get("category").asText());
++                    assertEquals("OPEN", item.get("status").asText());
++                    found = true;
++                }
++            }
++            if (body.get("last").asBoolean()) {
++                break;
++            }
++        }
++        assertTrue(found, "le ticket " + number + " doit être exporté");
++    }
++}
+diff --git a/Bakend/src/test/java/com/maplenou/backend/support/SupportTicketServiceTest.java b/Bakend/src/test/java/com/maplenou/backend/support/SupportTicketServiceTest.java
+new file mode 100644
+index 0000000..e6ca954
+--- /dev/null
++++ b/Bakend/src/test/java/com/maplenou/backend/support/SupportTicketServiceTest.java
+@@ -0,0 +1,42 @@
++package com.maplenou.backend.support;
++
++import com.maplenou.backend.audit.AuditService;
++import com.maplenou.backend.common.exception.ApiException;
++import com.maplenou.backend.delivery.DeliveryRepository;
++import com.maplenou.backend.messaging.ConversationRepository;
++import com.maplenou.backend.messaging.MessagingService;
++import com.maplenou.backend.support.dto.ResolveSupportTicketRequest;
++import com.maplenou.backend.user.User;
++import org.junit.jupiter.api.Test;
++import org.springframework.http.HttpStatus;
++import org.springframework.test.util.ReflectionTestUtils;
++
++import java.util.UUID;
++
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.never;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.verifyNoInteractions;
++
++/** Passage au service client : l'ancienne page admin passe en consultation seule (SUPPORT_LEGACY_READ_ONLY). */
++class SupportTicketServiceTest {
++
++    @Test
++    void resolveIsRefusedOnceTheTicketsAreHandledInTheCustomerService() {
++        SupportTicketRepository repository = mock(SupportTicketRepository.class);
++        AuditService audit = mock(AuditService.class);
++        SupportTicketService service = new SupportTicketService(repository, mock(DeliveryRepository.class),
++                mock(ConversationRepository.class), mock(MessagingService.class), audit);
++        ReflectionTestUtils.setField(service, "legacyReadOnly", true);
++
++        assertThatThrownBy(() -> service.resolve(UUID.randomUUID(),
++                new ResolveSupportTicketRequest(SupportTicketStatus.RESOLVED, "ok"), mock(User.class), "127.0.0.1"))
++                .isInstanceOf(ApiException.class)
++                .satisfies(e -> org.assertj.core.api.Assertions.assertThat(((ApiException) e).getStatus())
++                        .isEqualTo(HttpStatus.CONFLICT));
++        verify(repository, never()).save(any());
++        verifyNoInteractions(audit);
++    }
++}

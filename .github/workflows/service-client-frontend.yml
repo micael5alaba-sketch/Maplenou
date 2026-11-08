@@ -1,0 +1,33 @@
+name: Service client — Frontend
+
+on:
+  push:
+    branches: [main, "ci/**"]
+    paths: ["ServiceClient/frontend/**", ".github/workflows/service-client-frontend.yml"]
+  pull_request:
+    paths: ["ServiceClient/frontend/**", ".github/workflows/service-client-frontend.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ServiceClient/frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ServiceClient/frontend/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

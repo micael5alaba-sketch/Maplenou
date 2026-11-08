@@ -1,0 +1,84 @@
+diff --git a/DEMARRAGE.md b/DEMARRAGE.md
+index 286ead7..5083ebf 100644
+--- a/DEMARRAGE.md
++++ b/DEMARRAGE.md
+@@ -39,9 +39,52 @@ npm run dev
+ 
+ Accessible sur `http://localhost:3000`.
+ 
++## 5. Service client (tickets, Docker)
++
++```powershell
++cd ServiceClient
++copy .env.example .env      # première fois ; ensuite, après chaque mise à jour : .\scripts\env-sync.ps1
++docker compose up -d --build --wait                    # app http://localhost:3001, API http://localhost:8081
++docker compose --profile docs up -d --build --wait     # + centre d'aide et assistant http://localhost:8006
++.\scripts\doctor.ps1                                  # diagnostic si quelque chose ne démarre pas
++```
++
++Options : `--profile antivirus` (ClamAV, `ANTIVIRUS=clamav`), `--profile monitoring` (Prometheus + Grafana sur
++http://localhost:3003, `METRICS_TOKEN`), aide IA dans les tickets (`AI_ASSIST_ENABLED=true` +
++`ASSISTANT_INTERNAL_TOKEN`, avec `--profile docs`). Mise en ligne avec des domaines et HTTPS : `--profile public`,
++voir `ServiceClient/docs/guide/deployment.md`.
++
++Liaison avec Bakend (connexion avec le compte Maplenou, vraies commandes, import des anciens tickets) :
++`ServiceClient/docs/guide/maplenou-integration.md`. Même `SUPPORT_SERVICE_TOKEN` dans `ServiceClient/.env` et
++dans `Bakend/.env.local.ps1` (`$env:SUPPORT_SERVICE_TOKEN = "…"`), puis relancer `start-all.ps1`. Le même jeton
++permet aux agents de demander à Maplenou un retour, la remise à disposition d'une course ou un message au livreur
++depuis un ticket, et de relayer les notifications vers l'app mobile (`MAPLENOU_PUSH_RELAY=true`).
++
++## 6. Site public (Docker)
++
++```powershell
++cd Site_vitrine
++copy .env.example .env
++docker compose up -d --build --wait                    # http://localhost:3002
++```
++
++Sans Docker : `npm ci` puis `npm run dev` (Node 22) — voir `Site_vitrine/README.md`.
++
++## Ports
++
++| Port | Application |
++|---|---|
++| 3000 | Back-office admin |
++| 3001 / 8081 | Service client (application / API) |
++| 3003 | Grafana du service client (profil `monitoring`, facultatif) |
++| 3002 | Site public |
++| 8006 | Centre d'aide du service client |
++| 8080 | Bakend |
++
+ ## Ordre à respecter
+ 
+-Backend d'abord (§1), toujours. Le reste dépend de lui.
++Backend d'abord (§1), toujours. Le reste dépend de lui (le site public et le service client démarrent sans lui,
++mais sans données réelles).
+ 
+ ## Comptes de test
+ 
+@@ -57,3 +100,5 @@ Backend d'abord (§1), toujours. Le reste dépend de lui.
+ | App mobile ne charge rien (téléphone) | `adb reverse tcp:8080 tcp:8080` pas fait, ou refait après débranchement/rebranchement du câble |
+ | `adb` : device offline | Débrancher/rebrancher le câble, vérifier le popup d'autorisation sur le téléphone |
+ | Port 8080 déjà utilisé | Une instance du backend tourne déjà — l'arrêter avant de relancer |
++| Service client : « Maplenou indisponible » à la connexion | Bakend arrêté, ou `MAPLENOU_CORE_URL` faux — lancer `ServiceClient\scripts\doctor.ps1` |
++| Service client : import des anciens tickets refusé (422) | `SUPPORT_SERVICE_TOKEN` vide ou différent entre Bakend et `ServiceClient/.env` |
+diff --git a/README.md b/README.md
+index 1dcb05e..068fd97 100644
+--- a/README.md
++++ b/README.md
+@@ -1,2 +1,15 @@
+ # Maplenou
+ Maplenou est une marketplace mobile trois couches (Flutter, Next.js, Spring Boot) qui connecte acheteurs et vendeurs locaux au Togo et au Bénin, avec paiement Mobile Money et carte.
++
++## Contenu du dépôt
++
++| Dossier | Rôle | Port local |
++| --- | --- | --- |
++| `Bakend/` | API Spring Boot (comptes, catalogue, commandes, paiements, livraisons) — voir `Bakend/MANUEL.md` | 8080 |
++| `frontend/` | Application Flutter (acheteur, vendeur, livreur) | — |
++| `Admin_frontend/maplenou/` | Back-office administrateur (Next.js) | 3000 |
++| `ServiceClient/` | Service client : tickets, SLA 24 h/24 7 j/7, agents, rapports, centre d'aide et assistant — voir `ServiceClient/README.md` | 3001 (app), 8081 (API), 8006 (aide) |
++| `Site_vitrine/` | Site public de présentation de la marketplace — voir `Site_vitrine/README.md` | 3002 |
++
++Démarrage pas à pas : [`DEMARRAGE.md`](DEMARRAGE.md).
++

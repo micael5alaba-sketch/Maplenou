@@ -1,0 +1,27 @@
+# Ticket State Behavior
+
+Approved lifecycle (BR-009, BR-010, BR-048..BR-053) as implemented in `Workflow` and `TicketCommandService`.
+
+Source: `ticket-state.mmd`
+
+```mermaid
+stateDiagram-v2
+    [*] --> NEW: ticket created (BR-009)
+
+    NEW --> ASSIGNED: assign agent (only path out of NEW)
+    ASSIGNED --> IN_PROGRESS: start work / first support reply
+    ASSIGNED --> WAITING_FOR_CUSTOMER: request information
+    IN_PROGRESS --> WAITING_FOR_CUSTOMER: request information
+    WAITING_FOR_CUSTOMER --> IN_PROGRESS: requester replies / support resumes
+    IN_PROGRESS --> RESOLVED: problem solved
+    WAITING_FOR_CUSTOMER --> RESOLVED: problem solved
+    RESOLVED --> CLOSED: close (no pending reopen request)
+
+    state RESOLVED {
+        [*] --> NoRequest
+        NoRequest --> ReopenPending: requester asks to reopen (BR-048)
+        ReopenPending --> NoRequest: support rejects
+    }
+    RESOLVED --> IN_PROGRESS: support approves reopening (BR-051, new SLA period)
+    CLOSED --> [*]: requester must create a new ticket (BR-053)
+```

@@ -1,0 +1,87 @@
+# Serves the built documentation sites and forwards the assistant API (same origin: no CORS needed).
+# Template: the nginx image writes /etc/nginx/conf.d/default.conf from it at start-up (envsubst, only the two
+# variables below — see NGINX_ENVSUBST_FILTER in the Dockerfile and docker-entrypoint.d/15-docs-upstream.envsh):
+#   ASSISTANT_UPSTREAM  http://assistant:8000 (Compose) | https://<assistant>.onrender.com (Render, docs/guide/render.md)
+#   DOCS_RESOLVER       the container's DNS server from /etc/resolv.conf (127.0.0.11 with Docker)
+
+# Resolve the assistant per request, so nginx starts even when the assistant is down.
+resolver ${DOCS_RESOLVER} valid=30s ipv6=off;
+
+server {
+    # behind the public profile's Caddy (or any proxy on the Docker network): the visitor's address comes from
+    # X-Forwarded-For, so the assistant's per-visitor rate limit does not see every visitor as one
+    set_real_ip_from 10.0.0.0/8;
+    set_real_ip_from 172.16.0.0/12;
+    set_real_ip_from 192.168.0.0/16;
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Pre-compressed .gz files are produced at build time (documentation/Dockerfile).
+    gzip_static on;
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    # Caching (docs/guide/caching.md):
+    # theme assets have a content hash in their name -> cached for a year by browsers;
+    location ~* "^/(user|staff|developer)/(fr|en)/assets/(javascripts|stylesheets)/.*\.[0-9a-f]{8}\.min\.(js|css)$" {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri =404;
+    }
+    # our own shared assets (assistant widget, config) have no hash -> revalidated, so a new build is seen at once;
+    location ~ ^/(user|staff|developer)/(fr|en)/assets/maplenou/ {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri =404;
+    }
+    # other static files (images, fonts, our shared assets) -> one day;
+    location ~* \.(png|jpg|jpeg|webp|svg|ico|woff2?|css|js)$ {
+        add_header Cache-Control "public, max-age=86400";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri =404;
+    }
+    # pages and search indexes -> revalidated on every visit (cheap 304 thanks to ETag/Last-Modified).
+    location ~ ^/(user|staff|developer)/(fr|en)/ {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri $uri/ /$1/$2/404.html;
+    }
+    location / {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri $uri/ =404;
+    }
+
+    # support-backend endpoints of the assistant (X-Assistant-Token): never reachable through the docs server
+    location ^~ /api/assistant/internal/ {
+        return 404;
+    }
+
+    location ^~ /api/assistant/ {
+        set $assistant ${ASSISTANT_UPSTREAM};
+        proxy_pass $assistant;
+        # the upstream's own name: Render routes by Host; the assistant does not use it
+        proxy_set_header Host $proxy_host;
+        proxy_ssl_server_name on;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # answers are streamed token by token
+        proxy_buffering off;
+        proxy_read_timeout 180s;
+        client_max_body_size 16k;
+        add_header Cache-Control "no-store" always;
+    }
+}

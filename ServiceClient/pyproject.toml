@@ -1,0 +1,13 @@
+[project]
+name = "maplenou-service-client-governance"
+version = "0.2.0"
+description = "Documentation toolchain (Zensical) for the Maplenou Customer Service project"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "zensical==0.0.69",
+]
+
+[tool.uv]
+# Not a Python package: this file only pins the documentation toolchain.
+package = false

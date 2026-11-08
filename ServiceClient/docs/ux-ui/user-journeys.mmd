@@ -1,0 +1,25 @@
+flowchart TD
+    A[Authenticated requester] --> B[Help & Support]
+    B --> C[Create ticket]
+    C --> D[Submit ticket]
+    D --> E[Ticket created: NEW]
+    E --> F[Support queue]
+    F --> G[Assigned]
+    G --> H[In Progress]
+    H --> I{Need customer information?}
+    I -- Yes --> J[Waiting for Customer]
+    J --> K[Requester provides information]
+    K --> H
+    I -- No --> L[Resolve ticket]
+    L --> M[Resolved]
+    M --> N{Requester requests reopening?}
+    N -- No --> O[Closed]
+    N -- Yes --> P[Support reviews request]
+    P --> Q{Approved?}
+    Q -- Yes --> H
+    Q -- No --> M
+    O --> R[New ticket required if further support is needed]
+    S[Support Agent] --> F
+    T[Support Manager] --> F
+    U[Administrator] --> F
+    V[Customer / Seller / Driver] --> B
