@@ -51,7 +51,10 @@ export default async function SellPage() {
               <li>{s.tierHigh}</li>
               <li>{s.minPrice}</li>
             </ul>
+            <p className="small">{s.example}</p>
+            <p className="small muted">{s.categoryChoice}</p>
             <p className="small muted">{s.otherFees}</p>
+            <p className="small muted">{s.cancelRule}</p>
           </div>
           <div id="calc">
           <CommissionCalculator

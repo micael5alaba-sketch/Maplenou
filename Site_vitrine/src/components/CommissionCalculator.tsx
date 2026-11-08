@@ -11,7 +11,7 @@ interface Labels {
 /** Seller-side estimate: base price + category → price shown to the buyer (commission included) and amount received. */
 export function CommissionCalculator({ locale, labels }: { locale: "fr" | "en"; labels: Labels }) {
   const id = useId();
-  const [value, setValue] = useState("6500");
+  const [value, setValue] = useState("10000");
   const [category, setCategory] = useState<FeeCategory>("standard");
   const base = Math.max(0, Math.floor(Number(value.replace(/\D/g, "")) || 0));
   const { rate, commission, display, sellerReceives } = buyerPrice(base, category);

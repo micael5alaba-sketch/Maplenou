@@ -49,3 +49,11 @@ Les réponses aux questions les plus courantes sur le service client Maplenou. C
 
 ??? question "Pourquoi suis-je revenu à l'écran de connexion ?"
     Votre session a expiré, ou vous vous êtes déconnecté. Le message <span class="ui">Votre session a expiré. Reconnectez-vous.</span> s'affiche alors. Connectez-vous de nouveau : vos tickets sont conservés.
+
+## Questions sur les frais vendeurs
+
+??? question "Pourquoi un montant a-t-il été déduit de mon reversement ?"
+    C'est votre frais mensuel vendeur : 500 FCFA en catégorie Standard, 2 000 FCFA en catégorie Prix élevés. Vos 3 premières ventes finalisées en sont dispensées ; ensuite, un seul frais est dû par mois, et seulement pour un mois où vous avez au moins une vente finalisée. Il est déduit de votre solde avant le versement (par exemple 8 000 FCFA disponibles − 500 FCFA = 7 500 FCFA versés). La commission, elle, n'est jamais retirée de votre solde : elle est comprise dans le prix payé par l'acheteur. Si un même frais semble prélevé deux fois, créez un ticket dans la catégorie <span class="ui">Paiement</span>.
+
+??? question "Comment est calculé le prix affiché de mes produits ?"
+    Le prix affiché à l'acheteur est votre prix de base plus la commission Maplenou : 5 % en catégorie Standard, 3 % en catégorie Prix élevés, livraison non comprise. Exemple : un prix de base de 10 000 FCFA s'affiche 10 500 FCFA, et vous recevez 10 000 FCFA. Une commande annulée ou remboursée ne compte pas comme vente.

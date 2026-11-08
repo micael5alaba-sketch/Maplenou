@@ -1,6 +1,7 @@
 /**
- * Maplenou fees for sellers (Bakend order/CommissionService + seller/SellerFeeCategory, document "Frais vendeurs et
- * commissions acheteurs", in force since 5 November 2026 — replaces the former 25 % / 22.5 % taken from the seller):
+ * Maplenou fees for sellers (Bakend order/CommissionService + seller/SellerFeeCategory; owner's document
+ * "Maplenou - Exigences des nouveaux frais vendeurs et commissions acheteurs", in force since 5 November 2026;
+ * replaces the former 25 % / 22.5 % taken from the seller):
  * - the seller sets a base price; the buyer sees and pays base price + commission (never an extra at payment);
  * - commission rate by seller category, on the base price, delivery excluded: Standard 5 %, High price 3 %;
  *   rounded to the whole FCFA per unit (half up);
