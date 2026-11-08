@@ -6,6 +6,12 @@ The format follows Keep a Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed — CI (2026-11-08)
+
+- GitHub Actions: `ubuntu-latest` became Ubuntu 26.04, which Playwright 1.56 does not support (`playwright install
+  --with-deps` failed in the e2e job). The six ServiceClient / Site_vitrine workflows now run on `ubuntu-24.04`;
+  the Playwright upgrade is a proposal in `docs/governance/UPGRADE-PLAN.md`.
+
 ### Added / Changed — CS-12 (owner-requested, 2026-10-31)
 
 - **Render (DEC-CS12-03):** `render.yaml` Blueprint (PostgreSQL, API, web app, public help centre, assistant);

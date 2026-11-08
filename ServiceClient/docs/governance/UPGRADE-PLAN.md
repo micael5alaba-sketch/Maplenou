@@ -73,3 +73,4 @@ Every item of the former backlog was approved by the project owner (29–30/10/2
 | Ready-made Grafana dashboards | Observability | CS-11 | Prometheus and alert rules are provisioned, dashboards are built by hand for now |
 | Separate admin roles (e.g. an admin who cannot change permissions) | Security | Bakend CLAUDE.md §11 | one `ADMINISTRATOR` role for now |
 | E-mail notifications (templates already per language) | UX | reference architecture §4.3 | push and in-app only today |
+| Playwright 1.56 → a release that supports Ubuntu 26.04, then CI runners back to `ubuntu-latest` | Tooling | GitHub Actions e2e failure (08/11/2026) | runners are pinned to `ubuntu-24.04` meanwhile; upgrade `@playwright/test` + lock file and re-run the e2e and guide screenshots |
