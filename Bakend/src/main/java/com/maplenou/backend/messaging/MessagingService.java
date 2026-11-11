@@ -124,7 +124,21 @@ public class MessagingService {
 
     @Transactional(readOnly = true)
     public Page<ConversationResponse> listMyConversations(User user, Pageable pageable) {
-        return conversationRepository.findAllForUser(user.getId(), pageable).map(ConversationResponse::from);
+        Page<Conversation> page = conversationRepository.findAllForUser(user.getId(), pageable);
+        java.util.Map<UUID, Long> unread = new java.util.HashMap<>();
+        if (page.hasContent()) {
+            for (Object[] row : messageRepository.countUnreadByConversation(
+                    page.getContent().stream().map(Conversation::getId).toList(), user.getId())) {
+                unread.put((UUID) row[0], (Long) row[1]);
+            }
+        }
+        return page.map(c -> ConversationResponse.from(c).withUnreadCount(unread.getOrDefault(c.getId(), 0L)));
+    }
+
+    /** Total des messages non lus de l'utilisateur : alimente les pastilles rouges de l'app. */
+    @Transactional(readOnly = true)
+    public long unreadCount(User user) {
+        return messageRepository.countUnreadForUser(user.getId());
     }
 
     @Transactional(readOnly = true)

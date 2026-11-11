@@ -19,8 +19,15 @@ public record ConversationResponse(
         UUID courierId,
         String courierName,
         Instant lastMessageAt,
-        Instant createdAt
+        Instant createdAt,
+        /** Messages reçus pas encore lus dans cette conversation (point rouge dans l'app). */
+        long unreadCount
 ) {
+    public ConversationResponse withUnreadCount(long count) {
+        return new ConversationResponse(id, type, shopId, shopName, buyerId, buyerName, sellerId, deliveryId,
+                courierId, courierName, lastMessageAt, createdAt, count);
+    }
+
     public static ConversationResponse from(Conversation c) {
         User courier = c.getDelivery() != null ? c.getDelivery().getAgent() : null;
         return new ConversationResponse(
@@ -35,7 +42,8 @@ public record ConversationResponse(
                 courier != null ? courier.getId() : null,
                 courier != null ? courier.getFullName() : null,
                 c.getLastMessageAt(),
-                c.getCreatedAt()
+                c.getCreatedAt(),
+                0L
         );
     }
 }

@@ -57,6 +57,7 @@ class ConversationPreviewModel {
       participantName: participantName,
       lastMessage: '',
       lastMessageAt: DateTime.parse((json['lastMessageAt'] ?? json['createdAt']) as String),
+      unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       kind: kind,
     );
   }

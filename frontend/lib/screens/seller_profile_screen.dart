@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/seller_profile_model.dart';
+import '../services/unread_messages_service.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/conversation_service.dart';
@@ -238,12 +239,19 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
               title: 'Gestion du Portefeuille & Solde',
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
             ),
-            ProfileMenuRow(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'Messagerie',
-              subtitle: 'Discuter avec vos clients',
-              onTap: () =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
+            ListenableBuilder(
+              listenable: UnreadMessagesService.instance,
+              builder: (context, _) => ProfileMenuRow(
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'Messagerie',
+                subtitle: 'Discuter avec vos clients',
+                badgeLabel: UnreadMessagesService.instance.count > 0
+                    ? '${UnreadMessagesService.instance.count} à lire'
+                    : null,
+                badgeColor: Colors.red,
+                onTap: () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SellerMessagesScreen())),
+              ),
             ),
             ProfileMenuRow(
               icon: Icons.access_time_rounded,

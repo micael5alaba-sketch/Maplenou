@@ -62,6 +62,12 @@ public class ConversationController {
         return messagingService.listMyConversations(currentUser, pageable);
     }
 
+    /** Nombre total de messages non lus (pastille rouge sur « Messagerie »). */
+    @GetMapping("/unread-count")
+    public java.util.Map<String, Long> unreadCount(@AuthenticationPrincipal User currentUser) {
+        return java.util.Map.of("count", messagingService.unreadCount(currentUser));
+    }
+
     @GetMapping("/{conversationId}/messages")
     public Page<MessageResponse> listMessages(@AuthenticationPrincipal User currentUser,
                                                @PathVariable UUID conversationId,

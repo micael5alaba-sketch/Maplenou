@@ -55,7 +55,7 @@ public class RoleDashboardService {
         return new RoleDashboardResponse(
                 allowed.contains(Permission.DELIVERIES_READ) ? logistics(allowed, now) : null,
                 allowed.contains(Permission.SUPPORT_READ) ? support(now) : null,
-                allowed.contains(Permission.PAYOUTS_READ) ? finance(now) : null,
+                allowed.contains(Permission.PAYOUTS_READ) ? finance(now, allowed) : null,
                 allowed.contains(Permission.AUDIT_READ) ? audit(now) : null
         );
     }
@@ -119,13 +119,23 @@ public class RoleDashboardService {
                 count("SELECT COUNT(sp) FROM SellerProfile sp WHERE sp.status = :s", "s", SellerStatus.PENDING),
                 count("SELECT COUNT(c) FROM SellerFeeCategoryChangeRequest c WHERE c.status = :s",
                         "s", SellerFeeCategoryChangeStatus.PENDING),
-                count("SELECT COUNT(r) FROM ReturnRequest r WHERE r.decision IS NULL")
+                count("SELECT COUNT(r) FROM ReturnRequest r WHERE r.decision IS NULL"),
+                unreadSupportMessages()
         );
+    }
+
+    /** Messages adressés au support (envoyés par un non-membre de l'équipe) pas encore lus. */
+    private long unreadSupportMessages() {
+        return count("SELECT COUNT(m) FROM Message m JOIN m.conversation c JOIN m.sender sd "
+                        + "WHERE c.type = :t AND m.readAt IS NULL "
+                        + "AND (sd.role IS NULL OR sd.role NOT IN :staff)",
+                "t", com.maplenou.backend.messaging.ConversationType.SUPPORT,
+                "staff", java.util.List.of(Role.ADMIN, Role.DELIVERY_ADMIN, Role.SUPPORT_AGENT, Role.AUDITOR));
     }
 
     // ----- Retraits (vendeurs + livreurs) -----
 
-    private RoleDashboardResponse.Finance finance(Instant now) {
+    private RoleDashboardResponse.Finance finance(Instant now, Set<Permission> allowed) {
         Instant weekAgo = now.minus(Duration.ofDays(7));
         long[] toVerify = countAndSum(List.of(PayoutStatus.PENDING));
         long[] toCorrect = countAndSum(List.of(PayoutStatus.NEEDS_CORRECTION));
@@ -144,8 +154,29 @@ public class RoleDashboardService {
                 toVerify[0], toCorrect[0], prepared[0],
                 awaitingCount, awaiting[0],
                 toPayCount, toPay[0],
-                paid.add(paidCouriers)
+                paid.add(paidCouriers),
+                actionable("Payout", "p", allowed),
+                actionable("CourierWithdrawal", "w", allowed)
         );
+    }
+
+    /**
+     * Retraits sur lesquels ce rôle peut agir : préparer/soumettre (reçus, préparés) pour qui a
+     * PAYOUTS_PREPARE, approuver (soumis) pour qui a PAYOUTS_APPROVE. Lecture seule : aucun.
+     */
+    private long actionable(String entity, String alias, Set<Permission> allowed) {
+        java.util.List<PayoutStatus> statuses = new java.util.ArrayList<>();
+        if (allowed.contains(Permission.PAYOUTS_PREPARE)) {
+            statuses.add(PayoutStatus.PENDING);
+            statuses.add(PayoutStatus.PREPARED);
+        }
+        if (allowed.contains(Permission.PAYOUTS_APPROVE)) {
+            statuses.add(PayoutStatus.SUBMITTED);
+        }
+        if (statuses.isEmpty()) return 0L;
+        return (Long) em.createQuery("SELECT COUNT(" + alias + ") FROM " + entity + " " + alias
+                        + " WHERE " + alias + ".status IN :st")
+                .setParameter("st", statuses).getSingleResult();
     }
 
     /** Nombre de retraits (vendeurs + livreurs) dans ces statuts. */

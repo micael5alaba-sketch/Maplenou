@@ -1,6 +1,7 @@
 import '../models/chat_message_model.dart';
 import '../models/conversation_model.dart';
 import 'api_client.dart';
+import 'unread_messages_service.dart';
 import 'user_service.dart';
 
 /// `messaging/ConversationController.java` — messagerie
@@ -34,7 +35,10 @@ class ConversationService {
     return _client.post('/api/conversations/$conversationId/messages', body: {'content': content});
   }
 
-  Future<void> markAsRead(String conversationId) => _client.patch('/api/conversations/$conversationId/read');
+  Future<void> markAsRead(String conversationId) async {
+    await _client.patch('/api/conversations/$conversationId/read');
+    UnreadMessagesService.instance.refresh();
+  }
 
   Future<String> startConversationWithShop(String shopId) async {
     final data = await _client.post('/api/conversations/shops/$shopId') as Map<String, dynamic>;

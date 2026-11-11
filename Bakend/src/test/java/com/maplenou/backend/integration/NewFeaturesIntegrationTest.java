@@ -139,7 +139,21 @@ class NewFeaturesIntegrationTest extends AbstractIntegrationTest {
         assertEquals(2, messages.get("content").size(), "les messages filtrés ne sont jamais enregistrés");
 
         get("/api/conversations/" + conversationId + "/messages", adminToken, 403);
+
+        // Pastille rouge : le vendeur a 1 message client non lu, l'acheteur 1 réponse non lue
+        assertEquals(1, get("/api/conversations/unread-count", sellerToken, 200).get("count").asInt());
+        assertEquals(1, get("/api/conversations/unread-count", buyerToken, 200).get("count").asInt());
+        boolean sellerSeesUnread = false;
+        for (JsonNode cv : get("/api/conversations", sellerToken, 200).get("content")) {
+            if (cv.get("id").asText().equals(conversationId.toString())) {
+                sellerSeesUnread = cv.get("unreadCount").asInt() == 1;
+            }
+        }
+        assertTrue(sellerSeesUnread, "la conversation doit indiquer 1 message non lu au vendeur");
+
         patch("/api/conversations/" + conversationId + "/read", null, sellerToken, 204);
+        assertEquals(0, get("/api/conversations/unread-count", sellerToken, 200).get("count").asInt());
+        assertEquals(1, get("/api/conversations/unread-count", buyerToken, 200).get("count").asInt());
 
         JsonNode mine = get("/api/conversations", buyerToken, 200);
         assertTrue(mine.get("content").size() >= 1);
@@ -152,6 +166,8 @@ class NewFeaturesIntegrationTest extends AbstractIntegrationTest {
         post("/api/conversations/" + supportConversationId + "/messages",
                 new SendMessageRequest("Mon numero est 90112233"), buyerToken, 201);
 
+        assertTrue(get("/api/admin/dashboard", adminToken, 200).get("support").get("unreadSupportMessages").asInt() >= 1,
+                "le message du client au support doit apparaître comme non lu pour l'équipe");
         JsonNode supportList = get("/api/admin/conversations/support", adminToken, 200);
         assertTrue(supportList.get("content").size() >= 1);
         get("/api/conversations/" + supportConversationId + "/messages", adminToken, 200);

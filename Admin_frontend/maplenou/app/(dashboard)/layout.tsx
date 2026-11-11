@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
+import { WorkBadgesProvider } from "@/lib/workBadges";
 import { usePathname } from "next/navigation";
 import { ROLE_LABELS, ROUTE_PERMISSIONS, hasPermission, needsOnboarding } from "@/lib/permissions";
 
@@ -35,6 +36,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const forbidden = required !== undefined && !hasPermission(user, required);
 
   return (
+    <WorkBadgesProvider>
     <div className="flex min-h-screen bg-background">
       <Sidebar userName={user.fullName} onLogout={logout} />
       <main className="flex-1 overflow-y-auto">
@@ -61,5 +63,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </main>
     </div>
+    </WorkBadgesProvider>
   );
 }

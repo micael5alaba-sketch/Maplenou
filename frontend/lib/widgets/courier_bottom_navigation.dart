@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'unread_dot.dart';
+
 import '../l10n/app_localizations.dart';
 import '../theme/app_color_scheme.dart';
 
@@ -59,7 +61,7 @@ class CourierBottomNavigation extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(item.icon, color: color, size: 24),
+          item.tab == CourierTab.messages ? UnreadDot(child: Icon(item.icon, color: color, size: 24)) : Icon(item.icon, color: color, size: 24),
           const SizedBox(height: 4),
           Text(
             item.label,

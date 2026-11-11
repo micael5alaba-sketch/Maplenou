@@ -44,7 +44,9 @@ public record RoleDashboardResponse(
             Long oldestOpenTicketHours,
             long pendingSellerApplications,
             long pendingCategoryChanges,
-            long pendingReturns
+            long pendingReturns,
+            /** Messages des clients/vendeurs/livreurs au support, pas encore lus par l'équipe. */
+            long unreadSupportMessages
     ) {}
 
     /** Retraits vendeurs ET livreurs cumulés : permission PAYOUTS_READ. */
@@ -56,7 +58,11 @@ public record RoleDashboardResponse(
             BigDecimal awaitingApprovalAmount,
             long approvedToPay,
             BigDecimal approvedToPayAmount,
-            BigDecimal paidLast7Days
+            BigDecimal paidLast7Days,
+            /** Retraits vendeurs sur lesquels CE rôle peut agir maintenant (pastille du menu). */
+            long actionRequiredSellerPayouts,
+            /** Retraits livreurs sur lesquels CE rôle peut agir maintenant (pastille du menu). */
+            long actionRequiredCourierWithdrawals
     ) {}
 
     /** Vue audit (Auditeur, Super Admin) : permission AUDIT_READ. */

@@ -398,4 +398,20 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         get("/api/admin/revenue", deliveryAdmin.token(), 403);
         get("/api/admin/revenue/entries?source=SELLER_FEE", support.token(), 403);
     }
+
+    // ----- Pastilles : retraits sur lesquels CE role peut agir -----
+
+    @Test
+    @Order(16)
+    void withdrawalBadgesFollowWhatTheRoleCanDo() throws Exception {
+        JsonNode supportFinance = get("/api/admin/dashboard", support.token(), 200).get("finance");
+        JsonNode auditorFinance = get("/api/admin/dashboard", auditor.token(), 200).get("finance");
+        // L'Auditeur est en lecture seule : jamais de travail "à faire" sur les retraits
+        assertEquals(0, auditorFinance.get("actionRequiredSellerPayouts").asInt());
+        assertEquals(0, auditorFinance.get("actionRequiredCourierWithdrawals").asInt());
+        // L'Agent support peut agir sur les retraits reçus et préparés (jamais sur les soumis)
+        assertTrue(supportFinance.get("actionRequiredSellerPayouts").asInt() >= 0);
+        assertTrue(get("/api/admin/dashboard", superToken, 200).get("finance").get("actionRequiredSellerPayouts").asInt()
+                >= supportFinance.get("actionRequiredSellerPayouts").asInt());
+    }
 }

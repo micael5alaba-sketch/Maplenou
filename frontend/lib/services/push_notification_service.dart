@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../widgets/in_app_notification_banner.dart';
 import 'api_client.dart';
 import 'notification_router.dart';
+import 'unread_messages_service.dart';
 
 /// Handler appelé par le système quand une notification arrive alors que
 /// l'app est en arrière-plan/fermée — doit être une fonction top-level
@@ -29,6 +30,7 @@ class PushNotificationService {
     if (_initialized) return;
     try {
       final messaging = FirebaseMessaging.instance;
+      UnreadMessagesService.instance.start();
       await messaging.requestPermission(alert: true, badge: true, sound: true);
       await _registerCurrentToken();
       messaging.onTokenRefresh.listen(_registerToken);
@@ -38,6 +40,7 @@ class PushNotificationService {
       FirebaseMessaging.onMessage.listen((message) {
         final title = message.notification?.title ?? 'Maplenou';
         final body = message.notification?.body ?? '';
+        if (message.data['type'] == 'NEW_MESSAGE') UnreadMessagesService.instance.refresh();
         InAppNotificationBanner.show(title: title, body: body, data: Map<String, dynamic>.from(message.data));
       });
 
@@ -126,6 +129,7 @@ class PushNotificationService {
   /// Appelé à la déconnexion — évite d'envoyer des push à un appareil dont
   /// personne n'est plus session ouverte.
   Future<void> unregisterAll() async {
+    UnreadMessagesService.instance.stop();
     try {
       await ApiClient().delete('/api/notifications/tokens');
     } catch (_) {}

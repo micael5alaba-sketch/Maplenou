@@ -68,6 +68,7 @@ export interface RoleDashboardResponse {
     pendingSellerApplications: number;
     pendingCategoryChanges: number;
     pendingReturns: number;
+    unreadSupportMessages: number;
   } | null;
   finance: {
     toVerify: number;
@@ -78,6 +79,8 @@ export interface RoleDashboardResponse {
     approvedToPay: number;
     approvedToPayAmount: number;
     paidLast7Days: number;
+    actionRequiredSellerPayouts: number;
+    actionRequiredCourierWithdrawals: number;
   } | null;
   audit: {
     actionsLast24h: number;

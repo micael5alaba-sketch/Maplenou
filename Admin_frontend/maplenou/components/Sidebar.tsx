@@ -5,6 +5,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
+import { useWorkBadges } from "@/lib/workBadges";
+import { useEffect, useState } from "react";
 import { ROLE_LABELS, ROUTE_PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 interface NavItem {
@@ -81,6 +83,12 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, realUser, viewAsRole, setViewAsRole } = useAuth();
+  const { badges, total } = useWorkBadges();
+  const [alertPermission, setAlertPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (typeof Notification !== "undefined") setAlertPermission(Notification.permission);
+  }, []);
   const isSuperAdmin = !!realUser?.permissions.includes("STAFF_MANAGE");
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
@@ -121,7 +129,17 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
                           : "text-foreground hover:bg-input-fill"
                     }`}
                   >
-                    {item.label}
+                    <span className="flex items-center justify-between gap-2">
+                      <span>{item.label}</span>
+                      {(badges[item.href] ?? 0) > 0 && (
+                        <span
+                          title="Travail en attente"
+                          className="min-w-[20px] rounded-full bg-error px-1.5 py-0.5 text-center text-[11px] font-bold leading-none text-white"
+                        >
+                          {badges[item.href] > 99 ? "99+" : badges[item.href]}
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 );
               })}
@@ -141,6 +159,19 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
           <p className="text-xs text-muted">{ROLE_LABELS[user?.role ?? ""] ?? "Personnel"} — voir mon profil</p>
         </Link>
 
+        {total > 0 && (
+          <p className="mb-2 rounded-lg bg-error/10 px-2 py-1.5 text-xs font-semibold text-error">
+            {total} chose{total > 1 ? "s" : ""} à traiter
+          </p>
+        )}
+        {alertPermission === "default" && (
+          <button
+            onClick={async () => setAlertPermission(await Notification.requestPermission())}
+            className="mb-2 w-full rounded-lg border border-border py-1.5 text-xs font-semibold text-foreground transition hover:bg-input-fill"
+          >
+            Activer les alertes du navigateur
+          </button>
+        )}
         {isSuperAdmin && (
           <div className="mb-2">
             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">Voir en tant que</label>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/user_profile_model.dart';
 import 'account_section_card.dart';
+import '../services/unread_messages_service.dart';
 import 'profile_menu_row.dart';
 
 /// "Mes Activités" card: orders (with an in-progress count badge),
@@ -33,10 +34,17 @@ class ActivitySection extends StatelessWidget {
           title: 'Mes Avis',
           onTap: () => onItemTap('Mes Avis'),
         ),
-        ProfileMenuRow(
-          icon: Icons.chat_bubble_outline_rounded,
-          title: 'Messagerie',
-          onTap: () => onItemTap('Messagerie'),
+        ListenableBuilder(
+          listenable: UnreadMessagesService.instance,
+          builder: (context, _) => ProfileMenuRow(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Messagerie',
+            badgeLabel: UnreadMessagesService.instance.count > 0
+                ? '${UnreadMessagesService.instance.count} non lu${UnreadMessagesService.instance.count > 1 ? 's' : ''}'
+                : null,
+            badgeColor: Colors.red,
+            onTap: () => onItemTap('Messagerie'),
+          ),
         ),
       ],
     );
