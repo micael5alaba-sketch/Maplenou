@@ -14,7 +14,7 @@ class OrderService {
       '/api/orders',
       body: {
         'addressId': addressId,
-        if (paymentCountry != null) 'paymentCountry': paymentCountry,
+        'paymentCountry': ?paymentCountry,
       },
     ) as Map<String, dynamic>;
     return OrderModel.fromJson(data);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:frontend/l10n/app_localizations.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/models/user_model.dart';
 import 'package:frontend/screens/categories_screen.dart';
@@ -23,6 +24,22 @@ const _approvedSellerUser = UserModel(
   sellerStatus: SellerAccountStatus.approved,
 );
 
+/// MaterialApp de test configuree comme l'app (traductions + francais) : sans elle,
+/// `AppLocalizations.of(context)!` est null et les libelles seraient en anglais.
+Widget _testApp(Widget home) => MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: home,
+    );
+
+/// Laisse s'ecouler les delais en attente (timeouts reseau des services appeles sans backend)
+/// pour que le test se termine sans minuterie orpheline.
+Future<void> _drainTimers(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(minutes: 2));
+}
+
 void main() {
   setUp(() {
     // Aucun token stocké par défaut — chaque test injecte le sien si besoin.
@@ -37,6 +54,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    SharedPreferences.setMockInitialValues({'onboarding_seen': true});
     await tester.pumpWidget(const MaplenouApp());
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
@@ -48,6 +66,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    await _drainTimers(tester);
   });
 
   // NOTE : le cas "session valide -> ouvre directement l'interface du
@@ -64,7 +83,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: ProfileSelectionScreen(user: _approvedSellerUser)));
+    await tester.pumpWidget(_testApp(const ProfileSelectionScreen(user: _approvedSellerUser)));
 
     // Livreur n'apparaît jamais ici (compte dédié) ; Vendeur seulement si approuvé.
     expect(find.byType(RoleCard), findsNWidgets(2));
@@ -78,6 +97,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(nextButton().onPressed, isNotNull);
+    await _drainTimers(tester);
   });
 
   testWidgets('Selecting "Acheteur" and tapping "Suivant" persists the choice and opens HomeScreen',
@@ -87,7 +107,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: ProfileSelectionScreen(user: _approvedSellerUser)));
+    await tester.pumpWidget(_testApp(const ProfileSelectionScreen(user: _approvedSellerUser)));
 
     await tester.tap(find.text('Acheteur'));
     await tester.pumpAndSettle();
@@ -98,6 +118,7 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('selected_role_id'), 'buyer');
+    await _drainTimers(tester);
   });
 
   testWidgets('HomeScreen renders the header, banner, categories and product grid without errors',
@@ -109,7 +130,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpWidget(_testApp(const HomeScreen()));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -123,6 +144,7 @@ void main() {
     // HomeScreen appelle le vrai ProductService (voir CLAUDE.md), donc sans
     // backend accessible en test, la section reste vide plutôt que remplie
     // de données mockées — seule l'absence de crash est vérifiée ici.
+    await _drainTimers(tester);
   });
 
   testWidgets('Tapping "Catégories" in the bottom nav opens CategoriesScreen',
@@ -132,7 +154,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpWidget(_testApp(const HomeScreen()));
     await tester.tap(find.descendant(
       of: find.byType(CustomBottomNavigation),
       matching: find.text('Catégories'),
@@ -140,6 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CategoriesScreen), findsOneWidget);
+    await _drainTimers(tester);
   });
 
   testWidgets('CategoriesScreen renders filters, results bar and the results grid without errors',
@@ -149,12 +172,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: CategoriesScreen()));
+    await tester.pumpWidget(_testApp(const CategoriesScreen()));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('Tout voir'), findsOneWidget);
     // Idem HomeScreen : pas d'assertion sur le nombre de résultats/ProductCard,
     // qui dépendent du vrai ProductService (pas de backend en test).
+    await _drainTimers(tester);
   });
 }

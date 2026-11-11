@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth";
 import { apiClient, ApiException } from "@/lib/apiClient";
-import { needsOnboarding } from "@/lib/permissions";
 
 type Mode = "login" | "mfa" | "forgot" | "reset" | "resetDone";
 

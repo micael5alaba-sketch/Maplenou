@@ -56,9 +56,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUnreadNotifications() async {
-    final count = await NotificationHistoryService().unreadCount();
-    if (!mounted) return;
-    setState(() => _unreadNotifications = count);
+    // Un visiteur non connecté ou hors ligne n'a pas de compteur : l'erreur ne doit jamais remonter
+    // comme exception non rattrapée (le point rouge reste simplement absent).
+    try {
+      final count = await NotificationHistoryService().unreadCount();
+      if (!mounted) return;
+      setState(() => _unreadNotifications = count);
+    } catch (_) {
+      // Pas de notification à afficher.
+    }
   }
 
   Future<void> _openNotifications() async {

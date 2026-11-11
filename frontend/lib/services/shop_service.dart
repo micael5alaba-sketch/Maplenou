@@ -62,13 +62,13 @@ class ShopService {
     final data = await _client.patch(
       '/api/shops/mine',
       body: {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
-        if (logoUrl != null) 'logoUrl': logoUrl,
-        if (coverUrl != null) 'coverUrl': coverUrl,
-        if (taxId != null) 'taxId': taxId,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
+        'name': ?name,
+        'description': ?description,
+        'logoUrl': ?logoUrl,
+        'coverUrl': ?coverUrl,
+        'taxId': ?taxId,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
       },
     ) as Map<String, dynamic>;
     return ShopModel.fromJson(data);

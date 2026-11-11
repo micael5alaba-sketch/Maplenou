@@ -30,6 +30,16 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  async function startMfaSetup() {
+    try {
+      const res = await apiClient.post<{ secret: string; otpAuthUri: string }>("/api/auth/2fa/setup");
+      setSecret(res.secret);
+      setOtpUri(res.otpAuthUri);
+    } catch (e) {
+      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'activation de la MFA.");
+    }
+  }
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -45,18 +55,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (step === "mfa" && !secret) void startMfaSetup();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-
-  async function startMfaSetup() {
-    try {
-      const res = await apiClient.post<{ secret: string; otpAuthUri: string }>("/api/auth/2fa/setup");
-      setSecret(res.secret);
-      setOtpUri(res.otpAuthUri);
-    } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'activation de la MFA.");
-    }
-  }
 
   async function submitPassword(e: FormEvent) {
     e.preventDefault();

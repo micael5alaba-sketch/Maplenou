@@ -49,7 +49,6 @@ export default function StaffPage() {
       .finally(() => setLoading(false));
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [page]);
 
   async function create(e: FormEvent) {

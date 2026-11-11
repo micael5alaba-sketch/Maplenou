@@ -16,9 +16,9 @@ class UserService {
     final data = await _client.put(
       '/api/users/me',
       body: {
-        if (fullName != null) 'fullName': fullName,
-        if (email != null) 'email': email,
-        if (avatarUrl != null) 'avatarUrl': avatarUrl,
+        'fullName': ?fullName,
+        'email': ?email,
+        'avatarUrl': ?avatarUrl,
       },
     ) as Map<String, dynamic>;
     return UserModel.fromJson(data);

@@ -116,17 +116,21 @@ class _WalletScreenState extends State<WalletScreen> {
                         style: TextStyle(fontSize: 12, color: colors.textMuted),
                       ),
                       const SizedBox(height: 16),
-                      RadioListTile<String>(
-                        value: 'STANDARD',
+                      RadioGroup<String>(
                         groupValue: selected,
-                        title: const Text('Standard — 500 FCFA/mois'),
                         onChanged: (v) => setSheetState(() => selected = v!),
-                      ),
-                      RadioListTile<String>(
-                        value: 'HIGH_PRICE',
-                        groupValue: selected,
-                        title: const Text('Prix élevés — 2 000 FCFA/mois'),
-                        onChanged: (v) => setSheetState(() => selected = v!),
+                        child: const Column(
+                          children: [
+                            RadioListTile<String>(
+                              value: 'STANDARD',
+                              title: Text('Standard — 500 FCFA/mois'),
+                            ),
+                            RadioListTile<String>(
+                              value: 'HIGH_PRICE',
+                              title: Text('Prix élevés — 2 000 FCFA/mois'),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(

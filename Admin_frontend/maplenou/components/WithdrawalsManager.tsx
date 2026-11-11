@@ -94,7 +94,6 @@ export function WithdrawalsManager<T extends WithdrawalRow>({
       .finally(() => setLoading(false));
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [filter, page, basePath]);
 
   async function act(id: string, call: () => Promise<unknown>) {

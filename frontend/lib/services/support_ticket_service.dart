@@ -20,8 +20,8 @@ class SupportTicketService {
       'category': category,
       'subject': subject,
       'description': description,
-      if (relatedDeliveryId != null) 'relatedDeliveryId': relatedDeliveryId,
-      if (photoUrl != null) 'photoUrl': photoUrl,
+      'relatedDeliveryId': ?relatedDeliveryId,
+      'photoUrl': ?photoUrl,
     }) as Map<String, dynamic>;
     return SupportTicketModel.fromJson(data);
   }

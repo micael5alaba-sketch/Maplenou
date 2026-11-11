@@ -40,7 +40,7 @@ class AuthService {
       'fullName': fullName,
       'phoneNumber': phoneNumber,
       'password': password,
-      if (accountType != null) 'accountType': accountType,
+      'accountType': ?accountType,
     });
     return _storeSessionAndReturnUser(data);
   }
@@ -90,7 +90,7 @@ class AuthService {
       try {
         await _post('/api/auth/logout', {
           'refreshToken': refreshToken,
-          if (accessToken != null) 'accessToken': accessToken,
+          'accessToken': ?accessToken,
         });
       } catch (_) {
         // Le logout local doit réussir même si l'appel réseau échoue.

@@ -16,7 +16,7 @@ public record CreateProductRequest(
         @DecimalMin("0.00") BigDecimal oldPrice,
         @NotNull UUID categoryId,
         // Au moins une variante est requise pour pouvoir vendre
-        @NotNull @Size(min = 1) @Valid List<CreateVariantRequest> variants,
+        @NotNull @Size(min = 1) List<@Valid CreateVariantRequest> variants,
         // Optionnel : paires libres label/valeur (Marque, Matiere, Origine...)
         List<ProductSpecification> specifications,
         // Champs livraison par produit, tous optionnels.

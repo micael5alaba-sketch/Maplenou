@@ -103,7 +103,7 @@ class VendorCatalogService {
   Future<Map<String, dynamic>> addVariant(String productId, {required String label, required int stockQuantity, num? priceOverride}) async {
     return await _client.post(
       '/api/shops/mine/products/$productId/variants',
-      body: {'label': label, 'stockQuantity': stockQuantity, if (priceOverride != null) 'priceOverride': priceOverride},
+      body: {'label': label, 'stockQuantity': stockQuantity, 'priceOverride': ?priceOverride},
     ) as Map<String, dynamic>;
   }
 
