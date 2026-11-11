@@ -104,8 +104,9 @@ public class ResellerController {
 
     @PostMapping("/api/reseller/withdrawals")
     @ResponseStatus(HttpStatus.CREATED)
-    public WithdrawalResponse withdraw(@AuthenticationPrincipal User user, @Valid @RequestBody WithdrawRequest body) {
-        return withdrawalService.request(user, body);
+    public WithdrawalResponse withdraw(@AuthenticationPrincipal User user, @Valid @RequestBody WithdrawRequest body,
+                                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return withdrawalService.request(user, body, idempotencyKey);
     }
 
     @GetMapping("/api/reseller/withdrawals")

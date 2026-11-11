@@ -112,6 +112,14 @@ interface ResellerWithdrawalRepository extends JpaRepository<ResellerWithdrawal,
             countQuery = "select count(w) from ResellerWithdrawal w where (:status is null or w.status = :status)")
     Page<ResellerWithdrawal> findByOptionalStatus(@Param("status") PayoutStatus status, Pageable pageable);
 
+    @Query("select w from ResellerWithdrawal w join fetch w.partner where w.partner.id = :partnerId and w.idempotencyKey = :key")
+    Optional<ResellerWithdrawal> findByPartnerAndKey(@Param("partnerId") UUID partnerId, @Param("key") String key);
+
+    /** Verrou d'ecriture : deux actions simultanees sur le meme retrait se serialisent (la seconde voit le nouveau statut). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from ResellerWithdrawal w where w.id = :id")
+    Optional<ResellerWithdrawal> lockById(@Param("id") UUID id);
+
     @Query("select w from ResellerWithdrawal w join fetch w.partner where w.id = :id")
     Optional<ResellerWithdrawal> findByIdWithPartner(@Param("id") UUID id);
 

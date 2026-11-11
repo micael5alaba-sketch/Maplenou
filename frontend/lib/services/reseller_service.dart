@@ -67,9 +67,17 @@ class ResellerService {
         .toList();
   }
 
-  Future<void> requestWithdrawal({required int amount, required String method, required String paymentPhone}) async {
+  /// [idempotencyKey] identifie CETTE demande : un renvoi (double clic, coupure réseau) avec la même clé
+  /// ne crée jamais un second retrait.
+  Future<void> requestWithdrawal({
+    required int amount,
+    required String method,
+    required String paymentPhone,
+    required String idempotencyKey,
+  }) async {
     await _client.post('/api/reseller/withdrawals',
-        body: {'amount': amount, 'method': method, 'paymentPhone': paymentPhone});
+        body: {'amount': amount, 'method': method, 'paymentPhone': paymentPhone},
+        headers: {'Idempotency-Key': idempotencyKey});
   }
 
   // ----- Attribution (clic sur un lien partenaire) -----

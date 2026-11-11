@@ -397,6 +397,8 @@ class _WalletTabState extends State<_WalletTab> {
     final amountCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     var method = 'MIX_BY_YAS';
+    // Une clé par ouverture du formulaire : un renvoi de cette même demande ne crée jamais deux retraits.
+    final idempotencyKey = 'wd-${DateTime.now().microsecondsSinceEpoch}-${UniqueKey().hashCode}';
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -427,7 +429,8 @@ class _WalletTabState extends State<_WalletTab> {
     final amount = int.tryParse(amountCtrl.text.trim());
     if (amount == null) return;
     try {
-      await widget.service.requestWithdrawal(amount: amount, method: method, paymentPhone: phoneCtrl.text.trim());
+      await widget.service.requestWithdrawal(
+          amount: amount, method: method, paymentPhone: phoneCtrl.text.trim(), idempotencyKey: idempotencyKey);
       _reload();
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

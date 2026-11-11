@@ -68,6 +68,10 @@ public class ResellerWithdrawal {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** Cle d'idempotence fournie par le client (en-tete Idempotency-Key) : unique par partenaire. */
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

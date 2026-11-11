@@ -51,14 +51,24 @@ public class ResellerWithdrawalService {
     // ----- Partenaire -----
 
     @Transactional
-    public WithdrawalResponse request(User user, WithdrawRequest r) {
+    public WithdrawalResponse request(User user, WithdrawRequest r, String idempotencyKey) {
         ResellerProfile partner = resellerService.requireActive(user);
+        String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.trim();
+        if (key != null && key.length() > 100) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Cle d'idempotence trop longue");
+        }
         ResellerSettings settings = settingsService.current();
         if (r.amount() < settings.getMinWithdrawal()) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Le montant minimum de retrait est de " + settings.getMinWithdrawal() + " FCFA");
         }
         long available = walletService.lockedAvailable(partner.getId());
+        // Rejeu de la meme demande (verifie APRES le verrou du portefeuille : deux envois simultanes se
+        // serialisent, le second retrouve le retrait du premier au lieu d'en creer un autre).
+        if (key != null) {
+            var replay = withdrawalRepository.findByPartnerAndKey(partner.getId(), key);
+            if (replay.isPresent()) return toResponse(replay.get());
+        }
         if (r.amount() > available) {
             throw new ApiException(HttpStatus.CONFLICT, "Solde disponible insuffisant (" + available + " FCFA)");
         }
@@ -69,7 +79,8 @@ public class ResellerWithdrawalService {
                 .setScale(0, RoundingMode.HALF_UP).longValueExact();
         ResellerWithdrawal w = withdrawalRepository.save(ResellerWithdrawal.builder()
                 .partner(partner).amount(r.amount()).feeAmount(fee).netAmount(r.amount() - fee)
-                .method(r.method()).paymentPhone(r.paymentPhone().trim()).status(PayoutStatus.PENDING).build());
+                .method(r.method()).paymentPhone(r.paymentPhone().trim()).status(PayoutStatus.PENDING)
+                .idempotencyKey(key).build());
         walletService.append(partner.getId(), WalletTxType.WITHDRAWAL_RESERVE, r.amount(), -r.amount(), r.amount(),
                 0, w.getId(), null, "Demande de retrait", user.getId(), "wd-reserve:" + w.getId());
         workflow.recordCreated(WithdrawalSubjectType.PARTNER_WITHDRAWAL, w.getId(), user,
@@ -106,6 +117,7 @@ public class ResellerWithdrawalService {
     @Transactional
     public WithdrawalResponse transition(UUID id, WithdrawalAction action, WithdrawalActionRequest request,
                                          User actor, String ip) {
+        withdrawalRepository.lockById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Retrait introuvable"));
         ResellerWithdrawal w = load(id);
         UUID partnerId = w.getPartner().getId();
         PayoutStatus to = workflow.apply(

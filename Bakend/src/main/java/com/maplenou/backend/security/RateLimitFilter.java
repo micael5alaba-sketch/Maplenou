@@ -53,6 +53,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.maxGlobalRequestsPerMinute = maxGlobalRequestsPerMinute;
     }
 
+    /** Clics sur les liens partenaires (route publique) : plafond par IP, contre le gonflement des statistiques. */
+    @Value("${app.rate-limit.reseller-click.max-per-minute:30}")
+    private int maxResellerClicksPerMinute = 30;
+
     @Value("${app.trusted-proxy-ips:}")
     public void setTrustedProxyIps(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -90,6 +94,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         boolean isAuthEndpoint = request.getRequestURI().startsWith("/api/auth/");
 
         if (isAuthEndpoint && isOverLimit("rate:auth:" + ip, maxAuthRequestsPerMinute)) {
+            rejectTooManyRequests(response);
+            return;
+        }
+        if (request.getRequestURI().equals("/api/reseller/clicks")
+                && isOverLimit("rate:reseller-click:" + ip, maxResellerClicksPerMinute)) {
             rejectTooManyRequests(response);
             return;
         }

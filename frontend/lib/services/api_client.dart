@@ -48,7 +48,8 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) =>
       _send('GET', path, query: query);
 
-  Future<dynamic> post(String path, {Object? body}) => _send('POST', path, body: body);
+  Future<dynamic> post(String path, {Object? body, Map<String, String>? headers}) =>
+      _send('POST', path, body: body, headers: headers);
 
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
 
@@ -61,6 +62,7 @@ class ApiClient {
     String path, {
     Map<String, String>? query,
     Object? body,
+    Map<String, String>? headers,
     bool isRetryAfterRefresh = false,
   }) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: query);
@@ -68,7 +70,8 @@ class ApiClient {
 
     final request = http.Request(method, uri)
       ..headers['Content-Type'] = 'application/json'
-      ..headers.addAll(token != null ? {'Authorization': 'Bearer $token'} : {});
+      ..headers.addAll(token != null ? {'Authorization': 'Bearer $token'} : {})
+      ..headers.addAll(headers ?? const {});
     if (body != null) request.body = jsonEncode(body);
 
     final http.Response response;
@@ -81,7 +84,7 @@ class ApiClient {
 
     if (response.statusCode == 401 && !isRetryAfterRefresh && token != null) {
       if (await _tryRefresh()) {
-        return _send(method, path, query: query, body: body, isRetryAfterRefresh: true);
+        return _send(method, path, query: query, body: body, headers: headers, isRetryAfterRefresh: true);
       }
       await _tokenStorage.clear();
       _redirectToLogin();
