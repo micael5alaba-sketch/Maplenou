@@ -1,28 +1,28 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
 
-import '../navigation.dart';
-import '../screens/seller_conversation_screen.dart';
+import '../widgets/in_app_notification_banner.dart';
 import 'api_client.dart';
+import 'notification_router.dart';
 
 /// Handler appelé par le système quand une notification arrive alors que
 /// l'app est en arrière-plan/fermée — doit être une fonction top-level
-/// (isolate séparé), voir `main.dart`. Ne fait plus rien ici : la notification
-/// est déjà persistée côté serveur (`NotificationService.send`, avant même
-/// l'envoi FCM) — `NotificationsScreen` la lit depuis `GET /api/notifications`
-/// au lieu d'un historique local reconstruit message par message.
+/// (isolate séparé), voir `main.dart`. Ne fait rien ici : le système (Android) ou le service
+/// worker (navigateur, `web/firebase-messaging-sw.js`) affiche déjà le pop-up, et la
+/// notification est persistée côté serveur avant l'envoi (`NotificationService.send`).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
-/// Enregistre le device auprès du backend (`POST /api/notifications/tokens`,
-/// voir `DeviceTokenController`) pour recevoir les notifications push
-/// envoyées par `FcmService` — ce qui manquait entièrement côté client :
-/// le backend était prêt, mais aucun appareil ne s'enregistrait jamais, donc
-/// `FcmService.sendToUser` ne trouvait jamais de token et ne faisait rien.
+/// Notifications push : enregistrement de l'appareil (`POST /api/notifications/tokens`), pop-up
+/// dans l'app quand elle est ouverte, et ouverture de l'écran concerné au tap sur une notification
+/// (discussion, commande, livraison, boutique...) — quel que soit l'état de l'app (premier plan,
+/// arrière-plan, fermée) et sur le navigateur web comme sur mobile.
 class PushNotificationService {
+  static Map<String, dynamic>? _pendingLaunch;
+
   bool _initialized = false;
 
   Future<void> initialize() async {
@@ -30,21 +30,25 @@ class PushNotificationService {
     try {
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission(alert: true, badge: true, sound: true);
-
-      final token = await messaging.getToken();
-      if (token != null) await _registerToken(token);
+      await _registerCurrentToken();
       messaging.onTokenRefresh.listen(_registerToken);
 
-      // TODO (audit du 16/10/2026) : app ouverte au premier plan, FCM n'affiche pas de bannière
-      // automatiquement sur Android — brancher flutter_local_notifications ici pour en afficher
-      // une explicitement. Pas fait dans ce lot : nouvelle dépendance + config native Android/iOS
-      // à tester sur un vrai appareil, hors de portée de cette session.
+      // App ouverte au premier plan : le système n'affiche aucune bannière, on affiche la nôtre
+      // (pop-up en haut de l'écran, cliquable).
+      FirebaseMessaging.onMessage.listen((message) {
+        final title = message.notification?.title ?? 'Maplenou';
+        final body = message.notification?.body ?? '';
+        InAppNotificationBanner.show(title: title, body: body, data: Map<String, dynamic>.from(message.data));
+      });
 
-      // Notification tapée pendant que l'app est en arrière-plan.
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
-      // App démarrée à froid en tapant directement sur la notification (terminée avant).
+      // Pop-up système tapé pendant que l'app est en arrière-plan : l'écran concerné s'ouvre.
+      FirebaseMessaging.onMessageOpenedApp
+          .listen((message) => openNotification(Map<String, dynamic>.from(message.data)));
+
+      // App démarrée à froid en tapant sur le pop-up : traité par handleLaunchNotification() une
+      // fois l'écran d'accueil en place (le splash remplacerait un écran ouvert trop tôt).
       final initialMessage = await messaging.getInitialMessage();
-      if (initialMessage != null) _handleNotificationTap(initialMessage);
+      if (initialMessage != null) _pendingLaunch = Map<String, dynamic>.from(initialMessage.data);
 
       _initialized = true;
     } catch (_) {
@@ -52,21 +56,55 @@ class PushNotificationService {
     }
   }
 
-  /// Signalé dans le rapport de modification du 28/10/2026 : taper sur une notification de
-  /// nouveau message n'ouvrait rien de précis, juste l'app sur son écran par défaut. Seul le
-  /// type NEW_MESSAGE est traité ici (c'est la seule demande explicite) — les autres types de
-  /// notification continuent d'ouvrir l'app normalement, sans navigation forcée.
-  void _handleNotificationTap(RemoteMessage message) {
-    final data = message.data;
-    if (data['type'] != 'NEW_MESSAGE') return;
-    final conversationId = data['conversationId'] as String?;
-    if (conversationId == null) return;
+  /// À appeler une fois l'écran d'accueil affiché : ouvre l'écran lié à la notification qui a
+  /// lancé l'app (mobile : message initial ; navigateur : paramètre `notif` de l'URL posé par le
+  /// service worker au clic sur le pop-up).
+  void handleLaunchNotification() {
+    var data = _pendingLaunch;
+    _pendingLaunch = null;
+    data ??= decodeLaunchParameter(Uri.base.queryParameters['notif']);
+    if (data != null) openNotification(data);
+  }
 
-    final navigatorState = navigatorKey.currentState;
-    if (navigatorState == null) return;
-    navigatorState.push(
-      MaterialPageRoute(builder: (_) => SellerConversationScreen(conversationId: conversationId)),
-    );
+  /// Décode le paramètre `notif` (JSON encodé en base64 URL-safe) posé par le service worker.
+  static Map<String, dynamic>? decodeLaunchParameter(String? param) {
+    if (param == null || param.isEmpty) return null;
+    try {
+      final json = utf8.decode(base64Url.decode(base64Url.normalize(param)));
+      return Map<String, dynamic>.from(jsonDecode(json) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Vrai si l'utilisateur a autorisé les notifications sur cet appareil/navigateur.
+  Future<bool> isPermissionGranted() async {
+    try {
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Demande l'autorisation (à appeler depuis un geste de l'utilisateur : Safari et certains
+  /// navigateurs refusent la demande automatique) puis enregistre l'appareil.
+  Future<bool> enable() async {
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+      final granted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (granted) await _registerCurrentToken();
+      return granted;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _registerCurrentToken() async {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null) await _registerToken(token);
   }
 
   Future<void> _registerToken(String token) async {

@@ -16,6 +16,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class FcmService {
 
+    /** Doit correspondre au canal créé côté application Android (MainActivity). */
+    static final String ANDROID_HIGH_IMPORTANCE_CHANNEL = "maplenou_high";
+
     private final DeviceTokenRepository deviceTokenRepository;
 
     /**
@@ -55,6 +58,21 @@ public class FcmService {
                     .setNotification(Notification.builder()
                             .setTitle(title)
                             .setBody(body)
+                            .build())
+                    // Android : priorité haute + canal "maplenou_high" (importance haute, créé par
+                    // l'app au démarrage) pour que la notification s'affiche en pop-up (heads-up)
+                    // avec son et vibration, comme une application de messagerie.
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .setNotification(AndroidNotification.builder()
+                                    .setChannelId(ANDROID_HIGH_IMPORTANCE_CHANNEL)
+                                    .setSound("default")
+                                    .build())
+                            .build())
+                    // Navigateur : livraison immédiate même si l'onglet est en arrière-plan.
+                    .setWebpushConfig(WebpushConfig.builder()
+                            .putHeader("Urgency", "high")
+                            .putHeader("TTL", "86400")
                             .build())
                     .addAllTokens(batch);
 

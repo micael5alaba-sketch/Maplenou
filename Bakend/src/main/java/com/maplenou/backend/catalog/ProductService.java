@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final ShopFollowerNotifier shopFollowerNotifier;
     private final ProductVariantRepository variantRepository;
     private final ProductImageRepository imageRepository;
     private final ProductReviewRepository productReviewRepository;
@@ -177,6 +178,7 @@ public class ProductService {
         if (request.categoryId() != null) {
             product.setCategory(categoryService.getById(request.categoryId()));
         }
+        boolean becomesActive = request.status() == ProductStatus.ACTIVE && product.getStatus() != ProductStatus.ACTIVE;
         if (request.status() != null) {
             product.setStatus(request.status());
         }
@@ -203,6 +205,10 @@ public class ProductService {
         }
 
         productRepository.save(product);
+        if (becomesActive) {
+            // Mise en vente (brouillon -> actif) : prévient les acheteurs qui suivent la boutique.
+            shopFollowerNotifier.notifyNewProduct(shop, product);
+        }
         return ProductDetailResponse.from(loadWithDetails(productId));
     }
 

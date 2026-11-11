@@ -4,10 +4,17 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Photo de preuve de livraison (livreur). -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Notifications push (pop-up) : permission demandee a l'execution depuis Android 13. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="frontend"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Canal par defaut des notifications push : importance haute (pop-up en haut de l'ecran,
+             son, vibration). Le backend envoie sur ce meme canal (FcmService). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="maplenou_high" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

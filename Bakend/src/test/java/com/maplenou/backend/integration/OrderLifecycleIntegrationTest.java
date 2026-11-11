@@ -517,6 +517,40 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(99)
+    void newProductNotifiesBuyersWhoFollowTheShop() throws Exception {
+        // L'acheteur a déjà commandé chez cette boutique : il la "suit". Un nouveau produit mis en
+        // vente (brouillon -> actif) lui envoie une notification NEW_PRODUCT qui ouvre la boutique.
+        JsonNode newProduct = post("/api/shops/mine/products",
+                new CreateProductRequest("Nouveaute " + rand, "desc", new BigDecimal("5000.00"), null, categoryId,
+                        List.of(new CreateVariantRequest("Standard", null, 3, "SKU-NEW-" + rand)), null,
+                        null, null, null),
+                sellerToken, 201);
+        UUID newProductId = UUID.fromString(newProduct.get("id").asText());
+        // En brouillon : aucune notification
+        patch("/api/shops/mine/products/" + newProductId,
+                new UpdateProductRequest(null, null, null, null, null, ProductStatus.ACTIVE, null, null, null, null), sellerToken, 200);
+
+        boolean notified = false;
+        for (int i = 0; i < 20 && !notified; i++) {   // envoi asynchrone : on attend un instant
+            for (JsonNode n : get("/api/notifications?size=50", buyerToken, 200).get("content")) {
+                if ("NEW_PRODUCT".equals(n.get("type").asText())
+                        && n.get("body").asText().contains("Nouveaute " + rand)) {
+                    notified = true;
+                    break;
+                }
+            }
+            if (!notified) Thread.sleep(250);
+        }
+        assertTrue(notified, "l'acheteur qui suit la boutique doit recevoir une notification de nouveau produit");
+
+        // Le vendeur lui-même n'est jamais notifié de son propre produit
+        for (JsonNode n : get("/api/notifications?size=50", sellerToken, 200).get("content")) {
+            assertFalse("NEW_PRODUCT".equals(n.get("type").asText()));
+        }
+    }
+
+    @Test
     @Order(11)
     void secondSubOrderReturnApprovedRestoresStockAndMarksReturned() throws Exception {
         post("/api/cart/items", new AddToCartRequest(variantId, 2), buyerToken, 200);

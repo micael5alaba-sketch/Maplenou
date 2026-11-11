@@ -51,6 +51,9 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => target));
+    // App lancee en tapant sur un pop-up de notification : on ouvre l'ecran concerne par-dessus
+    // l'accueil (apres le remplacement du splash, sinon il serait ecrase).
+    WidgetsBinding.instance.addPostFrameCallback((_) => PushNotificationService().handleLaunchNotification());
   }
 
   Future<Widget> _resolveTarget() async {

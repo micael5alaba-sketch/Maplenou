@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/app_notification_model.dart';
 import '../services/notification_history_service.dart';
+import '../services/notification_router.dart';
+import '../services/push_notification_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
 
@@ -41,6 +43,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Column(
           children: [
             _buildHeader(context, colors),
+            const _EnableNotificationsBanner(),
             Expanded(
               child: FutureBuilder<List<AppNotification>>(
                 future: _future,
@@ -107,6 +110,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildTile(AppColorScheme colors, AppNotification notification) {
+    final canOpen = resolveNotificationTarget(notificationDataFromHistory(notification.type, notification.referenceId)) != null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: canOpen ? () => openNotification(notificationDataFromHistory(notification.type, notification.referenceId)) : null,
+      child: _buildTileBody(colors, notification, canOpen),
+    );
+  }
+
+  Widget _buildTileBody(AppColorScheme colors, AppNotification notification, bool canOpen) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -132,6 +144,62 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Text(formatRelativeDate(notification.receivedAt), style: TextStyle(fontSize: 11, color: colors.textMuted)),
               ],
             ),
+          ),
+          if (canOpen) Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+/// Propose d'activer les notifications (pop-up) tant que l'autorisation n'a pas ete donnee. La
+/// demande part d'un geste de l'utilisateur : le navigateur (Safari surtout) refuse une demande
+/// automatique au demarrage.
+class _EnableNotificationsBanner extends StatefulWidget {
+  const _EnableNotificationsBanner();
+
+  @override
+  State<_EnableNotificationsBanner> createState() => _EnableNotificationsBannerState();
+}
+
+class _EnableNotificationsBannerState extends State<_EnableNotificationsBanner> {
+  bool? _granted;
+
+  @override
+  void initState() {
+    super.initState();
+    PushNotificationService().isPermissionGranted().then((granted) {
+      if (mounted) setState(() => _granted = granted);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_granted != false) return const SizedBox.shrink();
+    final colors = context.colors;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.notifications_active_rounded, color: colors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Activez les notifications pour recevoir vos commandes, messages et livraisons en pop-up.',
+              style: TextStyle(color: colors.textDark, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              final granted = await PushNotificationService().enable();
+              if (mounted) setState(() => _granted = granted);
+            },
+            child: const Text('Activer'),
           ),
         ],
       ),

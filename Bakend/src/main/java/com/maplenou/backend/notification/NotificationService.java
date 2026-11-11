@@ -131,6 +131,16 @@ public class NotificationService {
                 Map.of("type", "NEW_MESSAGE", "conversationId", conversationId.toString()));
     }
 
+    // ── Catalogue ─────────────────────────────────────────────────────────────
+
+    /** Un produit vient d'être mis en vente dans une boutique que l'acheteur suit. */
+    @Async
+    public void newProduct(UUID recipientId, String shopName, String productName, String shopSlug) {
+        send(recipientId, "Nouveau chez " + shopName, productName + " vient d'arriver. Découvrez-le !",
+                "NEW_PRODUCT", shopSlug,
+                Map.of("type", "NEW_PRODUCT", "shopSlug", shopSlug));
+    }
+
     // ── Frais vendeur ─────────────────────────────────────────────────────────
 
     @Async
