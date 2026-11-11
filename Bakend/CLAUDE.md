@@ -268,6 +268,15 @@ périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décision
   horodatage conservés ; un rejet libère les sous-commandes/gains et rétablit les frais déduits.
   L'ancien marquage direct « gain livreur payé » a été supprimé (il contournait l'approbation).
 - Tout refus d'accès d'un compte du personnel est tracé (`AuditAction.ACCESS_DENIED`).
+- **Affectation automatique des livraisons** (`delivery/DeliveryDispatchService`) : quand le vendeur marque un
+  colis prêt (READY_FOR_PICKUP), la livraison est créée puis affectée au livreur **le plus proche de la boutique**
+  parmi ceux qui sont actifs, aux 4 documents validés, avec une position < 10 min, dans un rayon de 15 km, pas
+  déjà occupés (1 course) et qui n'ont pas refusé cette course. **Plus de bouton « En ligne »** : l'app livreur
+  envoie sa position en permanence (service de premier plan sur Android). Le livreur peut refuser une course
+  affectée (`PATCH /api/deliveries/{id}/decline`) : elle passe au suivant ; sans livreur utilisable elle reste
+  PENDING, retentée chaque minute, et l'admin (pastille « à affecter ») peut affecter/réaffecter à la main.
+  Réglages : `DISPATCH_ENABLED`, `DISPATCH_MAX_DISTANCE_KM`, `DISPATCH_LOCATION_MAX_AGE_MINUTES`,
+  `DISPATCH_MAX_ACTIVE_DELIVERIES`. Les boutiques sans coordonnées GPS ne sont jamais affectées automatiquement.
 - **Registre des revenus de la plateforme** (`revenue/`, `/api/admin/revenue`, permission `REVENUE_READ` =
   Super Admin + Auditeur) : commissions intégrées (reconnues à la livraison de la sous-commande, hors
   annulations/retours), part plateforme de 25 % sur les livraisons, frais mensuels vendeurs réellement

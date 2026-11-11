@@ -93,7 +93,7 @@ export function RoleDashboard() {
         <Tile label="Livrées aujourd'hui" value={logistics.deliveredToday} />
         <Tile label="Échecs" value={logistics.failedDeliveries} href="/deliveries" urgent={logistics.failedDeliveries > 0} />
         <Tile label="Durée moyenne (7 j)" value={formatDuration(logistics.averageDeliveryMinutes7d == null ? null : Math.round(logistics.averageDeliveryMinutes7d))} hint="De l'affectation à la livraison" />
-        <Tile label="Livreurs en ligne" value={`${logistics.onlineCouriers} / ${logistics.activeCouriers}`} href="/deliveries" hint="En ligne = position reçue il y a moins de 10 min" />
+        <Tile label="Livreurs localisés" value={`${logistics.onlineCouriers} / ${logistics.activeCouriers}`} href="/deliveries" hint="Position reçue il y a moins de 10 min : ils reçoivent les courses automatiquement" />
         {logistics.courierDocumentsToReview != null && (
           <Tile label="Documents à vérifier" value={logistics.courierDocumentsToReview} href="/courier-documents" urgent={logistics.courierDocumentsToReview > 0} />
         )}

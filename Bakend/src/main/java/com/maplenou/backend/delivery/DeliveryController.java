@@ -79,6 +79,13 @@ public class DeliveryController {
     }
 
     /** Livreur : prendre soi-même une course disponible (sans passer par l'admin). */
+    /** Livreur : refuser une course qui vient de lui être affectée (avant de la démarrer). */
+    @PatchMapping("/{id}/decline")
+    @PreAuthorize("hasRole('DELIVERY_AGENT')")
+    public DeliveryResponse decline(@AuthenticationPrincipal User currentUser, @PathVariable UUID id) {
+        return deliveryService.decline(currentUser, id);
+    }
+
     @PatchMapping("/{id}/claim")
     @PreAuthorize("hasRole('DELIVERY_AGENT')")
     public DeliveryResponse claim(@AuthenticationPrincipal User currentUser, @PathVariable UUID id) {

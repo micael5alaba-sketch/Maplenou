@@ -22,6 +22,7 @@ import java.util.UUID;
 public class SubOrderService {
 
     private final SubOrderRepository subOrderRepository;
+    private final com.maplenou.backend.delivery.DeliveryService deliveryService;
     private final ShopRepository shopRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
@@ -75,6 +76,10 @@ public class SubOrderService {
         so.setStatus(newStatus);
         subOrderRepository.save(so);
         SubOrder updated = subOrderRepository.findByIdWithDetails(so.getId()).orElseThrow();
+        if (newStatus == SubOrderStatus.READY_FOR_PICKUP) {
+            // Colis prêt : la livraison est créée et affectée au livreur le plus proche, sans attendre l'admin.
+            deliveryService.autoCreateAndDispatch(updated);
+        }
         notificationService.subOrderStatusChanged(
                 updated.getOrder().getBuyer().getId(),
                 updated.getId(),

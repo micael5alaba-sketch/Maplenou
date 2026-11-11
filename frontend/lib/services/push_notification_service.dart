@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../widgets/in_app_notification_banner.dart';
 import 'api_client.dart';
+import 'courier_presence_service.dart';
 import 'notification_router.dart';
 import 'unread_messages_service.dart';
 
@@ -130,6 +131,7 @@ class PushNotificationService {
   /// personne n'est plus session ouverte.
   Future<void> unregisterAll() async {
     UnreadMessagesService.instance.stop();
+    CourierPresenceService.instance.stop();
     try {
       await ApiClient().delete('/api/notifications/tokens');
     } catch (_) {}

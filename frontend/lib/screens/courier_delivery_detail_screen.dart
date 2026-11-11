@@ -89,6 +89,31 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
     }
   }
 
+  Future<void> _handleDecline() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Refuser cette course ?'),
+        content: const Text('Elle sera proposée à un autre livreur et ne vous sera plus reproposée.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Refuser')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _deliveryService.declineDelivery(widget.deliveryId);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _handleStart() async {
     setState(() => _isStarting = true);
     try {
@@ -187,6 +212,7 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
         _buildPickupCard(colors, delivery),
         const SizedBox(height: 20),
         if (delivery.canStart)
+          Column(children: [
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -203,7 +229,10 @@ class _CourierDeliveryDetailScreenState extends State<CourierDeliveryDetailScree
                   : const Icon(Icons.play_circle_outline_rounded),
               label: const Text('Commencer la livraison', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
-          )
+          ),
+          const SizedBox(height: 10),
+          TextButton(onPressed: _handleDecline, child: const Text('Refuser cette course')),
+          ])
         else if (delivery.canConfirm)
           SizedBox(
             width: double.infinity,

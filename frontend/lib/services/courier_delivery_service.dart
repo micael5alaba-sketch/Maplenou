@@ -20,6 +20,12 @@ class CourierDeliveryService {
     return DeliveryNavigationModel.fromJson(data);
   }
 
+  /// Refuse une course qui vient d'être affectée (avant de la démarrer) : elle est aussitôt
+  /// proposée au livreur suivant et ne lui est plus reproposée.
+  Future<void> declineDelivery(String deliveryId) {
+    return _client.patch('/api/deliveries/$deliveryId/decline');
+  }
+
   Future<void> startDelivery(String deliveryId) {
     return _client.patch('/api/deliveries/$deliveryId/status', body: {'status': 'IN_TRANSIT'});
   }

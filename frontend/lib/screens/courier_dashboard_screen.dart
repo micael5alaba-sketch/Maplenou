@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/courier_dashboard_service.dart';
 import '../services/courier_documents_service.dart';
 import '../services/courier_presence_service.dart';
+import '../widgets/location_status_banner.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/active_delivery_card.dart';
 import '../widgets/app_drawer.dart';
@@ -12,7 +13,6 @@ import '../widgets/app_logo.dart';
 import '../widgets/courier_bottom_navigation.dart';
 import '../widgets/daily_earnings_card.dart';
 import '../widgets/earnings_evolution_card.dart';
-import '../widgets/online_status_toggle.dart';
 import '../widgets/performance_card.dart';
 import 'courier_delivery_confirmation_screen.dart';
 import 'courier_delivery_detail_screen.dart';
@@ -40,38 +40,23 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _service = CourierDashboardService();
   final _documentsService = CourierDocumentsService();
-  final _presenceService = CourierPresenceService();
   late Future<CourierDashboardModel> _dashboardFuture;
   late Future<bool> _verifiedFuture;
-  bool _isOnline = false;
 
   final CourierTab _currentTab = CourierTab.dashboard;
 
   @override
   void initState() {
     super.initState();
-    _dashboardFuture = _service.getDashboard(isOnline: _isOnline);
+    _dashboardFuture = _service.getDashboard(isOnline: true);
     _verifiedFuture = _documentsService.isFullyVerified();
-  }
-
-  @override
-  void dispose() {
-    _presenceService.stop();
-    super.dispose();
-  }
-
-  void _setOnline(bool isOnline) {
-    // Position visible par l'admin (carte d'affectation) uniquement tant que le livreur est en ligne.
-    isOnline ? _presenceService.start() : _presenceService.stop();
-    setState(() {
-      _isOnline = isOnline;
-      _dashboardFuture = _service.getDashboard(isOnline: isOnline);
-    });
+    // La position part en continu dès l'arrivée du livreur dans son espace : pas de bouton à activer.
+    CourierPresenceService.instance.start();
   }
 
   void _reload() {
     setState(() {
-      _dashboardFuture = _service.getDashboard(isOnline: _isOnline);
+      _dashboardFuture = _service.getDashboard(isOnline: true);
       _verifiedFuture = _documentsService.isFullyVerified();
     });
   }
@@ -244,7 +229,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
           const SizedBox(height: 4),
           Text('Prêt pour votre journée ?', style: TextStyle(fontSize: 14, color: colors.textMuted)),
           const SizedBox(height: 16),
-          OnlineStatusToggle(isOnline: dashboard.isOnline, onChanged: _setOnline),
+          const LocationStatusBanner(),
           const SizedBox(height: 20),
           EarningsEvolutionCard(
             points: dashboard.weeklyEarningsSeries,
@@ -264,26 +249,24 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: dashboard.isOnline
-                  ? () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()))
-                      .then((_) => _reload())
-                  : () => _setOnline(true),
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const CourierDeliveriesScreen()))
+                  .then((_) => _reload()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.accentOrange,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
               ),
-              icon: Icon(dashboard.isOnline ? Icons.local_shipping_rounded : Icons.toggle_on_rounded),
-              label: Text(
-                dashboard.isOnline ? 'Voir mes livraisons' : 'Passer en ligne',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              icon: const Icon(Icons.local_shipping_rounded),
+              label: const Text(
+                'Voir mes livraisons',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          if (dashboard.isOnline && dashboard.activeDeliveries.isNotEmpty) ...[
+          if (dashboard.activeDeliveries.isNotEmpty) ...[
             Text('Courses Actives', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textDark)),
             const SizedBox(height: 12),
             for (final delivery in dashboard.activeDeliveries) ...[
@@ -295,7 +278,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
               const SizedBox(height: 12),
             ],
           ] else
-            _buildOfflineState(colors, dashboard.isOnline),
+            _buildOfflineState(colors),
         ],
       ),
     );
@@ -321,7 +304,7 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
     );
   }
 
-  Widget _buildOfflineState(AppColorScheme colors, bool isOnline) {
+  Widget _buildOfflineState(AppColorScheme colors) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -334,17 +317,15 @@ class _CourierDashboardScreenState extends State<CourierDashboardScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.cloud_off_rounded, size: 40, color: colors.textMuted),
+          Icon(Icons.local_shipping_outlined, size: 40, color: colors.textMuted),
           const SizedBox(height: 12),
           Text(
-            isOnline ? 'Aucune livraison active pour le moment.' : 'Vous êtes hors ligne',
+            'Aucune livraison active pour le moment.',
             style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark),
           ),
           const SizedBox(height: 6),
           Text(
-            isOnline
-                ? "Consultez l'onglet Courses pour vos livraisons assignées."
-                : 'Passez en ligne pour voir vos livraisons assignées.',
+            'Dès qu\'une course est prête près de vous, elle vous est affectée et vous êtes notifié.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: colors.textMuted, height: 1.4),
           ),

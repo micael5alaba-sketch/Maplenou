@@ -141,13 +141,13 @@ export default function DeliveriesPage() {
         <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-muted">
           <span className="font-medium text-foreground">Carte des livreurs</span>
           <span><span style={{ color: "#f59e0b" }}>●</span> Boutique à récupérer</span>
-          <span><span style={{ color: "#16a34a" }}>●</span> Livreur en ligne</span>
-          <span><span style={{ color: "#9ca3af" }}>●</span> Livreur hors ligne (dernière position)</span>
+          <span><span style={{ color: "#16a34a" }}>●</span> Livreur localisé</span>
+          <span><span style={{ color: "#9ca3af" }}>●</span> Livreur sans position récente (dernière position connue)</span>
         </div>
         <CourierMap points={mapPoints} />
         {locations.length === 0 && (
           <p className="mt-2 text-xs text-muted">
-            Aucune position de livreur reçue pour l&apos;instant : un livreur apparaît ici dès qu&apos;il passe « En ligne » dans son app.
+            Aucune position de livreur reçue pour l&apos;instant : un livreur apparaît ici dès que la localisation est active dans son app.
           </p>
         )}
       </Card>
@@ -184,7 +184,7 @@ export default function DeliveriesPage() {
                           <option key={c.id} value={c.id}>
                             {c.fullName}
                             {km != null ? ` — ${km.toFixed(1)} km de la boutique` : " — position inconnue"}
-                            {online ? "" : " (hors ligne)"}
+                            {online ? "" : " (position ancienne)"}
                           </option>
                         ))}
                       </select>

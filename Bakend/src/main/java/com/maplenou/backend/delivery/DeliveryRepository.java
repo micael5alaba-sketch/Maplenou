@@ -62,7 +62,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
      * l'autre reçoit 0 (voir DeliveryService.claim). Pas de lecture-puis-écriture séparée qui
      * laisserait une fenêtre de course critique.
      */
-    @Modifying
+    // flush avant / clear apres : la mise a jour en masse contourne le contexte de persistance, qui
+    // garderait sinon l'ancienne version de la livraison (agent vide) dans la meme transaction.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("UPDATE Delivery d SET d.agent = :agent, d.status = com.maplenou.backend.delivery.DeliveryStatus.ASSIGNED, " +
            "d.assignedAt = :now WHERE d.id = :id AND d.status = com.maplenou.backend.delivery.DeliveryStatus.PENDING")
     int claim(@Param("id") UUID id, @Param("agent") User agent, @Param("now") Instant now);

@@ -35,6 +35,8 @@ public class DeliveryService {
     private final CourierEarningService courierEarningService;
     private final CourierDocumentService courierDocumentService;
     private final SellerFeeService sellerFeeService;
+    private final DeliveryDispatchService dispatchService;
+    private final DeliveryDeclineRepository declineRepository;
 
     // ----- Admin -----
 
@@ -65,6 +67,45 @@ public class DeliveryService {
         return DeliveryResponse.from(deliveryRepository.save(delivery));
     }
 
+    /**
+     * Appelé quand le vendeur marque la sous-commande prête (READY_FOR_PICKUP) : crée la livraison
+     * sans attendre l'admin puis l'affecte tout de suite au livreur le plus proche de la boutique.
+     * Sans effet si l'affectation automatique est désactivée, ou si la livraison existe déjà.
+     */
+    @Transactional
+    public void autoCreateAndDispatch(SubOrder subOrder) {
+        if (!dispatchService.isEnabled() || subOrder.getStatus() != SubOrderStatus.READY_FOR_PICKUP) return;
+        if (deliveryRepository.findBySubOrderId(subOrder.getId()).isPresent()) return;
+
+        Delivery delivery = deliveryRepository.save(Delivery.builder()
+                .subOrder(subOrder)
+                .status(DeliveryStatus.PENDING)
+                .build());
+        dispatchService.tryAssign(delivery.getId());
+    }
+
+    /**
+     * Livreur : refuse une course qui vient de lui être affectée (pas encore démarrée). La course
+     * redevient disponible, ne lui est plus reproposée, et est aussitôt affectée au livreur suivant.
+     */
+    @Transactional
+    public DeliveryResponse decline(User agent, UUID deliveryId) {
+        Delivery delivery = getDeliveryOrThrow(deliveryId);
+        if (delivery.getAgent() == null || !delivery.getAgent().getId().equals(agent.getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Cette livraison ne vous est pas assignée");
+        }
+        if (delivery.getStatus() != DeliveryStatus.ASSIGNED) {
+            throw new ApiException(HttpStatus.CONFLICT, "Une course déjà démarrée ne peut plus être refusée");
+        }
+        declineRepository.save(DeliveryDecline.builder().delivery(delivery).agent(agent).build());
+        delivery.setAgent(null);
+        delivery.setStatus(DeliveryStatus.PENDING);
+        delivery.setAssignedAt(null);
+        deliveryRepository.save(delivery);
+        dispatchService.tryAssign(deliveryId);
+        return reload(deliveryId);
+    }
+
     /** Admin : affecter un livreur à une livraison en attente. */
     @Transactional
     public DeliveryResponse assignAgent(UUID deliveryId, AssignAgentRequest request) {
@@ -84,7 +125,10 @@ public class DeliveryService {
                             + "impossible de lui affecter une livraison.");
         }
 
-        if (delivery.getStatus() != DeliveryStatus.PENDING && delivery.getStatus() != DeliveryStatus.FAILED) {
+        // PENDING/FAILED : affectation ; ASSIGNED (pas encore démarrée) : réaffectation par l'admin,
+        // y compris à la place du livreur choisi automatiquement.
+        if (delivery.getStatus() != DeliveryStatus.PENDING && delivery.getStatus() != DeliveryStatus.FAILED
+                && delivery.getStatus() != DeliveryStatus.ASSIGNED) {
             throw new ApiException(HttpStatus.CONFLICT,
                     "Impossible d'affecter un livreur à une livraison au statut " + delivery.getStatus());
         }
