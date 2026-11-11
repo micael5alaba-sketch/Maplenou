@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../utils/phone_utils.dart';
 import '../services/api_client.dart';
 import '../services/app_router.dart';
 import '../services/auth_service.dart';
@@ -67,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final result = await _authService.login(
-        phoneNumber: _phoneController.text.trim(),
+        phoneNumber: normalizePhoneNumber(_phoneController.text),
         password: _passwordController.text,
       );
 

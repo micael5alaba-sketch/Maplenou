@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../utils/phone_utils.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -41,7 +42,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final phoneNumber = _phoneController.text.trim();
+      final phoneNumber = normalizePhoneNumber(_phoneController.text);
       await _authService.forgotPassword(phoneNumber: phoneNumber);
       if (!mounted) return;
       Navigator.of(context).push(
