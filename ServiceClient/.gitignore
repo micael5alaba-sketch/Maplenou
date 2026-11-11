@@ -1,0 +1,48 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Site packages
+site/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+
+# Java
+target/
+
+# Local runtime data
+data/
+
+# Local compose overrides
+docker-compose.override.yml
+
+# Documentation build (python documentation/build.py)
+documentation/*/*/site/
+docs/assets/maplenou/
+documentation/*/*/docs/assets/maplenou/
+.cache/
+
+# Playwright output
+frontend/playwright-report/
+frontend/test-results/
+
+# Local backups (scripts/backup.*)
+backups/
+
+# keys (Firebase service account…): only the README is versioned
+secrets/*
+!secrets/README.md

@@ -1,0 +1,42 @@
+name: Site vitrine
+
+# Site public (Site_vitrine/) : lint, types, tests et build de production.
+on:
+  push:
+    branches: [main, "ci/**"]
+    paths:
+      - "Site_vitrine/**"
+      - ".github/workflows/site-vitrine-ci.yml"
+  pull_request:
+    paths:
+      - "Site_vitrine/**"
+      - ".github/workflows/site-vitrine-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: Site_vitrine
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Site_vitrine/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # Sans Bakend : les pages affichent leur contenu fixe (catalog.ts tombe sur le repli)
+      - run: npm run build
+      - name: Docker image builds
+        run: docker build -t maplenou-site-vitrine .

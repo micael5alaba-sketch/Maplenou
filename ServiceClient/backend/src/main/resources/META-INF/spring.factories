@@ -1,0 +1,2 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.maplenou.support.platform.config.DatabaseUrlEnvironmentPostProcessor

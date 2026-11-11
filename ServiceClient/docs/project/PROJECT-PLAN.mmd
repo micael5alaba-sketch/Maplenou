@@ -1,0 +1,13 @@
+%% Maplenou Customer Service — approved project roadmap
+%% Source file only; render in VSCode/compatible Mermaid tooling.
+flowchart TD
+    CS01["CS-01 Requirements & Business Rules<br/>DONE"] --> CS02["CS-02 UX/UI<br/>DONE"]
+    CS01 --> CS03["CS-03 PostgreSQL + API Foundation<br/>VALIDATED · approval pending"]
+    CS02 --> CS04["CS-04 Frontend Foundation<br/>VALIDATED · approval pending"]
+    CS03 --> CS05["CS-05 Ticket Backend<br/>VALIDATED · approval pending"]
+    CS04 --> CS06["CS-06 Frontend/Backend Integration<br/>VALIDATED · approval pending"]
+    CS05 --> CS06
+    CS05 --> CS07["CS-07 Ecosystem Integration<br/>VALIDATED (demo adapter)"]
+    CS06 --> CS08["CS-08 Notifications & Testing<br/>VALIDATED (simulated FCM)"]
+    CS07 --> CS08
+    CS08 --> CS09["CS-09 Security & Final Validation<br/>VALIDATED for internal demo"]

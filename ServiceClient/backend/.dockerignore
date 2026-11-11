@@ -1,0 +1,11 @@
+# Only .mvn/, mvnw, pom.xml and src/main are needed to build the image.
+target/
+data/
+src/test/
+*.iml
+.idea/
+.vscode/
+README.md
+AGENTS.md
+CLAUDE.md
+Dockerfile

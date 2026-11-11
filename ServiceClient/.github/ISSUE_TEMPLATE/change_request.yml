@@ -1,0 +1,25 @@
+name: Change request / Demande d'évolution
+description: Propose a new feature or a change of an approved rule (change control, docs/governance). / Proposer une évolution.
+labels: ["change-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New ideas do not enter the current scope silently: they are evaluated and approved first
+        (CONTRIBUTING.md, docs/governance/UPGRADE-PLAN.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Problème
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and expected benefit / Proposition et bénéfice attendu
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact (rules, screens, data, documentation FR/EN, tests, deadline)

@@ -1,0 +1,45 @@
+# Alert rules (Prometheus "Alerts" page, or Grafana alerting). Thresholds are a starting point for the pilot.
+groups:
+  - name: maplenou-support
+    rules:
+      - alert: SupportApiDown
+        expr: up{job="maplenou-support"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "The customer-service API does not answer /actuator/prometheus"
+      - alert: SupportServerErrors
+        expr: sum(rate(http_server_requests_seconds_count{job="maplenou-support",status=~"5.."}[5m])) > 0.1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 1 server error every 10 seconds for 10 minutes"
+      - alert: SupportSlowResponses
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="maplenou-support",uri!~"/actuator.*"}[5m]))) > 2
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "95 % of API responses take more than 2 seconds"
+      - alert: SupportOutboxBacklog
+        expr: support_outbox_pending > 100
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Domain events wait for delivery (notifications late)"
+      - alert: SupportOutboxFailed
+        expr: support_outbox_failed > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Some domain events failed after every retry (see the backend log)"
+      - alert: SupportRateLimited
+        expr: sum(rate(support_ratelimit_rejected_total[5m])) * 60 > 30
+        for: 10m
+        labels: {severity: info}
+        annotations:
+          summary: "Many requests refused with 429 (abuse, or limits too low)"
+      - alert: SupportDatabasePoolExhausted
+        expr: hikaricp_connections_pending{job="maplenou-support"} > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Requests wait for a database connection"

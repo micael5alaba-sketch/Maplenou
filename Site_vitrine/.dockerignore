@@ -1,0 +1,14 @@
+# Keep the build context small (node_modules and build outputs are rebuilt inside the image).
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+.env
+.env*.local
+README.md
+AGENTS.md
+CLAUDE.md
+Dockerfile
+docker-compose.yml
+# Original marketing visuals (~20 MB, local only): never sent to Docker
+design/

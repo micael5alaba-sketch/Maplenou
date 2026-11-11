@@ -1,0 +1,202 @@
+# Render Blueprint — Maplenou customer service (ServiceClient) + public help centre (DEC-CS12-03)
+# Location: ServiceClient/render.yaml — on Render, New → Blueprint → Blueprint Path = ServiceClient/render.yaml.
+# Guide: ServiceClient/docs/guide/render.md (FR: documentation/developer/fr/docs/guide/render.md)
+#
+#   maplenou-support-db         PostgreSQL 16 (private network only)
+#   maplenou-support-api        Spring Boot API              https://maplenou-support-api.onrender.com
+#   maplenou-support-web        Next.js web app (BFF)        https://maplenou-support-web.onrender.com
+#   maplenou-support-help       public user guide (FR/EN)    https://maplenou-support-help.onrender.com
+#   maplenou-support-assistant  documentation assistant      https://maplenou-support-assistant.onrender.com
+#
+# Bakend (core API), the Flutter app and Site_vitrine keep their own hosting: this file deploys nothing else.
+# Free plan: every service sleeps after 15 minutes without traffic (about one minute to wake up), the free database
+# expires 30 days after creation, files on disk are lost at each restart (attachments go to Cloudinary). Free web
+# services cannot receive private-network traffic, so the services call each other through their public HTTPS
+# URLs; for production switch the plans and use the private network (guide, section "Production").
+#
+# Values marked "sync: false" are asked once by Render when the Blueprint is created: paste them in the Render
+# dashboard, never in this file. The *_URL values below assume Render kept the service names; if it added a suffix
+# (name already taken), correct them in the dashboard (Environment) of the service concerned.
+
+databases:
+  - name: maplenou-support-db
+    databaseName: maplenou_support
+    user: maplenou
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    ipAllowList: []          # no access from the Internet: only the services of this Blueprint
+
+services:
+  # ------------------------------------------------------------------ API (Spring Boot)
+  - type: web
+    name: maplenou-support-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./ServiceClient/backend/Dockerfile
+    dockerContext: ./ServiceClient/backend
+    healthCheckPath: /actuator/health
+    autoDeployTrigger: commit           # "checksPass" = wait for green GitHub Actions (guide, section "Updates")
+    buildFilter:
+      paths: ["ServiceClient/backend/**", "ServiceClient/render.yaml"]
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SPRING_PROFILES_ACTIVE
+        value: default                  # never "demo" in public: the backend refuses to start (PublicDeploymentGuard)
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
+      - key: DATABASE_URL               # postgresql://… converted to JDBC at start-up
+        fromDatabase:
+          name: maplenou-support-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: METRICS_TOKEN
+        generateValue: true
+      - key: ASSISTANT_INTERNAL_TOKEN   # shared with the assistant below (fromService envVarKey)
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://maplenou-support-web.onrender.com
+      - key: SUPPORT_APP_URL
+        value: https://maplenou-support-web.onrender.com
+      - key: FORWARD_HEADERS_STRATEGY
+        value: native
+      - key: LOGGING_STRUCTURED_FORMAT_CONSOLE
+        value: ecs
+      # Maplenou platform (Bakend): sign-in with Maplenou accounts, real orders and deliveries
+      - key: MAPLENOU_LOGIN_ENABLED
+        value: "true"
+      - key: ECOSYSTEM_MODE
+        value: http
+      - key: MAPLENOU_CORE_URL          # Bakend's HTTPS address, e.g. https://api.maplenou.tg
+        sync: false
+      - key: SUPPORT_SERVICE_TOKEN      # same value as Bakend's SUPPORT_SERVICE_TOKEN (32+ random characters)
+        sync: false
+      - key: MAPLENOU_PUSH_RELAY
+        value: "true"
+      - key: LEGACY_SYNC_ENABLED
+        value: "false"
+      # attachments: the free disk is wiped at each restart -> private files on Cloudinary
+      - key: ATTACHMENT_STORAGE
+        value: cloudinary
+      - key: CLOUDINARY_URL             # cloudinary://<api_key>:<api_secret>@<cloud_name>
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: maplenou-support
+      - key: ANTIVIRUS
+        value: none
+      # AI help in tickets (assistant below)
+      - key: AI_ASSIST_ENABLED
+        value: "true"
+      - key: ASSISTANT_INTERNAL_URL
+        value: https://maplenou-support-assistant.onrender.com
+      # Firebase push: add the service-account key as a Secret File named firebase-service-account.json
+      # (dashboard > maplenou-support-api > Environment > Secret Files), THEN add the variable
+      # FIREBASE_CREDENTIALS_FILE=/etc/secrets/firebase-service-account.json (guide, section "Firebase").
+
+  # ------------------------------------------------------------------ web app (Next.js, BFF)
+  - type: web
+    name: maplenou-support-web
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./ServiceClient/frontend/Dockerfile
+    dockerContext: ./ServiceClient/frontend
+    healthCheckPath: /login
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: ["ServiceClient/frontend/**", "ServiceClient/render.yaml"]
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: BACKEND_URL
+        value: https://maplenou-support-api.onrender.com
+      - key: DOCS_BASE_URL
+        value: https://maplenou-support-help.onrender.com
+      - key: AUTH_MODE
+        value: maplenou
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      # Firebase web app of the Maplenou project (public values, same as frontend/lib/firebase_options.dart)
+      - key: FIREBASE_WEB_API_KEY
+        value: AIzaSyAfY8hXrj_7V7v926bpWuJY6_ycXtr3II4
+      - key: FIREBASE_WEB_AUTH_DOMAIN
+        value: maplenou-c21c2.firebaseapp.com
+      - key: FIREBASE_WEB_PROJECT_ID
+        value: maplenou-c21c2
+      - key: FIREBASE_WEB_MESSAGING_SENDER_ID
+        value: "833530565751"
+      - key: FIREBASE_WEB_APP_ID
+        value: 1:833530565751:web:4bb53f36ab5571a2ac2272
+      - key: FIREBASE_WEB_VAPID_KEY     # Firebase console > Cloud Messaging > Web Push certificates (public key)
+        sync: false
+
+  # ------------------------------------------------------------------ public help centre (user guide only)
+  - type: web
+    name: maplenou-support-help
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./ServiceClient/documentation/Dockerfile
+    dockerContext: ./ServiceClient
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: ["ServiceClient/docs/**", "ServiceClient/documentation/**", "ServiceClient/zensical.toml",
+              "ServiceClient/pyproject.toml", "ServiceClient/uv.lock", "ServiceClient/render.yaml"]
+    envVars:
+      - key: PORT
+        value: "80"
+      - key: DOCS_SITES                 # build argument: only the public user guide (staff/developer stay internal)
+        value: user
+      - key: ASSISTANT_UPSTREAM
+        value: https://maplenou-support-assistant.onrender.com
+
+  # ------------------------------------------------------------------ documentation assistant (Ollama cloud)
+  - type: web
+    name: maplenou-support-assistant
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./ServiceClient/assistant/Dockerfile
+    dockerContext: ./ServiceClient/assistant
+    healthCheckPath: /api/assistant/health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: ["ServiceClient/assistant/**", "ServiceClient/render.yaml"]
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: ASSISTANT_SITES            # public assistant: knows the user guide only
+        value: user
+      - key: ASSISTANT_INDEX_URL
+        value: https://maplenou-support-help.onrender.com
+      - key: ASSISTANT_PUBLIC_BASE_URL
+        value: https://maplenou-support-help.onrender.com
+      - key: ASSISTANT_ALLOWED_ORIGINS
+        value: https://maplenou-support-help.onrender.com,https://maplenou-support-web.onrender.com
+      - key: ASSISTANT_INTERNAL_TOKEN
+        fromService:
+          type: web
+          name: maplenou-support-api
+          envVarKey: ASSISTANT_INTERNAL_TOKEN
+      - key: OLLAMA_URL
+        value: https://ollama.com
+      - key: OLLAMA_API_KEY             # ollama.com > Settings > Keys
+        sync: false
+      - key: ASSISTANT_CHAT_MODEL
+        value: gpt-oss:20b
+      - key: ASSISTANT_EMBED_MODEL
+        value: ""
+      - key: ASSISTANT_THINK
+        value: low
+      - key: ASSISTANT_PULL_MODELS
+        value: "false"
+      - key: ASSISTANT_RATE_LIMIT
+        value: "20"
+      - key: ASSISTANT_ANSWER_CACHE_SIZE
+        value: "256"
+      - key: ASSISTANT_ANSWER_CACHE_TTL
+        value: "3600"

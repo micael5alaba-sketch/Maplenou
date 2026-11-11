@@ -1,0 +1,67 @@
+classDiagram
+    class SupportTicket {
+        +UUID id
+        +String ticketNumber
+        +TicketStatus status
+        +TicketPriority priority
+        +boolean requesterReportedUrgent
+        +boolean escalated
+        +String orderRef
+        +String deliveryRef
+        +Instant firstResponseDueAt
+        +Instant resolutionDueAt
+    }
+    class SupportUser {
+        +UUID id
+        +String displayName
+        +Role role
+        +boolean active
+    }
+    class TicketCategory {
+        +String code
+        +String name
+        +boolean active
+    }
+    class TicketMessage {
+        +UUID id
+        +Visibility visibility
+        +String body
+        +String clientMessageId
+    }
+    class TicketAttachment {
+        +String filename
+        +String contentType
+        +long sizeBytes
+        +String storageKey
+    }
+    class TicketHistory {
+        +HistoryAction action
+        +String oldValue
+        +String newValue
+        +Instant createdAt
+    }
+    class ReopenRequest {
+        +String reason
+        +ReopenStatus status
+    }
+    class SlaPeriod {
+        +int periodNumber
+        +Instant startedAt
+        +Instant resolutionDueAt
+        +Instant endedAt
+    }
+    class Notification {
+        +NotificationEvent type
+        +Instant readAt
+        +PushStatus pushStatus
+    }
+
+    SupportUser "1" --> "*" SupportTicket : requests
+    SupportUser "0..1" --> "*" SupportTicket : assigned
+    TicketCategory "1" --> "*" SupportTicket
+    SupportTicket "1" --> "*" TicketMessage
+    TicketMessage "1" --> "0..5" TicketAttachment
+    SupportTicket "1" --> "*" TicketHistory
+    SupportTicket "1" --> "*" ReopenRequest
+    SupportTicket "1" --> "1..*" SlaPeriod
+    SupportUser "1" --> "*" Notification
