@@ -238,7 +238,7 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
 
         // Non-admin refusé
         JsonNode buyer = post("/api/auth/register",
-                new RegisterRequest("KPI Peeker", "+228991" + String.format("%06d", rand % 1_000_000L), "Passw0rd!", null),
+                new RegisterRequest("KPI Peeker", "+22901" + String.format("%08d", rand % 100_000_000L), "Passw0rd!", null),
                 null, 201);
         createdUserIds.add(UUID.fromString(buyer.get("user").get("id").asText()));
         get("/api/admin/kpis", buyer.get("accessToken").asText(), 403);

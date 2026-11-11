@@ -25,6 +25,9 @@ public enum Permission {
     /** Attribuee au cas par cas a l'Administrateur des livraisons (case sur son compte). */
     DELIVERY_PRICING_WRITE,
 
+    /** Registre des revenus de la plateforme (Super Admin et Auditeur uniquement). */
+    REVENUE_READ,
+
     PAYOUTS_READ,
     /** Recevoir, verifier, renvoyer pour correction et soumettre un retrait (jamais l'approuver). */
     PAYOUTS_PREPARE,

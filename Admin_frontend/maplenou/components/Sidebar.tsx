@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Argent",
     items: [
+      { href: "/revenue", label: "Revenus plateforme" },
       { href: "/payouts", label: "Retraits vendeurs" },
       { href: "/courier-withdrawals", label: "Retraits livreurs" },
       { href: "/promo-codes", label: "Codes promo" },

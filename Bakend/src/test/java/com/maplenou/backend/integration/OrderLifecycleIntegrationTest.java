@@ -498,6 +498,22 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode earning : get("/api/delivery-agents/me/earnings", agentToken, 200).get("content")) {
             assertEquals("PAID", earning.get("status").asText());
         }
+
+        // ---- Registre des revenus de la plateforme : commissions et part livraison enregistrées ----
+        String today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+        String yesterday = java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1).toString();
+        JsonNode revenue = get("/api/admin/revenue?from=" + yesterday + "&to=" + today, approver.token(), 200);
+        assertTrue(revenue.get("commissions").decimalValue().signum() > 0, "commissions integrees attendues");
+        assertTrue(revenue.get("deliveryShare").decimalValue().signum() > 0, "part livraison attendue");
+        assertEquals(0, revenue.get("total").decimalValue().compareTo(
+                revenue.get("commissions").decimalValue()
+                        .add(revenue.get("deliveryShare").decimalValue())
+                        .add(revenue.get("sellerFees").decimalValue())));
+        assertEquals(2, revenue.get("daily").size());
+        JsonNode lines = get("/api/admin/revenue/entries?source=COMMISSION&from=" + yesterday + "&to=" + today, approver.token(), 200);
+        assertTrue(lines.get("content").size() >= 1);
+        assertTrue(lines.get("content").get(0).get("reference").asText().startsWith("CMD-"));
+        get("/api/admin/revenue?from=" + today + "&to=" + yesterday, approver.token(), 400);
     }
 
     @Test

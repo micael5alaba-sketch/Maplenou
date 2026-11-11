@@ -386,4 +386,16 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         assertTrue(preview.get("finance").isNull());
         get("/api/admin/dashboard?viewAs=ADMIN", support.token(), 403);
     }
+
+    // ----- Registre des revenus : Super Admin et Auditeur seulement -----
+
+    @Test
+    @Order(15)
+    void revenueLedgerIsReservedToSuperAdminAndAuditor() throws Exception {
+        get("/api/admin/revenue", superToken, 200);
+        get("/api/admin/revenue", auditor.token(), 200);
+        get("/api/admin/revenue", support.token(), 403);
+        get("/api/admin/revenue", deliveryAdmin.token(), 403);
+        get("/api/admin/revenue/entries?source=SELLER_FEE", support.token(), 403);
+    }
 }

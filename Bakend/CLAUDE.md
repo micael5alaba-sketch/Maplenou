@@ -268,6 +268,11 @@ périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décision
   horodatage conservés ; un rejet libère les sous-commandes/gains et rétablit les frais déduits.
   L'ancien marquage direct « gain livreur payé » a été supprimé (il contournait l'approbation).
 - Tout refus d'accès d'un compte du personnel est tracé (`AuditAction.ACCESS_DENIED`).
+- **Registre des revenus de la plateforme** (`revenue/`, `/api/admin/revenue`, permission `REVENUE_READ` =
+  Super Admin + Auditeur) : commissions intégrées (reconnues à la livraison de la sous-commande, hors
+  annulations/retours), part plateforme de 25 % sur les livraisons, frais mensuels vendeurs réellement
+  déduits (annulés si le reversement est rejeté). Calculé depuis les données existantes, jamais saisi.
+  **Pas encore déduit : les frais de l'agrégateur de paiement (FedaPay)**, non exposés par son API.
 - Toute action admin sensible (modération, remboursement, changement de rôle, changement de statut
   vendeur/boutique) est tracée dans `AuditLog` avec auteur et horodatage — **fait**
   (`audit.AuditAction`, voir `MODELE_DONNEES.md`).

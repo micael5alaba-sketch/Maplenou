@@ -87,6 +87,28 @@ export interface RoleDashboardResponse {
   } | null;
 }
 
+export type RevenueSource = "COMMISSION" | "DELIVERY_SHARE" | "SELLER_FEE";
+
+/** Revenus de la plateforme sur une période, par source et par jour. */
+export interface RevenueSummary {
+  from: string;
+  to: string;
+  commissions: number;
+  deliveryShare: number;
+  sellerFees: number;
+  total: number;
+  daily: { date: string; commissions: number; deliveryShare: number; sellerFees: number }[];
+}
+
+export interface RevenueEntry {
+  source: RevenueSource;
+  referenceId: string;
+  reference: string;
+  label: string;
+  amount: number;
+  date: string;
+}
+
 export interface Page<T> {
   content: T[];
   totalElements: number;

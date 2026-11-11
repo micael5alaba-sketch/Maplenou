@@ -24,6 +24,7 @@ export type Permission =
   | "DELIVERIES_WRITE"
   | "DELIVERY_PRICING_READ"
   | "DELIVERY_PRICING_WRITE"
+  | "REVENUE_READ"
   | "PAYOUTS_READ"
   | "PAYOUTS_PREPARE"
   | "PAYOUTS_APPROVE"
@@ -79,6 +80,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/courier-earnings": "COURIER_EARNINGS_READ",
   "/deliveries": "DELIVERIES_READ",
   "/delivery-pricing": "DELIVERY_PRICING_READ",
+  "/revenue": "REVENUE_READ",
   "/payouts": "PAYOUTS_READ",
   "/courier-withdrawals": "PAYOUTS_READ",
   "/promo-codes": "CONTENT_READ",
