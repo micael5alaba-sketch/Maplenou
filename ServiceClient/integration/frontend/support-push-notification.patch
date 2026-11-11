@@ -1,43 +1,89 @@
-diff --git a/frontend/lib/services/push_notification_service.dart b/frontend/lib/services/push_notification_service.dart
-index 0458687..b8bfadc 100644
---- a/frontend/lib/services/push_notification_service.dart
-+++ b/frontend/lib/services/push_notification_service.dart
-@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
- import 'package:firebase_messaging/firebase_messaging.dart';
- import 'package:flutter/foundation.dart' show kIsWeb;
+diff --git a/frontend/lib/services/notification_router.dart b/frontend/lib/services/notification_router.dart
+index 5a727c5..9e48c79 100644
+--- a/frontend/lib/services/notification_router.dart
++++ b/frontend/lib/services/notification_router.dart
+@@ -1,4 +1,5 @@
  import 'package:flutter/material.dart';
 +import 'package:url_launcher/url_launcher.dart';
  
  import '../navigation.dart';
- import '../screens/seller_conversation_screen.dart';
-@@ -58,6 +59,12 @@ class PushNotificationService {
-   /// notification continuent d'ouvrir l'app normalement, sans navigation forcée.
-   void _handleNotificationTap(RemoteMessage message) {
-     final data = message.data;
-+    // Notification du service client (ServiceClient, relayée par Bakend `supportbridge`) : elle porte
-+    // `url` = <SUPPORT_APP_URL>/?ticket=<id>, ouverte dans le navigateur où le ticket s'affiche.
-+    if (data['source'] == 'support') {
-+      _openSupportTicket(data['url'] as String?);
-+      return;
-+    }
-     if (data['type'] != 'NEW_MESSAGE') return;
-     final conversationId = data['conversationId'] as String?;
-     if (conversationId == null) return;
-@@ -69,6 +76,17 @@ class PushNotificationService {
-     );
+ import '../screens/courier_delivery_detail_screen.dart';
+@@ -22,6 +23,9 @@ enum NotificationTargetKind {
+   vendorCatalog,
+   sellerDashboard,
+   shop,
++
++  /// Ticket du service client (ServiceClient) : ouvert dans le navigateur, `id` = lien web du ticket.
++  supportTicket,
+ }
+ 
+ class NotificationTarget {
+@@ -48,6 +52,16 @@ NotificationTarget? resolveNotificationTarget(Map<String, dynamic> data) {
+     return value is String && value.isNotEmpty ? value : null;
    }
  
-+  Future<void> _openSupportTicket(String? url) async {
++  // Notification du service client (ServiceClient, relayée par Bakend `supportbridge`) : elle porte
++  // `url` = <SUPPORT_APP_URL>/?ticket=<id>. Seuls les liens web sont ouverts (jamais un schéma
++  // arbitraire reçu dans une notification).
++  if (text('source') == 'support') {
++    final url = text('url');
 +    final uri = url == null ? null : Uri.tryParse(url);
-+    // seuls les liens web sont ouverts (jamais un schéma arbitraire reçu dans une notification)
-+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) return;
-+    try {
-+      await launchUrl(uri, mode: LaunchMode.externalApplication);
-+    } catch (_) {
-+      // pas de navigateur disponible : l'app reste ouverte sur son écran courant
-+    }
++    final web = uri != null && (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.isNotEmpty;
++    return web ? NotificationTarget(NotificationTargetKind.supportTicket, url) : null;
 +  }
 +
-   Future<void> _registerToken(String token) async {
-     try {
-       await ApiClient().post('/api/notifications/tokens', body: {
+   switch (text('type')) {
+     case 'NEW_MESSAGE':
+       final id = text('conversationId');
+@@ -108,6 +122,7 @@ Widget? _screenFor(NotificationTarget target) {
+     NotificationTargetKind.vendorCatalog => const VendorCatalogScreen(),
+     NotificationTargetKind.sellerDashboard => const SellerDashboardScreen(),
+     NotificationTargetKind.shop => ShopDetailScreen(shopSlug: id!),
++    NotificationTargetKind.supportTicket => null,
+   };
+ }
+ 
+@@ -116,8 +131,22 @@ Widget? _screenFor(NotificationTarget target) {
+ void openNotification(Map<String, dynamic> data) {
+   final target = resolveNotificationTarget(data);
+   if (target == null) return;
++  if (target.kind == NotificationTargetKind.supportTicket) {
++    _openInBrowser(target.id!);
++    return;
++  }
+   final navigator = navigatorKey.currentState;
+   final screen = _screenFor(target);
+   if (navigator == null || screen == null) return;
+   navigator.push(MaterialPageRoute(builder: (_) => screen));
+ }
++
++/// Ouvre un ticket du service client dans le navigateur ; sans navigateur disponible, l'app reste
++/// sur son écran courant.
++Future<void> _openInBrowser(String url) async {
++  try {
++    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
++  } catch (_) {
++    // rien à faire : la notification reste consultable dans l'app
++  }
++}
+diff --git a/frontend/test/notification_router_test.dart b/frontend/test/notification_router_test.dart
+index 12d48e9..a3ee088 100644
+--- a/frontend/test/notification_router_test.dart
++++ b/frontend/test/notification_router_test.dart
+@@ -66,4 +66,16 @@ void main() {
+     expect(PushNotificationService.decodeLaunchParameter('%%pas-du-base64%%'), isNull);
+     expect(PushNotificationService.decodeLaunchParameter(null), isNull);
+   });
++
++  test('une notification du service client ouvre le ticket dans le navigateur', () {
++    expect(
++      resolveNotificationTarget({'source': 'support', 'url': 'https://support.example.org/?ticket=t1'}),
++      const NotificationTarget(NotificationTargetKind.supportTicket, 'https://support.example.org/?ticket=t1'),
++    );
++  });
++
++  test('un lien du service client qui n\'est pas un lien web est ignore', () {
++    expect(resolveNotificationTarget({'source': 'support', 'url': 'javascript:alert(1)'}), isNull);
++    expect(resolveNotificationTarget({'source': 'support'}), isNull);
++  });
+ }
