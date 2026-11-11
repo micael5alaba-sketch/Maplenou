@@ -35,6 +35,7 @@ public class DeliveryService {
     private final CourierEarningService courierEarningService;
     private final CourierDocumentService courierDocumentService;
     private final SellerFeeService sellerFeeService;
+    private final com.maplenou.backend.reseller.ResellerAttributionService resellerAttributionService;
     private final DeliveryDispatchService dispatchService;
     private final DeliveryDeclineRepository declineRepository;
 
@@ -324,6 +325,7 @@ public class DeliveryService {
         if (request.status() == DeliveryStatus.DELIVERED) {
             courierEarningService.createForDelivery(delivery);
             sellerFeeService.onSubOrderDelivered(subOrder);
+            resellerAttributionService.onSubOrderDelivered(subOrder);
         }
 
         return reload(delivery.getId());

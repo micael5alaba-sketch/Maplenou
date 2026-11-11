@@ -115,6 +115,7 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
 | `ADMIN_ALLOWED_IPS` | Liste blanche IP/CIDR pour `/api/admin/**` (ex: `41.207.12.34,10.8.0.0/24`), IPv4 uniquement | vide = pas de restriction |
 | `CLOUDINARY_URL` | Format `cloudinary://<api_key>:<api_secret>@<cloud_name>` | placeholder non fonctionnel |
 | `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §9, non fonctionnelle tant que désactivée) | désactivé |
+| `RESELLER_LINK_BASE_URL`, `RESELLER_WEB_URL` | Programme partenaire : URL publique du backend (base des liens `/r/{code}`) et de l'appli web (cible de la redirection `/?ref=code`) | `localhost:8080`, `localhost:3000` |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | Emplacement du fichier de clé Firebase (`classpath:...` = embarqué, `file:/chemin` = fichier externe monté, utilisé par Docker — voir §3) | `classpath:firebase-service-account.json` |
 
 Le compte de service Firebase doit être placé dans
@@ -271,6 +272,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 | `content` | Pages de contenu statiques (CGU/CGV/FAQ) |
 | `newsletter` | Capture d'emails (pas d'envoi automatique) |
 | `shipping` | Scaffold transporteur tiers (Colissimo) — voir §11 |
+| `reseller` | Programme Partenaire Revendeur : demandes, liens `/r/{code}`, clics, attribution figée par ligne de commande, commissions par unité, portefeuille (registre immuable), retraits (circuit commun), paramètres versionnés |
 
 ---
 
@@ -365,3 +367,35 @@ installe quoi que ce soit chez lui.
 - Retraits : voir `CLAUDE.md` §11 (circuit en 5 étapes, MFA redemandée à l'approbation).
 - Variable d'environnement `STAFF_ENFORCE_MFA_SUPER_ADMIN=true` : impose la MFA aux Super Admin dès la
   connexion (à activer une fois leur MFA configurée).
+
+
+## Programme Partenaire Revendeur (11/11/2026, guide fonctionnel + spécification v2.0)
+
+- **Principe** : un utilisateur demande à devenir partenaire (`POST /api/reseller/apply`, conditions v2.0
+  acceptées), le support ou le Super Admin approuve (`RESELLERS_WRITE`). Le partenaire génère un lien
+  par produit éligible (`POST /api/reseller/links`, un seul lien par couple partenaire/produit), le partage
+  (`GET /r/{code}` redirige vers `/?ref=code` de l'appli web, qui enregistre le clic via
+  `POST /api/reseller/clicks` et conserve un jeton signé HMAC joint à la commande : `attributionTokens`).
+- **Éligibilité** : prix unitaire final affiché (commission incluse) d'au moins 2 500 FCFA, produit actif,
+  boutique approuvée, produit non exclu par l'administration, programme ouvert, partenaire approuvé, acheteur
+  différent du partenaire. Le dernier clic valide l'emporte, pendant 30 jours.
+- **Commission** (`ResellerCommissionCalculator`) : sur le prix unitaire final réellement payé (après part de
+  remise), taux Maplenou 5 % jusqu'à 10 000 FCFA inclus, 3 % au-dessus ; le partenaire reçoit 25 % de cette
+  commission. Arrondi demi-supérieur au FCFA, **par unité** (une ligne `reseller_commissions` par unité,
+  unique sur `(order_item_id, unit_index)`). Exemples : 2 500 → 125 / 31 ; 3 000 → 150 / 38 ; 5 000 → 250 / 63 ;
+  10 000 → 500 / 125 ; 15 000 → 450 / 113.
+- **Cycle de vie** : attribution et commissions PENDING créées à la commande (figées avec la version des
+  paramètres) ; crédit au portefeuille **uniquement à la livraison validée** (`DeliveryService`, idempotent) ;
+  annulées si la commande est annulée / le paiement échoue ; reprises par une écriture de régularisation
+  négative si un retour est approuvé.
+- **Portefeuille** : registre `reseller_wallet_transactions` IMMUABLE (trigger PostgreSQL), soldes toujours
+  calculés par somme, clé d'idempotence unique par événement, verrou sur le profil pour sérialiser les retraits.
+- **Retraits** : minimum 3 000 FCFA, Mix by Yas ou Moov Africa, un seul en cours à la fois, montant réservé
+  dès la demande, circuit commun `WithdrawalWorkflow` (préparation support, approbation Super Admin avec MFA),
+  frais de 3 % prélevés uniquement au paiement, rejet = libération de la réserve (`/api/admin/resellers/withdrawals/**`).
+- **Paramètres** versionnés (`reseller_settings`, `PUT /api/admin/resellers/settings`, permission
+  `RESELLERS_SETTINGS` = Super Admin, motif obligatoire) : les commandes déjà créées gardent leur version.
+- **Revenus plateforme** : les parts partenaires créditées sont déduites du revenu net (`RevenueService`).
+- **Tests** : `ResellerCommissionCalculatorTest` (exemples du guide) et `ResellerProgramIntegrationTest`.
+- **Hors périmètre / à décider** : paiement automatique des retraits partenaires (virement manuel confirmé par
+  le Super Admin pour l'instant), liens profonds natifs mobile (le lien ouvre l'appli web).

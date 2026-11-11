@@ -107,7 +107,7 @@ export default function RevenuePage() {
         <>
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Card>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Revenus totaux</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Revenus nets</p>
               <p className="mt-1 text-2xl font-bold text-primary">{formatFcfa(summary.total)}</p>
             </Card>
             <Card>
@@ -121,6 +121,10 @@ export default function RevenuePage() {
             <Card>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Frais mensuels vendeurs</p>
               <p className="mt-1 text-2xl font-bold text-foreground">{formatFcfa(summary.sellerFees)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Parts partenaires (déduites)</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{formatFcfa(summary.partnerShares ?? 0)}</p>
             </Card>
           </div>
 

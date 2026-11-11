@@ -2,6 +2,7 @@ package com.maplenou.backend.order.dto;
 
 import jakarta.validation.constraints.NotNull;
 
+import java.util.List;
 import java.util.UUID;
 
 public record PlaceOrderRequest(
@@ -24,5 +25,16 @@ public record PlaceOrderRequest(
          * deviner depuis l'indicatif du numéro de téléphone du compte. Optionnel : si absent,
          * on retombe sur l'ancienne détection par indicatif (voir FedaPayCheckoutService).
          */
-        String paymentCountry
-) {}
+        String paymentCountry,
+
+        /**
+         * Jetons d'attribution du programme partenaire (un par produit visité via un lien partenaire).
+         * Optionnel : sans jeton, seules les attributions rattachées au compte sont utilisées.
+         */
+        List<String> attributionTokens
+) {
+    /** Constructeur historique (sans jetons partenaire). */
+    public PlaceOrderRequest(UUID addressId, String promoCode, UUID promoShopId, String paymentCountry) {
+        this(addressId, promoCode, promoShopId, paymentCountry, null);
+    }
+}

@@ -46,7 +46,9 @@ public record RoleDashboardResponse(
             long pendingCategoryChanges,
             long pendingReturns,
             /** Messages des clients/vendeurs/livreurs au support, pas encore lus par l'équipe. */
-            long unreadSupportMessages
+            long unreadSupportMessages,
+            /** Demandes d'adhésion au programme partenaire revendeur en attente de décision. */
+            long pendingResellerRequests
     ) {}
 
     /** Retraits vendeurs ET livreurs cumulés : permission PAYOUTS_READ. */
@@ -62,7 +64,9 @@ public record RoleDashboardResponse(
             /** Retraits vendeurs sur lesquels CE rôle peut agir maintenant (pastille du menu). */
             long actionRequiredSellerPayouts,
             /** Retraits livreurs sur lesquels CE rôle peut agir maintenant (pastille du menu). */
-            long actionRequiredCourierWithdrawals
+            long actionRequiredCourierWithdrawals,
+            /** Retraits partenaires revendeurs sur lesquels CE rôle peut agir maintenant (pastille du menu). */
+            long actionRequiredPartnerWithdrawals
     ) {}
 
     /** Vue audit (Auditeur, Super Admin) : permission AUDIT_READ. */

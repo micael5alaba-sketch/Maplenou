@@ -508,7 +508,9 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         assertEquals(0, revenue.get("total").decimalValue().compareTo(
                 revenue.get("commissions").decimalValue()
                         .add(revenue.get("deliveryShare").decimalValue())
-                        .add(revenue.get("sellerFees").decimalValue())));
+                        .add(revenue.get("sellerFees").decimalValue())
+                        // revenu net : les parts creditees aux partenaires revendeurs sont deduites
+                        .subtract(revenue.get("partnerShares").decimalValue())));
         assertEquals(2, revenue.get("daily").size());
         JsonNode lines = get("/api/admin/revenue/entries?source=COMMISSION&from=" + yesterday + "&to=" + today, approver.token(), 200);
         assertTrue(lines.get("content").size() >= 1);

@@ -39,6 +39,7 @@ public final class RolePermissions {
             SUPPORT_READ, SUPPORT_WRITE,
             COURIER_EARNINGS_READ,
             DELIVERIES_READ,
+            RESELLERS_READ, RESELLERS_WRITE,
             PAYOUTS_READ, PAYOUTS_PREPARE);
 
     /** Auditeur : lecture seule, aucune permission d'ecriture, de preparation ou d'approbation. */
@@ -47,7 +48,7 @@ public final class RolePermissions {
             SELLER_APPLICATIONS_READ, SHOPS_READ, CATEGORY_CHANGES_READ,
             ORDERS_READ, RETURNS_READ,
             COURIERS_READ, COURIER_EARNINGS_READ, DELIVERIES_READ, DELIVERY_PRICING_READ,
-            PAYOUTS_READ, REVENUE_READ,
+            PAYOUTS_READ, REVENUE_READ, RESELLERS_READ,
             SUPPORT_READ,
             CONTENT_READ,
             USERS_READ, AUDIT_READ);

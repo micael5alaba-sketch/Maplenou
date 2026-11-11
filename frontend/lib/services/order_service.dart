@@ -1,5 +1,6 @@
 import '../models/order_model.dart';
 import 'api_client.dart';
+import 'reseller_service.dart';
 
 /// `order/OrderController.java` — création et consultation des commandes
 /// acheteur (`/api/orders`).
@@ -10,11 +11,14 @@ class OrderService {
   /// (FedaPay/Stripe) est explicitement reporté (`CLAUDE.md` §7) : la
   /// commande est créée avec le statut `CREATED`, pas encore `PAID`.
   Future<OrderModel> placeOrder({required String addressId, String? paymentCountry}) async {
+    // Jetons du programme partenaire (clics sur des liens revendeurs) : le serveur ignore les expirés.
+    final tokens = await ResellerService().attributionTokens();
     final data = await _client.post(
       '/api/orders',
       body: {
         'addressId': addressId,
         'paymentCountry': ?paymentCountry,
+        if (tokens.isNotEmpty) 'attributionTokens': tokens,
       },
     ) as Map<String, dynamic>;
     return OrderModel.fromJson(data);

@@ -75,8 +75,15 @@ public class RevenueService {
             fees = fees.add(v[2]);
             daily.add(new RevenueSummaryResponse.DailyRevenue(e.getKey(), v[0], v[1], v[2]));
         }
+        // Parts versées aux partenaires revendeurs (commissions créditées sur la période) : un coût, déduit du total.
+        BigDecimal partnerShares = BigDecimal.ZERO;
+        for (Object[] r : rows("SELECT c.partnerShare, c.creditedAt FROM ResellerCommission c "
+                + "WHERE c.status = com.maplenou.backend.reseller.ResellerCommissionStatus.CREDITED "
+                + "AND c.creditedAt >= :s AND c.creditedAt < :e", start, end, null)) {
+            partnerShares = partnerShares.add(BigDecimal.valueOf(((Number) r[0]).longValue()));
+        }
         return new RevenueSummaryResponse(from, to, commissions, delivery, fees,
-                commissions.add(delivery).add(fees), daily);
+                commissions.add(delivery).add(fees).subtract(partnerShares), partnerShares, daily);
     }
 
     /** Lignes du registre pour une source, pagination classique (plus récentes d'abord). */

@@ -26,7 +26,7 @@ public enum WithdrawalAction {
     /** Approbation finale : Super Admin, MFA redemandée même session ouverte. */
     APPROVE(EnumSet.of(SUBMITTED), APPROVED, Permission.PAYOUTS_APPROVE, false, true, AuditAction.WITHDRAWAL_APPROVED),
     /** Rejet : justification obligatoire. */
-    REJECT(EnumSet.of(SUBMITTED), REJECTED, Permission.PAYOUTS_APPROVE, true, false, AuditAction.WITHDRAWAL_REJECTED),
+    REJECT(EnumSet.of(SUBMITTED, FAILED), REJECTED, Permission.PAYOUTS_APPROVE, true, false, AuditAction.WITHDRAWAL_REJECTED),
     /** Virement lancé (après approbation uniquement). */
     PROCESS(EnumSet.of(APPROVED, FAILED), PROCESSING, Permission.PAYOUTS_APPROVE, false, false, AuditAction.WITHDRAWAL_PREPARED),
     /** Virement constaté : seul un retrait approuvé peut être payé. */

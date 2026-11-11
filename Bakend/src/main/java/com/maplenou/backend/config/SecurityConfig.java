@@ -81,6 +81,9 @@ public class SecurityConfig {
                         // au moment où le load balancer vérifie qu'une nouvelle instance est prête.
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pages/**").permitAll()
+                        // Programme revendeur : lien partenaire public (redirection) et enregistrement du clic
+                        .requestMatchers(HttpMethod.GET, "/r/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/reseller/clicks").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/delivery-agents/*/reviews/**").permitAll()
                         // Panier et favoris : authentification requise (géré par les controllers)
                         .anyRequest().authenticated()

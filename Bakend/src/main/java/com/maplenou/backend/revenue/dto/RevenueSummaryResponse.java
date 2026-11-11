@@ -15,7 +15,10 @@ public record RevenueSummaryResponse(
         BigDecimal commissions,
         BigDecimal deliveryShare,
         BigDecimal sellerFees,
+        /** Total net : somme des trois sources moins les parts versées aux partenaires revendeurs. */
         BigDecimal total,
+        /** Parts de commission créditées aux partenaires revendeurs sur la période (déjà déduites du total). */
+        BigDecimal partnerShares,
         List<DailyRevenue> daily
 ) {
     public record DailyRevenue(LocalDate date, BigDecimal commissions, BigDecimal deliveryShare, BigDecimal sellerFees) {}

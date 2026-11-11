@@ -28,10 +28,12 @@ function computeBadges(d: RoleDashboardResponse): Record<string, number> {
     badges["/sellers"] = d.support.pendingSellerApplications;
     badges["/seller-fees"] = d.support.pendingCategoryChanges;
     badges["/returns"] = d.support.pendingReturns;
+    badges["/resellers"] = d.support.pendingResellerRequests ?? 0;
   }
   if (d.finance) {
     badges["/payouts"] = d.finance.actionRequiredSellerPayouts;
     badges["/courier-withdrawals"] = d.finance.actionRequiredCourierWithdrawals;
+    badges["/reseller-withdrawals"] = d.finance.actionRequiredPartnerWithdrawals ?? 0;
   }
   return badges;
 }

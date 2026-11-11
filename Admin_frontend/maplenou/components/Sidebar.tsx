@@ -55,6 +55,15 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "Partenaires revendeurs",
+    items: [
+      { href: "/resellers", label: "Partenaires" },
+      { href: "/reseller-commissions", label: "Commissions partenaires" },
+      { href: "/reseller-withdrawals", label: "Retraits partenaires" },
+      { href: "/reseller-settings", label: "Paramètres du programme" },
+    ],
+  },
+  {
     title: "Catalogue & contenu",
     items: [
       { href: "/categories", label: "Catégories" },

@@ -45,6 +45,7 @@ public class OrderService {
     private final PromoCodeService promoCodeService;
     private final FedaPayCheckoutService fedaPayCheckoutService;
     private final DeliveryPricingService deliveryPricingService;
+    private final com.maplenou.backend.reseller.ResellerAttributionService resellerAttributionService;
 
     @Value("${app.fedapay.enabled}")
     private boolean fedapayEnabled;
@@ -98,6 +99,7 @@ public class OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
         order.getSubOrders().forEach(so -> so.setStatus(SubOrderStatus.CANCELLED));
+        resellerAttributionService.onOrderCancelled(order);
 
         return OrderResponse.from(order);
     }
@@ -254,6 +256,9 @@ public class OrderService {
             saved.setTotalAmount(totalAmount.subtract(discount).max(BigDecimal.ZERO));
             orderRepository.save(saved);
         }
+
+        // 7.bis Programme partenaire : attribution figée par ligne + commissions par unité (jamais bloquant).
+        resellerAttributionService.attachToOrder(buyer, saved, request.attributionTokens());
 
         // 8. Démarrer le paiement FedaPay (désactivé par défaut en dev/CI, voir app.fedapay.enabled).
         String paymentUrl = null;

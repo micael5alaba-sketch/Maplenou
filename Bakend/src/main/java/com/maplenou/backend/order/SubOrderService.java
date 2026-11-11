@@ -26,6 +26,7 @@ public class SubOrderService {
     private final ShopRepository shopRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final com.maplenou.backend.reseller.ResellerAttributionService resellerAttributionService;
 
     // ----- Lecture vendeur -----
 
@@ -108,6 +109,11 @@ public class SubOrderService {
 
         so.setStatus(newStatus);
         subOrderRepository.save(so);
+        if (newStatus == SubOrderStatus.CANCELLED) {
+            resellerAttributionService.onSubOrderCancelled(so);
+        } else if (newStatus == SubOrderStatus.DELIVERED) {
+            resellerAttributionService.onSubOrderDelivered(so);
+        }
         SubOrder updatedByAdmin = subOrderRepository.findByIdWithDetails(so.getId()).orElseThrow();
         notificationService.subOrderStatusChanged(
                 updatedByAdmin.getOrder().getBuyer().getId(),

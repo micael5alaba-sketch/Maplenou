@@ -38,6 +38,11 @@ public enum Permission {
 
     CONTENT_READ, CONTENT_WRITE,
 
+    /** Programme partenaire revendeur : demandes, partenaires, commissions, portefeuilles. */
+    RESELLERS_READ, RESELLERS_WRITE,
+    /** Parametres financiers du programme (taux, seuils, frais) : Super Admin uniquement. */
+    RESELLERS_SETTINGS,
+
     USERS_READ, USERS_WRITE,
     AUDIT_READ,
     /** Comptes du personnel : creation, roles, activation, reinitialisation. */

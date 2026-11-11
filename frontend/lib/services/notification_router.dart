@@ -6,6 +6,7 @@ import '../screens/my_orders_screen.dart';
 import '../screens/order_detail_screen.dart';
 import '../screens/order_tracking_screen.dart';
 import '../screens/orders_management_screen.dart';
+import '../screens/reseller_screen.dart';
 import '../screens/seller_conversation_screen.dart';
 import '../screens/seller_dashboard_screen.dart';
 import '../screens/shop_detail_screen.dart';
@@ -22,6 +23,7 @@ enum NotificationTargetKind {
   vendorCatalog,
   sellerDashboard,
   shop,
+  reseller,
 }
 
 class NotificationTarget {
@@ -75,6 +77,10 @@ NotificationTarget? resolveNotificationTarget(Map<String, dynamic> data) {
     case 'SELLER_FEE_ACTIVATED':
     case 'SELLER_FEE_DEDUCTED':
       return const NotificationTarget(NotificationTargetKind.sellerDashboard);
+    case 'RESELLER_STATUS':
+    case 'RESELLER_COMMISSION':
+    case 'RESELLER_WITHDRAWAL':
+      return const NotificationTarget(NotificationTargetKind.reseller);
     case 'NEW_PRODUCT':
       final slug = text('shopSlug');
       return slug == null ? null : NotificationTarget(NotificationTargetKind.shop, slug);
@@ -108,6 +114,7 @@ Widget? _screenFor(NotificationTarget target) {
     NotificationTargetKind.vendorCatalog => const VendorCatalogScreen(),
     NotificationTargetKind.sellerDashboard => const SellerDashboardScreen(),
     NotificationTargetKind.shop => ShopDetailScreen(shopSlug: id!),
+    NotificationTargetKind.reseller => const ResellerScreen(),
   };
 }
 

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -9,6 +10,7 @@ import 'navigation.dart';
 import 'screens/splash_screen.dart';
 import 'services/locale_controller.dart';
 import 'services/push_notification_service.dart';
+import 'services/reseller_link_handler.dart';
 import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
 
@@ -38,6 +40,9 @@ class _MaplenouAppState extends State<MaplenouApp> {
     super.initState();
     themeController.load();
     localeController.load();
+    // Lien partenaire revendeur ouvert sur le web (/?ref=code) : enregistre le clic d'attribution.
+    final ref = kIsWeb ? Uri.base.queryParameters['ref'] : null;
+    if (ref != null && ref.isNotEmpty) handleResellerRef(ref);
   }
 
   @override

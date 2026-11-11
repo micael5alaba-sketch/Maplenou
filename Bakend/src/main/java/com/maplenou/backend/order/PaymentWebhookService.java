@@ -34,6 +34,7 @@ public class PaymentWebhookService {
     private final SubOrderRepository subOrderRepository;
     private final ProductVariantRepository variantRepository;
     private final NotificationService notificationService;
+    private final com.maplenou.backend.reseller.ResellerAttributionService resellerAttributionService;
 
     @Transactional
     public void handlePaymentConfirmed(UUID orderId, String paymentReference) {
@@ -70,6 +71,7 @@ public class PaymentWebhookService {
                         item.getProductVariant().getId(), orderId);
                 order.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(order);
+                resellerAttributionService.onOrderCancelled(order);
                 notificationService.orderCancelled(
                         order.getBuyer().getId(), order.getId(),
                         "Un article n'est plus disponible en stock.");
@@ -121,6 +123,7 @@ public class PaymentWebhookService {
         if (order.getStatus() == OrderStatus.CREATED) {
             order.setStatus(OrderStatus.PAYMENT_FAILED);
             orderRepository.save(order);
+            resellerAttributionService.onOrderCancelled(order);
             log.info("Commande {} marquée PAYMENT_FAILED", orderId);
         }
     }

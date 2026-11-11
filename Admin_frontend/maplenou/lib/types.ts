@@ -68,6 +68,7 @@ export interface RoleDashboardResponse {
     pendingSellerApplications: number;
     pendingCategoryChanges: number;
     pendingReturns: number;
+    pendingResellerRequests?: number;
     unreadSupportMessages: number;
   } | null;
   finance: {
@@ -81,6 +82,7 @@ export interface RoleDashboardResponse {
     paidLast7Days: number;
     actionRequiredSellerPayouts: number;
     actionRequiredCourierWithdrawals: number;
+    actionRequiredPartnerWithdrawals?: number;
   } | null;
   audit: {
     actionsLast24h: number;
@@ -100,6 +102,7 @@ export interface RevenueSummary {
   deliveryShare: number;
   sellerFees: number;
   total: number;
+  partnerShares?: number;
   daily: { date: string; commissions: number; deliveryShare: number; sellerFees: number }[];
 }
 
@@ -462,4 +465,82 @@ export interface SubOrderResponse {
   items: SubOrderItemResponse[];
   createdAt: string;
   updatedAt: string;
+}
+
+// ----- Programme partenaire revendeur -----
+
+export type ResellerStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED" | "DEACTIVATED";
+
+export interface ResellerProfileResponse {
+  id: string;
+  userId: string;
+  fullName: string;
+  phoneNumber: string;
+  email: string;
+  status: ResellerStatus;
+  termsVersion: string;
+  termsAcceptedAt: string;
+  decidedAt: string | null;
+  statusReason: string | null;
+  createdAt: string;
+}
+
+export interface ResellerWalletResponse {
+  available: number;
+  reserved: number;
+  pending: number;
+  totalEarned: number;
+  totalPaid: number;
+  totalFees: number;
+  clicks: number;
+}
+
+export interface ResellerSettingsResponse {
+  version: number;
+  shareRate: number;
+  minUnitPrice: number;
+  tierThreshold: number;
+  rateLow: number;
+  rateHigh: number;
+  attributionDays: number;
+  minWithdrawal: number;
+  withdrawalFeeRate: number;
+  programActive: boolean;
+  changeReason: string | null;
+  createdAt: string;
+}
+
+export interface ResellerCommissionResponse {
+  id: string;
+  orderItemId: string;
+  partnerId: string;
+  productName: string;
+  unitIndex: number;
+  unitPrice: number;
+  commissionRate: number;
+  maplenouCommission: number;
+  partnerShare: number;
+  maplenouShare: number;
+  settingsVersion: number;
+  status: "PENDING" | "CREDITED" | "CANCELLED";
+  createdAt: string;
+  creditedAt: string | null;
+}
+
+export interface ResellerWithdrawalResponse {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  amount: number;
+  feeAmount: number;
+  netAmount: number;
+  method: "MIX_BY_YAS" | "MOOV_AFRICA";
+  paymentPhone: string;
+  status: PayoutStatus;
+  paymentReference: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
 }

@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/app_router.dart';
+import 'reseller_screen.dart';
 import '../services/conversation_service.dart';
 import '../services/locale_controller.dart';
 import '../services/session_service.dart';
@@ -460,6 +461,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Retrouvez votre espace boutique',
             onTap: _switchToSeller,
           ),
+        ProfileMenuRow(
+          icon: Icons.share_outlined,
+          title: 'Programme partenaire',
+          subtitle: 'Gagnez en recommandant des produits',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResellerScreen())),
+        ),
         ProfileMenuRow(
           icon: Icons.person_outline_rounded,
           title: 'Informations personnelles',

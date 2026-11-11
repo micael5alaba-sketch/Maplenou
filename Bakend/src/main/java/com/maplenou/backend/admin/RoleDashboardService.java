@@ -120,7 +120,9 @@ public class RoleDashboardService {
                 count("SELECT COUNT(c) FROM SellerFeeCategoryChangeRequest c WHERE c.status = :s",
                         "s", SellerFeeCategoryChangeStatus.PENDING),
                 count("SELECT COUNT(r) FROM ReturnRequest r WHERE r.decision IS NULL"),
-                unreadSupportMessages()
+                unreadSupportMessages(),
+                count("SELECT COUNT(r) FROM ResellerProfile r WHERE r.status = :s",
+                        "s", com.maplenou.backend.reseller.ResellerStatus.PENDING)
         );
     }
 
@@ -156,7 +158,8 @@ public class RoleDashboardService {
                 toPayCount, toPay[0],
                 paid.add(paidCouriers),
                 actionable("Payout", "p", allowed),
-                actionable("CourierWithdrawal", "w", allowed)
+                actionable("CourierWithdrawal", "w", allowed),
+                actionable("ResellerWithdrawal", "w", allowed)
         );
     }
 
@@ -192,8 +195,12 @@ public class RoleDashboardService {
         Object[] couriers = (Object[]) em.createQuery(
                         "SELECT COUNT(w), COALESCE(SUM(w.amount), 0) FROM CourierWithdrawal w WHERE w.status IN :st")
                 .setParameter("st", statuses).getSingleResult();
-        sumOut[0] = ((BigDecimal) sellers[1]).add((BigDecimal) couriers[1]);
-        return (Long) sellers[0] + (Long) couriers[0];
+        Object[] partners = (Object[]) em.createQuery(
+                        "SELECT COUNT(w), COALESCE(SUM(w.amount), 0L) FROM ResellerWithdrawal w WHERE w.status IN :st")
+                .setParameter("st", statuses).getSingleResult();
+        sumOut[0] = ((BigDecimal) sellers[1]).add((BigDecimal) couriers[1])
+                .add(BigDecimal.valueOf(((Number) partners[1]).longValue()));
+        return (Long) sellers[0] + (Long) couriers[0] + (Long) partners[0];
     }
 
     // ----- Audit -----

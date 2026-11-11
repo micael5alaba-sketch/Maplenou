@@ -66,4 +66,13 @@ void main() {
     expect(PushNotificationService.decodeLaunchParameter('%%pas-du-base64%%'), isNull);
     expect(PushNotificationService.decodeLaunchParameter(null), isNull);
   });
+
+  test('les notifications du programme partenaire ouvrent l espace partenaire', () {
+    for (final type in ['RESELLER_STATUS', 'RESELLER_COMMISSION', 'RESELLER_WITHDRAWAL']) {
+      expect(
+        resolveNotificationTarget(notificationDataFromHistory(type, 'x1')),
+        const NotificationTarget(NotificationTargetKind.reseller),
+      );
+    }
+  });
 }

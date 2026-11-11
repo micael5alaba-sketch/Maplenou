@@ -32,6 +32,9 @@ export type Permission =
   | "SUPPORT_WRITE"
   | "CONTENT_READ"
   | "CONTENT_WRITE"
+  | "RESELLERS_READ"
+  | "RESELLERS_WRITE"
+  | "RESELLERS_SETTINGS"
   | "USERS_READ"
   | "USERS_WRITE"
   | "AUDIT_READ"
@@ -82,6 +85,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/delivery-pricing": "DELIVERY_PRICING_READ",
   "/revenue": "REVENUE_READ",
   "/payouts": "PAYOUTS_READ",
+  "/resellers": "RESELLERS_READ",
+  "/reseller-withdrawals": "PAYOUTS_READ",
+  "/reseller-commissions": "RESELLERS_READ",
+  "/reseller-settings": "RESELLERS_READ",
   "/courier-withdrawals": "PAYOUTS_READ",
   "/promo-codes": "CONTENT_READ",
   "/categories": "CONTENT_READ",

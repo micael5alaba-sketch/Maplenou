@@ -39,6 +39,7 @@ public class ReturnRequestService {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final SellerFeeService sellerFeeService;
+    private final com.maplenou.backend.reseller.ResellerAttributionService resellerAttributionService;
 
     private static final int RETURN_WINDOW_DAYS = 30;
 
@@ -208,6 +209,7 @@ public class ReturnRequestService {
             });
 
             subOrder.setStatus(SubOrderStatus.RETURNED);
+            resellerAttributionService.onSubOrderReturned(subOrder);
 
         } else {
             // REJECTED

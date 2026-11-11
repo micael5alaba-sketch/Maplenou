@@ -206,6 +206,13 @@ public class NotificationService {
     /** Envoie le push ET persiste la notification, chacun indépendamment protégé : un échec de
      * l'un ne doit jamais empêcher l'autre (ex: FCM injoignable ne doit pas priver l'utilisateur
      * de l'historique consultable dans l'app). */
+    /** Notification generique du programme partenaire (demande decidee, commission creditee, retrait). */
+    @Async
+    public void resellerEvent(UUID userId, String title, String body, String type, UUID referenceId) {
+        send(userId, title, body, type, referenceId != null ? referenceId.toString() : null,
+                Map.of("type", type));
+    }
+
     private void send(UUID recipientId, String title, String body, String type, String referenceId,
                        Map<String, String> fcmData) {
         try {

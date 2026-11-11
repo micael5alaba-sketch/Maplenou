@@ -741,3 +741,23 @@ Méthodes métier : `isExpired()`, `isExhausted()`, `isApplicableTo(montant)`, `
 | `courier_earnings.withdrawal_id` | retrait auquel le gain est rattaché |
 | `withdrawal_status_history` | transitions de statut (type, id, de/vers, auteur, note, date) |
 | `PayoutStatus` | PENDING, PREPARED, SUBMITTED, NEEDS_CORRECTION, APPROVED, REJECTED, PROCESSING, PAID, FAILED |
+
+
+## Programme Partenaire Revendeur (V59)
+
+| Table | Détail |
+|---|---|
+| `reseller_settings` | paramètres financiers versionnés (part, prix minimum, seuil/taux des paliers, durée d'attribution, retrait minimum, frais, programme ouvert) |
+| `reseller_profiles` | un par utilisateur : statut PENDING/APPROVED/REJECTED/SUSPENDED/DEACTIVATED, version des conditions, décision |
+| `reseller_terms_acceptances` | date et version des conditions acceptées |
+| `reseller_product_eligibility` | exclusion administrative d'un produit |
+| `reseller_referral_links` | lien unique par (partenaire, produit), code court |
+| `reseller_clicks` | clics (valide / compté, visiteur haché, expiration) |
+| `reseller_buyer_attributions` | dernier clic valide par (compte acheteur, produit) |
+| `reseller_attributions` | attribution gelée par ligne de commande (`order_item_id` unique) |
+| `reseller_commissions` | une ligne par unité vendue, montants et version figés, PENDING/CREDITED/CANCELLED |
+| `reseller_wallet_transactions` | registre immuable (trigger), deltas disponible/réservé, clé d'idempotence unique |
+| `reseller_withdrawals` | retraits (montant, frais, net, moyen de paiement), mêmes statuts que `PayoutStatus` |
+| `reseller_audit_logs` | actions administratives avec ancienne/nouvelle valeur et motif |
+
+`withdrawal_status_history.subject_type` accepte aussi `PARTNER_WITHDRAWAL`.
