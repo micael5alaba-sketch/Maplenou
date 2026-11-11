@@ -9,10 +9,10 @@ index 103e062..7a2d782 100644
 +# Valeurs locales de docker-compose (SUPPORT_SERVICE_TOKEN…) : jamais committées
 +.env
 diff --git a/Bakend/CLAUDE.md b/Bakend/CLAUDE.md
-index cbacf44..25a49bc 100644
+index 4cde6ca..7ed5618 100644
 --- a/Bakend/CLAUDE.md
 +++ b/Bakend/CLAUDE.md
-@@ -189,6 +189,22 @@ Pour la liste exacte des modules et de ce qui est fait/pas fait à une date donn
+@@ -201,6 +201,22 @@ Pour la liste exacte des modules et de ce qui est fait/pas fait à une date donn
  périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décisions structurantes**
  (pourquoi, pas l'état d'avancement).
  
@@ -36,7 +36,7 @@ index cbacf44..25a49bc 100644
  
  ## 9. Contraintes de performance et scalabilité (à respecter dès la première ligne de code, pas en correctif)
 diff --git a/Bakend/MANUEL.md b/Bakend/MANUEL.md
-index 3f4c7ef..736ef3e 100644
+index 068357d..d6d2f96 100644
 --- a/Bakend/MANUEL.md
 +++ b/Bakend/MANUEL.md
 @@ -115,6 +115,9 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
@@ -77,25 +77,25 @@ diff --git a/Bakend/mvnw b/Bakend/mvnw
 old mode 100644
 new mode 100755
 diff --git a/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java b/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
-index c0cd31f..9c9d07e 100644
+index 83fc33d..698abba 100644
 --- a/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
 +++ b/Bakend/src/main/java/com/maplenou/backend/audit/AuditAction.java
-@@ -33,5 +33,9 @@ public enum AuditAction {
-     MAINTENANCE_ENABLED,
-     MAINTENANCE_DISABLED,
-     PASSWORD_CHANGED,
--    REFRESH_TOKEN_REUSE_DETECTED
-+    REFRESH_TOKEN_REUSE_DETECTED,
+@@ -51,5 +51,9 @@ public enum AuditAction {
+     WITHDRAWAL_MARKED_FAILED,
+     WITHDRAWAL_REQUESTED,
+     WITHDRAWAL_PROCESSING,
+-    WITHDRAWAL_MFA_FAILED
++    WITHDRAWAL_MFA_FAILED,
 +    // Actions demandées par le Service client depuis un ticket (supportbridge, DEC-CS11-07)
 +    SUPPORT_RETURN_REQUESTED,
 +    SUPPORT_DELIVERY_RESCHEDULED,
 +    SUPPORT_DRIVER_MESSAGED
  }
 diff --git a/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java b/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
-index 0619d7b..99cb51a 100644
+index 40709e2..f0a0c62 100644
 --- a/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
 +++ b/Bakend/src/main/java/com/maplenou/backend/config/SecurityConfig.java
-@@ -68,6 +68,9 @@ public class SecurityConfig {
+@@ -72,6 +72,9 @@ public class SecurityConfig {
                          // permitAll générique ci-dessous (Spring Security s'arrête au premier match).
                          .requestMatchers(HttpMethod.GET, "/api/auth/firebase-token").authenticated()
                          .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
@@ -841,10 +841,10 @@ index 0000000..eaa1119
 +    }
 +}
 diff --git a/Bakend/src/main/resources/application.properties b/Bakend/src/main/resources/application.properties
-index 432e7c0..e64d098 100644
+index 7af4a67..08d5f01 100644
 --- a/Bakend/src/main/resources/application.properties
 +++ b/Bakend/src/main/resources/application.properties
-@@ -235,3 +235,13 @@ springdoc.api-docs.path=/v3/api-docs
+@@ -250,3 +250,13 @@ springdoc.api-docs.path=/v3/api-docs
  springdoc.api-docs.enabled=${SWAGGER_ENABLED:true}
  # Active ou desactive la page web interactive Swagger UI (meme logique que ci-dessus).
  springdoc.swagger-ui.enabled=${SWAGGER_ENABLED:true}
@@ -859,10 +859,10 @@ index 432e7c0..e64d098 100644
 +# les importe et suit leurs changements avec LEGACY_SYNC_ENABLED=true). Voir MANUEL.md (service client).
 +app.support.legacy-read-only=${SUPPORT_LEGACY_READ_ONLY:false}
 diff --git a/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java b/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
-index 097b039..1c4c024 100644
+index 2e48cd3..f774e40 100644
 --- a/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
 +++ b/Bakend/src/test/java/com/maplenou/backend/integration/OrderLifecycleIntegrationTest.java
-@@ -59,6 +59,8 @@ import java.util.UUID;
+@@ -58,6 +58,8 @@ import java.util.UUID;
  import static org.junit.jupiter.api.Assertions.*;
  
  @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -871,7 +871,7 @@ index 097b039..1c4c024 100644
  class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
  
      @Autowired private UserRepository userRepository;
-@@ -515,6 +517,159 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+@@ -644,6 +646,159 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
          orderRepository.deleteById(thisOrderId);
      }
  
@@ -1031,7 +1031,7 @@ index 097b039..1c4c024 100644
      private UUID order3Id;
      private UUID delivery3Id;
      private UUID returnRequest3Id;
-@@ -526,6 +681,8 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+@@ -655,6 +810,8 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
          try { if (shopReviewId != null) shopReviewRepository.deleteById(shopReviewId); } catch (Exception ignored) { }
          try { if (returnRequestId != null) returnRequestRepository.deleteById(returnRequestId); } catch (Exception ignored) { }
          try { if (returnRequest3Id != null) returnRequestRepository.deleteById(returnRequest3Id); } catch (Exception ignored) { }
@@ -1040,7 +1040,7 @@ index 097b039..1c4c024 100644
          try { if (deliveryId != null) deliveryRepository.deleteById(deliveryId); } catch (Exception ignored) { }
          try { if (delivery3Id != null) deliveryRepository.deleteById(delivery3Id); } catch (Exception ignored) { }
          try {
-@@ -539,6 +696,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
+@@ -668,6 +825,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
          try { if (orderId != null) orderRepository.deleteById(orderId); } catch (Exception ignored) { }
          try { if (order2Id != null) orderRepository.deleteById(order2Id); } catch (Exception ignored) { }
          try { if (order3Id != null) orderRepository.deleteById(order3Id); } catch (Exception ignored) { }
