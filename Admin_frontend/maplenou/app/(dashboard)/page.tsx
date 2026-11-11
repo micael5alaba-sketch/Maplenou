@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import { useAuth } from "@/lib/auth";
+import { RoleDashboard } from "@/components/RoleDashboard";
 import type { DashboardKpiResponse } from "@/lib/types";
 import { Card, ErrorState, LoadingState, PageHeader, formatFcfa } from "@/components/ui";
 
@@ -70,6 +71,9 @@ export default function DashboardHomePage() {
         }
       />
 
+      <RoleDashboard />
+
+      <h2 className="mb-3 text-lg font-bold text-foreground">Indicateurs de la période</h2>
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
 

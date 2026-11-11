@@ -45,6 +45,48 @@ export interface LoginResponse {
   user: UserResponse | null;
 }
 
+/** Tableau de bord dédié au rôle ; chaque section est null si le rôle n'y a pas droit. */
+export interface RoleDashboardResponse {
+  logistics: {
+    pendingDeliveries: number;
+    assignedDeliveries: number;
+    inTransitDeliveries: number;
+    deliveredToday: number;
+    failedDeliveries: number;
+    oldestPendingMinutes: number | null;
+    averageDeliveryMinutes7d: number | null;
+    onlineCouriers: number;
+    activeCouriers: number;
+    courierDocumentsToReview: number | null;
+    courierEarningsAvailable: number | null;
+  } | null;
+  support: {
+    openTickets: number;
+    inProgressTickets: number;
+    resolvedThisWeek: number;
+    oldestOpenTicketHours: number | null;
+    pendingSellerApplications: number;
+    pendingCategoryChanges: number;
+    pendingReturns: number;
+  } | null;
+  finance: {
+    toVerify: number;
+    toCorrect: number;
+    prepared: number;
+    awaitingApproval: number;
+    awaitingApprovalAmount: number;
+    approvedToPay: number;
+    approvedToPayAmount: number;
+    paidLast7Days: number;
+  } | null;
+  audit: {
+    actionsLast24h: number;
+    failedLoginsLast24h: number;
+    accessDeniedLast7d: number;
+    recent: { id: string; action: string; details: string | null; createdAt: string }[];
+  } | null;
+}
+
 export interface Page<T> {
   content: T[];
   totalElements: number;

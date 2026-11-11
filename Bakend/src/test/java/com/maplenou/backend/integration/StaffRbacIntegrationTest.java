@@ -351,4 +351,39 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         // Un autre rôle ne peut pas demander l'aperçu d'un rôle
         get("/api/admin/kpis?viewAs=ADMIN", support.token(), 403);
     }
+
+    // ----- Tableaux de bord dédiés par rôle -----
+
+    @Test
+    @Order(14)
+    void eachRoleGetsItsOwnDashboardSections() throws Exception {
+        // Admin livraisons : logistique uniquement, pas de retraits, support ni audit
+        JsonNode logistics = get("/api/admin/dashboard", deliveryAdmin.token(), 200);
+        assertFalse(logistics.get("logistics").isNull());
+        assertTrue(logistics.get("support").isNull());
+        assertTrue(logistics.get("finance").isNull());
+        assertTrue(logistics.get("audit").isNull());
+        assertFalse(logistics.get("logistics").get("courierDocumentsToReview").isNull());
+
+        // Agent support : support + retraits à préparer, pas de logistique détaillée ni d'audit
+        JsonNode supportView = get("/api/admin/dashboard", support.token(), 200);
+        assertFalse(supportView.get("support").isNull());
+        assertFalse(supportView.get("finance").isNull());
+        assertTrue(supportView.get("audit").isNull());
+
+        // Auditeur : tout en lecture, y compris l'audit
+        JsonNode auditorView = get("/api/admin/dashboard", auditor.token(), 200);
+        assertFalse(auditorView.get("audit").isNull());
+        assertFalse(auditorView.get("finance").isNull());
+
+        // Super Admin : tout, et aperçu d'un autre rôle
+        JsonNode full = get("/api/admin/dashboard", superToken, 200);
+        assertFalse(full.get("logistics").isNull());
+        assertFalse(full.get("support").isNull());
+        assertFalse(full.get("finance").isNull());
+        assertFalse(full.get("audit").isNull());
+        JsonNode preview = get("/api/admin/dashboard?viewAs=DELIVERY_ADMIN", superToken, 200);
+        assertTrue(preview.get("finance").isNull());
+        get("/api/admin/dashboard?viewAs=ADMIN", support.token(), 403);
+    }
 }
