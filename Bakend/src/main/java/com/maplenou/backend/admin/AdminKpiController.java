@@ -24,7 +24,13 @@ public class AdminKpiController {
     @GetMapping
     public DashboardKpiResponse getDashboard(
             @RequestParam(defaultValue = "LAST_30_DAYS") KpiPeriod period,
+            @RequestParam(required = false) com.maplenou.backend.user.Role viewAs,
             @org.springframework.security.core.annotation.AuthenticationPrincipal com.maplenou.backend.user.User viewer) {
-        return adminKpiService.getDashboard(period, viewer);
+        // « Voir en tant que » : réservé au Super Admin (permission STAFF_MANAGE), simple aperçu du
+        // tableau de bord d'un autre rôle — aucune donnée au-delà de ce que le Super Admin voit déjà.
+        if (viewAs != null && !viewer.permissions().contains(com.maplenou.backend.security.Permission.STAFF_MANAGE)) {
+            throw new org.springframework.security.access.AccessDeniedException("Réservé au Super Admin");
+        }
+        return adminKpiService.getDashboard(period, viewer, viewAs);
     }
 }

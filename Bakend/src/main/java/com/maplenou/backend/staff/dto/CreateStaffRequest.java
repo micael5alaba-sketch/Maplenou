@@ -15,6 +15,8 @@ public record CreateStaffRequest(
         @NotBlank
         @Pattern(regexp = "^\\+?[0-9]{8,15}$", message = "Numéro de téléphone invalide")
         String phoneNumber,
+        /** Email du compte : identifiant de connexion du personnel (avec le mot de passe). */
+        @NotBlank @jakarta.validation.constraints.Email @Size(max = 255) String email,
         @NotNull Role role,
         /** Tarification de livraison attribuée (uniquement pertinent pour l'Administrateur des livraisons). */
         Boolean deliveryPricingGranted

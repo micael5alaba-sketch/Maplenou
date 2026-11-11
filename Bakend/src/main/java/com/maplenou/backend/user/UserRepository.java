@@ -33,6 +33,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countByRoleAndActiveTrue(Role role);
 
+    boolean existsByEmailIgnoreCase(String email);
+
+    /** Compte du personnel retrouvé par email (la connexion par email est réservée au personnel). */
+    @Query("SELECT u FROM User u WHERE LOWER(u.email) = LOWER(:email) AND u.role IN ("
+            + "com.maplenou.backend.user.Role.ADMIN, com.maplenou.backend.user.Role.DELIVERY_ADMIN, "
+            + "com.maplenou.backend.user.Role.SUPPORT_AGENT, com.maplenou.backend.user.Role.AUDITOR)")
+    java.util.Optional<User> findStaffByEmail(@Param("email") String email);
+
     @Query("SELECT u FROM User u WHERE (:role IS NULL OR u.role = :role) AND (:active IS NULL OR u.active = :active)")
     Page<User> findByFilters(@Param("role") Role role, @Param("active") Boolean active, Pageable pageable);
 }

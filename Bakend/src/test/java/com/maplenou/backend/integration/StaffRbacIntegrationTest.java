@@ -45,7 +45,7 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
     void firstLoginForcesPasswordChangeThenMfaBeforeAnyAccess() throws Exception {
         String phone = "+22861" + String.format("%07d", System.nanoTime() % 10_000_000L);
         JsonNode created = post("/api/admin/staff",
-                Map.of("fullName", "Nouvelle recrue", "phoneNumber", phone, "role", "SUPPORT_AGENT"), superToken, 201);
+                Map.of("fullName", "Nouvelle recrue", "phoneNumber", phone, "email", "recrue" + System.nanoTime() + "@maplenou.test", "role", "SUPPORT_AGENT"), superToken, 201);
         String tempPassword = created.get("temporaryPassword").asText();
         assertTrue(tempPassword.length() >= 12);
         assertTrue(created.get("staff").get("mustChangePassword").asBoolean());
@@ -101,7 +101,7 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         get("/api/admin/staff", support.token(), 403);
         get("/api/admin/audit", support.token(), 403);
         get("/api/admin/users", support.token(), 403);
-        post("/api/admin/staff", Map.of("fullName", "Intrus", "phoneNumber", "+22899999990", "role", "ADMIN"), support.token(), 403);
+        post("/api/admin/staff", Map.of("fullName", "Intrus", "phoneNumber", "+22899999990", "email", "intrus@maplenou.test", "role", "ADMIN"), support.token(), 403);
         // Catégories / CMS / codes promo : Super Admin uniquement
         post("/api/admin/pages", Map.of("slug", "x-test", "title", "T", "body", "B", "published", false), support.token(), 403);
         // Retraits : jamais d'approbation, de rejet ni de paiement
@@ -161,7 +161,7 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         patch("/api/admin/shops/" + UUID.randomUUID() + "/status", Map.of("status", "APPROVED"), auditor.token(), 403);
         patch("/api/admin/users/" + UUID.randomUUID() + "/ban", null, auditor.token(), 403);
         post("/api/admin/pages", Map.of("slug", "x-test", "title", "T", "body", "B", "published", false), auditor.token(), 403);
-        post("/api/admin/staff", Map.of("fullName", "Intrus", "phoneNumber", "+22899999991", "role", "ADMIN"), auditor.token(), 403);
+        post("/api/admin/staff", Map.of("fullName", "Intrus", "phoneNumber", "+22899999991", "email", "intrus2@maplenou.test", "role", "ADMIN"), auditor.token(), 403);
     }
 
     @Test
@@ -249,7 +249,7 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
     void recoveryCodeLogsInOnlyOnce() throws Exception {
         String phone = "+22862" + String.format("%07d", System.nanoTime() % 10_000_000L);
         JsonNode created = post("/api/admin/staff",
-                Map.of("fullName", "Perte de téléphone", "phoneNumber", phone, "role", "AUDITOR"), superToken, 201);
+                Map.of("fullName", "Perte de téléphone", "phoneNumber", phone, "email", "perte" + System.nanoTime() + "@maplenou.test", "role", "AUDITOR"), superToken, 201);
         String temp = created.get("temporaryPassword").asText();
         String token = login(phone, temp);
         patch("/api/users/me/password", Map.of("currentPassword", temp, "newPassword", "Recup1password"), token, 204);
@@ -295,5 +295,60 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         post("/api/auth/2fa/setup", null, null, 401);
         post("/api/auth/2fa/activate", Map.of("code", "123456"), null, 401);
         post("/api/auth/2fa/recovery-codes", Map.of("code", "123456"), null, 401);
+    }
+
+    // ----- Identifiants : email + mot de passe, modifiables uniquement par le Super Admin -----
+
+    @Test
+    @Order(12)
+    void staffLogsInWithEmailAndSuperAdminCanChangeTheIdentifiers() throws Exception {
+        StaffSession s = createStaffWithMfa(superToken, "SUPPORT_AGENT", false);
+
+        // Connexion par email (étape MFA ensuite), au lieu du numéro de téléphone
+        Thread.sleep(1100);
+        JsonNode viaEmail = post("/api/auth/login", Map.of("phoneNumber", s.email(), "password", s.password()), null, 200);
+        assertTrue(viaEmail.get("mfaRequired").asBoolean());
+        post("/api/auth/2fa/verify-login", Map.of("mfaToken", viaEmail.get("mfaToken").asText(), "code", s.code()), null, 200);
+
+        // Email en doublon refusé
+        patch("/api/admin/staff/" + s.userId(), Map.of("email", auditor.email()), superToken, 409);
+
+        // Le personnel ne peut pas modifier ses propres identifiants via l'API du personnel
+        patch("/api/admin/staff/" + s.userId(), Map.of("email", "moi@maplenou.test"), s.token(), 403);
+
+        // Le Super Admin change l'email et le téléphone : l'ancien identifiant ne marche plus,
+        // les sessions ouvertes sont révoquées
+        String newEmail = "nouveau" + System.nanoTime() + "@maplenou.test";
+        String newPhone = "+22863" + String.format("%07d", System.nanoTime() % 10_000_000L);
+        JsonNode updated = patch("/api/admin/staff/" + s.userId(), Map.of("email", newEmail, "phoneNumber", newPhone), superToken, 200);
+        assertEquals(newEmail, updated.get("email").asText());
+        assertEquals(newPhone, updated.get("phoneNumber").asText());
+        post("/api/auth/login", Map.of("phoneNumber", s.email(), "password", s.password()), null, 401);
+        post("/api/auth/login", Map.of("phoneNumber", s.phone(), "password", s.password()), null, 401);
+        JsonNode withNew = post("/api/auth/login", Map.of("phoneNumber", newEmail, "password", s.password()), null, 200);
+        assertTrue(withNew.get("mfaRequired").asBoolean());
+    }
+
+    // ----- Mode "Voir en tant que" du Super Admin -----
+
+    @Test
+    @Order(13)
+    void superAdminCanPreviewEachRoleDashboardButNobodyElse() throws Exception {
+        // Permissions de chaque rôle (source de vérité du back-office)
+        JsonNode roles = get("/api/admin/staff/roles", superToken, 200);
+        assertTrue(roles.get("DELIVERY_ADMIN").toString().contains("DELIVERIES_WRITE"));
+        assertFalse(roles.get("DELIVERY_ADMIN").toString().contains("PAYOUTS_READ"));
+        assertFalse(roles.get("SUPPORT_AGENT").toString().contains("PAYOUTS_APPROVE"));
+        assertTrue(roles.get("ADMIN").toString().contains("STAFF_MANAGE"));
+        get("/api/admin/staff/roles", support.token(), 403);
+
+        // Aperçu du tableau de bord logistique : pas de chiffre d'affaires
+        JsonNode logistics = get("/api/admin/kpis?viewAs=DELIVERY_ADMIN", superToken, 200);
+        assertTrue(logistics.get("revenue").isNull());
+        assertFalse(logistics.get("deliveries").isNull());
+        // Le Super Admin lui-même garde la vue complète
+        assertFalse(get("/api/admin/kpis", superToken, 200).get("revenue").isNull());
+        // Un autre rôle ne peut pas demander l'aperçu d'un rôle
+        get("/api/admin/kpis?viewAs=ADMIN", support.token(), 403);
     }
 }

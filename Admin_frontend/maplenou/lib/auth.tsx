@@ -1,13 +1,19 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient, ApiException, clearTokens, getAccessToken, saveTokens } from "./apiClient";
-import type { LoginResponse, UserResponse } from "./types";
+import type { LoginResponse, Role, UserResponse } from "./types";
 import { isStaffRole } from "./permissions";
 
 interface AuthContextValue {
+  /** Utilisateur « effectif » : en mode « Voir en tant que », rôle et permissions du rôle visualisé. */
   user: UserResponse | null;
+  /** Compte réellement connecté (toujours le Super Admin pendant un aperçu). */
+  realUser: UserResponse | null;
+  /** Rôle visualisé par le Super Admin (null = son propre tableau de bord). */
+  viewAsRole: Role;
+  setViewAsRole: (role: Role) => Promise<void>;
   loading: boolean;
   /** Renvoie { mfaRequired: true, mfaToken } si le compte a la 2FA activée. */
   login: (phoneNumber: string, password: string) => Promise<{ mfaRequired: boolean; mfaToken?: string }>;
@@ -26,8 +32,10 @@ function applyLoginResult(data: LoginResponse, setUser: (u: UserResponse) => voi
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserResponse | null>(null);
+  const [realUser, setUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewAsRole, setViewAsRoleState] = useState<Role>(null);
+  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]> | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -75,14 +83,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /**
+   * Aperçu du tableau de bord d'un autre rôle (Super Admin uniquement) : l'interface affiche les
+   * menus, pages et boutons de ce rôle. Simple simulation d'affichage — la session reste celle du
+   * Super Admin (aucune connexion à la place de quelqu'un, donc aucune confusion dans l'audit).
+   */
+  async function setViewAsRole(role: Role) {
+    if (role === null) {
+      setViewAsRoleState(null);
+      window.sessionStorage.removeItem("maplenou_view_as");
+      return;
+    }
+    if (!realUser?.permissions.includes("STAFF_MANAGE")) return;
+    let map = rolePermissions;
+    if (!map) {
+      map = await apiClient.get<Record<string, string[]>>("/api/admin/staff/roles");
+      setRolePermissions(map);
+    }
+    if (map[role]) {
+      setViewAsRoleState(role);
+      window.sessionStorage.setItem("maplenou_view_as", role);
+    }
+  }
+
+  // Retrouve l'aperçu en cours après un rechargement de page.
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? (window.sessionStorage.getItem("maplenou_view_as") as Role) : null;
+    if (saved && realUser?.permissions.includes("STAFF_MANAGE") && !viewAsRole) {
+      void setViewAsRole(saved);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realUser]);
+
+  const user = useMemo<UserResponse | null>(() => {
+    if (!realUser) return null;
+    if (viewAsRole && rolePermissions?.[viewAsRole]) {
+      return { ...realUser, role: viewAsRole, permissions: rolePermissions[viewAsRole] };
+    }
+    return realUser;
+  }, [realUser, viewAsRole, rolePermissions]);
+
   async function logout() {
     clearTokens();
+    window.sessionStorage.removeItem("maplenou_view_as");
     setUser(null);
     router.push("/login");
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyMfa, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, realUser, viewAsRole, setViewAsRole, loading, login, verifyMfa, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

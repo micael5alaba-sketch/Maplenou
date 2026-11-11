@@ -193,13 +193,14 @@ export default function LoginPage() {
               {mode === "login" ? (
                 <>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-foreground">Numéro de téléphone</label>
+                    <label className="mb-1 block text-sm font-medium text-foreground">Email ou numéro de téléphone</label>
                     <input
-                      type="tel"
+                      type="text"
+                      autoComplete="username"
                       required
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+228..."
+                      placeholder="prenom@maplenou.com ou +228..."
                       className="w-full rounded-xl border border-border bg-input-fill px-4 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </div>

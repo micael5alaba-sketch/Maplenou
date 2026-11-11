@@ -106,7 +106,7 @@ public abstract class AbstractIntegrationTest {
     // ----- Comptes du personnel (rôles du back-office) -----
 
     /** Session d'un compte du personnel apres onboarding complet (mot de passe change + MFA active). */
-    protected record StaffSession(String token, String phone, String password, String totpSecret, String userId) {
+    protected record StaffSession(String token, String phone, String password, String totpSecret, String userId, String email) {
         /** Code TOTP courant (pour la reconnexion MFA ou l'approbation d'un retrait). */
         public String code() throws Exception {
             return new dev.samstevens.totp.code.DefaultCodeGenerator().generate(totpSecret,
@@ -122,9 +122,11 @@ public abstract class AbstractIntegrationTest {
         long rand = System.nanoTime();
         String phone = "+22860" + String.format("%07d", rand % 10_000_000L);
 
+        String email = "staff" + rand + "@maplenou.test";
         JsonNode created = post("/api/admin/staff", java.util.Map.of(
                 "fullName", "Staff " + role,
                 "phoneNumber", phone,
+                "email", email,
                 "role", role,
                 "deliveryPricingGranted", deliveryPricingGranted), superAdminToken, 201);
         String temporaryPassword = created.get("temporaryPassword").asText();
@@ -148,7 +150,7 @@ public abstract class AbstractIntegrationTest {
                 "la MFA doit etre exigee a la connexion");
         String mfaToken = challenge.get("mfaToken").asText();
         JsonNode full = post("/api/auth/2fa/verify-login", java.util.Map.of("mfaToken", mfaToken, "code", code), null, 200);
-        return new StaffSession(full.get("accessToken").asText(), phone, newPassword, secret, userId);
+        return new StaffSession(full.get("accessToken").asText(), phone, newPassword, secret, userId, email);
     }
 
     // Mécanisme simple pour ajouter un en-tête personnalisé (ex: X-Webhook-Secret) au prochain appel.

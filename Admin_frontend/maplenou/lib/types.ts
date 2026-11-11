@@ -159,6 +159,7 @@ export interface StaffResponse {
   id: string;
   fullName: string;
   phoneNumber: string;
+  email: string | null;
   role: Role;
   active: boolean;
   totpEnabled: boolean;

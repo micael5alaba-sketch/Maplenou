@@ -117,7 +117,13 @@ public class AuthService {
      */
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         String ip = clientIpResolver.resolve(httpRequest);
-        String phone = request.phoneNumber();
+        // Identifiant : numéro de téléphone, ou email pour un compte du personnel (le Super Admin
+        // crée les comptes du back-office avec email + mot de passe). Les verrous de connexion
+        // ci-dessous portent sur le numéro du compte, quel que soit l'identifiant saisi.
+        String identifier = request.phoneNumber().trim();
+        String phone = identifier.contains("@")
+                ? userRepository.findStaffByEmail(identifier).map(User::getPhoneNumber).orElse(identifier)
+                : identifier;
 
         String ipLockKey = "login_lock:" + phone + ":" + ip;
         String ipFailKey = "login_fail:" + phone + ":" + ip;

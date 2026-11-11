@@ -38,6 +38,22 @@ public class StaffController {
         return staffService.list(active, pageable);
     }
 
+    /**
+     * Permissions de chaque rôle du personnel (source de vérité : RolePermissions). Sert au mode
+     * « Voir en tant que » du Super Admin : l'interface affiche les menus et pages du rôle choisi.
+     */
+    @GetMapping("/roles")
+    public java.util.Map<String, java.util.List<String>> rolePermissions() {
+        java.util.Map<String, java.util.List<String>> result = new java.util.LinkedHashMap<>();
+        for (com.maplenou.backend.user.Role role : com.maplenou.backend.user.Role.values()) {
+            if (role.isStaff()) {
+                result.put(role.name(), com.maplenou.backend.security.RolePermissions.forRole(role).stream()
+                        .map(Enum::name).sorted().toList());
+            }
+        }
+        return result;
+    }
+
     @GetMapping("/{id}")
     public StaffResponse get(@PathVariable UUID id) {
         return staffService.get(id);

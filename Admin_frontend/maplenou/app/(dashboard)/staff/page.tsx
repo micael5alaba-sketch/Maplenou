@@ -32,6 +32,7 @@ export default function StaffPage() {
 
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<Exclude<Role, null | "DELIVERY_AGENT">>("SUPPORT_AGENT");
   const [pricing, setPricing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -59,12 +60,14 @@ export default function StaffPage() {
       const res = await apiClient.post<StaffCredentialsResponse>("/api/admin/staff", {
         fullName,
         phoneNumber,
+        email,
         role,
         deliveryPricingGranted: role === "DELIVERY_ADMIN" && pricing,
       });
       setCredentials(res);
       setFullName("");
       setPhoneNumber("");
+      setEmail("");
       setPricing(false);
       load();
     } catch (err) {
@@ -117,6 +120,24 @@ export default function StaffPage() {
     return act(s.id, () => apiClient.patch(`/api/admin/staff/${s.id}`, { role: newRole }));
   }
 
+  /** Identifiants (email, téléphone) et nom : modifiables uniquement par le Super Admin, qui a créé le compte. */
+  function editIdentifiers(s: StaffResponse) {
+    const name = prompt("Nom complet :", s.fullName);
+    if (name === null) return;
+    const newEmail = prompt("Email (identifiant de connexion) :", s.email ?? "");
+    if (newEmail === null) return;
+    const newPhone = prompt("Téléphone :", s.phoneNumber);
+    if (newPhone === null) return;
+    if (!confirm("Modifier les identifiants révoque les sessions ouvertes de ce compte. Continuer ?")) return;
+    return act(s.id, () =>
+      apiClient.patch(`/api/admin/staff/${s.id}`, {
+        fullName: name.trim() || undefined,
+        email: newEmail.trim() || undefined,
+        phoneNumber: newPhone.trim() || undefined,
+      }),
+    );
+  }
+
   function togglePricing(s: StaffResponse) {
     return act(s.id, () => apiClient.patch(`/api/admin/staff/${s.id}`, { deliveryPricingGranted: !s.deliveryPricingGranted }));
   }
@@ -135,7 +156,7 @@ export default function StaffPage() {
         <Card className="mb-6 max-w-xl border-l-4 border-primary">
           <h2 className="mb-2 text-sm font-semibold text-foreground">Mot de passe initial — à transmettre de façon sécurisée</h2>
           <p className="mb-2 text-sm text-muted">
-            Compte : <strong>{credentials.staff.fullName}</strong> ({credentials.staff.phoneNumber}) —{" "}
+            Compte : <strong>{credentials.staff.fullName}</strong> ({credentials.staff.email ?? credentials.staff.phoneNumber}) —{" "}
             {ROLE_LABELS[credentials.staff.role ?? ""]}
           </p>
           <p className="mb-2 rounded-xl border border-border bg-input-fill px-3 py-2 text-center font-mono text-lg tracking-wider text-foreground">
@@ -160,6 +181,7 @@ export default function StaffPage() {
         )}
         <form onSubmit={create} className="flex flex-col gap-3">
           <input required placeholder="Nom complet" value={fullName} onChange={(e) => setFullName(e.target.value)} className={input} />
+          <input required type="email" placeholder="Email (identifiant de connexion)" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
           <input required placeholder="Téléphone (ex. +22890123456)" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className={input} />
           <select value={role} onChange={(e) => setRole(e.target.value as typeof role)} className={input}>
             {ASSIGNABLE_ROLES.map((r) => (
@@ -190,10 +212,11 @@ export default function StaffPage() {
           {data.content.length === 0 ? (
             <EmptyState message="Aucun compte du personnel." />
           ) : (
-            <Table headers={["Nom", "Téléphone", "Rôle", "Statut", "MFA", "Tarification", "Créé le", "Actions"]}>
+            <Table headers={["Nom", "Email", "Téléphone", "Rôle", "Statut", "MFA", "Tarification", "Créé le", "Actions"]}>
               {data.content.map((s) => (
                 <tr key={s.id}>
                   <td className="px-4 py-3 font-medium text-foreground">{s.fullName}</td>
+                  <td className="px-4 py-3 text-muted">{s.email ?? "—"}</td>
                   <td className="px-4 py-3 text-muted">{s.phoneNumber}</td>
                   <td className="px-4 py-3">
                     <select
@@ -228,6 +251,9 @@ export default function StaffPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button variant={s.active ? "danger" : "primary"} onClick={() => toggleActive(s)} disabled={actingId === s.id}>
                         {s.active ? "Désactiver" : "Réactiver"}
+                      </Button>
+                      <Button variant="secondary" onClick={() => editIdentifiers(s)} disabled={actingId === s.id}>
+                        Modifier les identifiants
                       </Button>
                       <Button variant="secondary" onClick={() => resetPassword(s)} disabled={actingId === s.id}>
                         Réinitialiser

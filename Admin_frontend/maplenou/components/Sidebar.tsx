@@ -79,7 +79,8 @@ const NAV_GROUPS: NavGroup[] = [
 export function Sidebar({ userName, onLogout }: { userName: string; onLogout: () => void }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, realUser, viewAsRole, setViewAsRole } = useAuth();
+  const isSuperAdmin = !!realUser?.permissions.includes("STAFF_MANAGE");
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -138,6 +139,22 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
           <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
           <p className="text-xs text-muted">{ROLE_LABELS[user?.role ?? ""] ?? "Personnel"} — voir mon profil</p>
         </Link>
+
+        {isSuperAdmin && (
+          <div className="mb-2">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">Voir en tant que</label>
+            <select
+              value={viewAsRole ?? ""}
+              onChange={(e) => void setViewAsRole((e.target.value || null) as typeof viewAsRole)}
+              className="w-full rounded-lg border border-border bg-input-fill px-2 py-1.5 text-xs text-foreground"
+            >
+              <option value="">Mon tableau de bord (Super Admin)</option>
+              <option value="DELIVERY_ADMIN">{ROLE_LABELS.DELIVERY_ADMIN}</option>
+              <option value="SUPPORT_AGENT">{ROLE_LABELS.SUPPORT_AGENT}</option>
+              <option value="AUDITOR">{ROLE_LABELS.AUDITOR}</option>
+            </select>
+          </div>
+        )}
 
         <div className="mb-2 flex gap-1 rounded-lg bg-input-fill p-1">
           {[

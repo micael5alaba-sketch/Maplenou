@@ -63,11 +63,15 @@ public class StaffService {
         if (userRepository.existsByPhoneNumber(request.phoneNumber())) {
             throw new ApiException(HttpStatus.CONFLICT, "Ce numéro de téléphone est déjà utilisé");
         }
+        if (userRepository.existsByEmailIgnoreCase(request.email().trim())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Cet email est déjà utilisé");
+        }
 
         String temporaryPassword = generateTemporaryPassword();
         User user = User.builder()
                 .fullName(request.fullName())
                 .phoneNumber(request.phoneNumber())
+                .email(request.email().trim())
                 .passwordHash(passwordEncoder.encode(temporaryPassword))
                 .role(request.role())
                 .active(true)
@@ -118,6 +122,35 @@ public class StaffService {
         }
         if (request.fullName() != null && !request.fullName().isBlank()) {
             user.setFullName(request.fullName().trim());
+        }
+
+        // Identifiants de connexion : seul le Super Admin (qui a créé le compte) peut les modifier.
+        boolean identifiersChanged = false;
+        if (request.email() != null && !request.email().isBlank()
+                && !request.email().trim().equalsIgnoreCase(user.getEmail())) {
+            if (userRepository.existsByEmailIgnoreCase(request.email().trim())) {
+                throw new ApiException(HttpStatus.CONFLICT, "Cet email est déjà utilisé");
+            }
+            String previous = user.getEmail();
+            user.setEmail(request.email().trim());
+            identifiersChanged = true;
+            auditService.log(actor.getId(), AuditAction.STAFF_UPDATED, "USER", user.getId(),
+                    "Email modifié : " + previous + " → " + user.getEmail(), ip);
+        }
+        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
+                && !request.phoneNumber().equals(user.getPhoneNumber())) {
+            if (userRepository.existsByPhoneNumber(request.phoneNumber())) {
+                throw new ApiException(HttpStatus.CONFLICT, "Ce numéro de téléphone est déjà utilisé");
+            }
+            String previous = user.getPhoneNumber();
+            user.setPhoneNumber(request.phoneNumber());
+            identifiersChanged = true;
+            auditService.log(actor.getId(), AuditAction.STAFF_UPDATED, "USER", user.getId(),
+                    "Téléphone modifié : " + previous + " → " + user.getPhoneNumber(), ip);
+        }
+        if (identifiersChanged) {
+            // Les jetons sont émis au nom de l'ancien identifiant : toute session ouverte est révoquée.
+            refreshTokenSessionService.revokeAllForUser(user.getId(), "STAFF_IDENTIFIERS_CHANGED");
         }
         return StaffResponse.from(userRepository.save(user));
     }

@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { apiClient, ApiException } from "@/lib/apiClient";
+import { useAuth } from "@/lib/auth";
 import type { DashboardKpiResponse } from "@/lib/types";
 import { Card, ErrorState, LoadingState, PageHeader, formatFcfa } from "@/components/ui";
 
@@ -33,6 +34,7 @@ const PERIODS = [
 ];
 
 export default function DashboardHomePage() {
+  const { viewAsRole } = useAuth();
   const [period, setPeriod] = useState("LAST_30_DAYS");
   const [data, setData] = useState<DashboardKpiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +44,11 @@ export default function DashboardHomePage() {
     setLoading(true);
     setError(null);
     apiClient
-      .get<DashboardKpiResponse>("/api/admin/kpis", { period })
+      .get<DashboardKpiResponse>("/api/admin/kpis", { period, viewAs: viewAsRole ?? undefined })
       .then(setData)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, viewAsRole]);
 
   return (
     <div>

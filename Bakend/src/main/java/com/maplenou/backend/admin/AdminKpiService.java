@@ -34,8 +34,11 @@ public class AdminKpiService {
      * dont le rôle n'a pas la permission de lecture est renvoyée à {@code null} — jamais de
      * chiffres d'affaires pour l'Administrateur des livraisons, par exemple.
      */
-    public DashboardKpiResponse getDashboard(KpiPeriod period, com.maplenou.backend.user.User viewer) {
-        java.util.Set<com.maplenou.backend.security.Permission> allowed = viewer.permissions();
+    public DashboardKpiResponse getDashboard(KpiPeriod period, com.maplenou.backend.user.User viewer,
+                                             com.maplenou.backend.user.Role viewAs) {
+        java.util.Set<com.maplenou.backend.security.Permission> allowed = viewAs != null
+                ? com.maplenou.backend.security.RolePermissions.forRole(viewAs)
+                : viewer.permissions();
         DashboardKpiResponse full = getDashboard(period);
         return new DashboardKpiResponse(
                 allowed.contains(com.maplenou.backend.security.Permission.PAYOUTS_READ) ? full.revenue() : null,
