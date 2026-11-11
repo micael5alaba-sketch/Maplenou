@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
-import '../utils/phone_utils.dart';
+import '../widgets/phone_number_input.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../theme/app_color_scheme.dart';
@@ -22,6 +22,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  PhoneCountry _country = phoneCountries.first;
   final _authService = AuthService();
 
   bool _isSubmitting = false;
@@ -42,7 +43,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final phoneNumber = normalizePhoneNumber(_phoneController.text);
+      final phoneNumber = fullPhoneNumber(_country, _phoneController.text);
       await _authService.forgotPassword(phoneNumber: phoneNumber);
       if (!mounted) return;
       Navigator.of(context).push(
@@ -97,12 +98,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  TextFormField(
+                  PhoneNumberInput(
                     controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? l10n.phoneNumberRequired : null,
+                    country: _country,
+                    onCountryChanged: (country) {
+                      setState(() => _country = country);
+                      _formKey.currentState?.validate();
+                    },
                   ),
                   const SizedBox(height: 24),
                   PrimaryButton(
@@ -126,28 +128,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDecoration(BuildContext context, String hint, IconData icon) {
-    final colors = context.colors;
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: colors.border),
-    );
-
-    return InputDecoration(
-      hintText: hint,
-      prefixIcon: Icon(icon, color: colors.textMuted),
-      hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),
-      filled: true,
-      fillColor: colors.inputFill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(borderSide: BorderSide(color: colors.primary, width: 1.6)),
-      errorBorder: border.copyWith(borderSide: BorderSide(color: colors.error)),
-      focusedErrorBorder: border.copyWith(borderSide: BorderSide(color: colors.error, width: 1.6)),
     );
   }
 }

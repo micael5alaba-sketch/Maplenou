@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
-import '../utils/phone_utils.dart';
+import '../widgets/phone_number_input.dart';
 import '../services/api_client.dart';
 import '../services/app_router.dart';
 import '../services/auth_service.dart';
@@ -26,6 +26,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  PhoneCountry _country = phoneCountries.first;
   final _passwordController = TextEditingController();
   final _totpController = TextEditingController();
   final _authService = AuthService();
@@ -68,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final result = await _authService.login(
-        phoneNumber: normalizePhoneNumber(_phoneController.text),
+        phoneNumber: fullPhoneNumber(_country, _phoneController.text),
         password: _passwordController.text,
       );
 
@@ -137,12 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
                   if (_mfaToken == null) ...[
-                    TextFormField(
+                    PhoneNumberInput(
                       controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: _inputDecoration(context, l10n.phoneNumberHint, Icons.phone_outlined),
-                      validator: (value) =>
-                          (value == null || value.trim().isEmpty) ? l10n.phoneNumberRequired : null,
+                      country: _country,
+                      onCountryChanged: (country) {
+                        setState(() => _country = country);
+                        _formKey.currentState?.validate();
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
