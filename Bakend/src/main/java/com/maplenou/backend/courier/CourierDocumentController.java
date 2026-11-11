@@ -50,13 +50,13 @@ public class CourierDocumentController {
 
     /** File d'attente de vérification, la plus ancienne soumission en premier. */
     @GetMapping("/api/admin/courier-documents")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('COURIERS_READ')")
     public Page<CourierDocumentResponse> listPending(@PageableDefault(size = 20) Pageable pageable) {
         return courierDocumentService.listPendingForAdmin(pageable);
     }
 
     @PatchMapping("/api/admin/courier-documents/{id}/review")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('COURIERS_WRITE')")
     public CourierDocumentResponse review(@PathVariable UUID id,
                                           @Valid @RequestBody ReviewCourierDocumentRequest request,
                                           @AuthenticationPrincipal User admin,

@@ -27,6 +27,12 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final com.maplenou.backend.audit.AuditService auditService;
+
+    public GlobalExceptionHandler(com.maplenou.backend.audit.AuditService auditService) {
+        this.auditService = auditService;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final AuthenticationTrustResolver trustResolver = new AuthenticationTrustResolverImpl();
 
@@ -77,11 +83,24 @@ public class GlobalExceptionHandler {
      * rafraîchir) d'un vrai refus de droits (utilisateur authentifié, mauvais rôle → 403).
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex,
+                                                             jakarta.servlet.http.HttpServletRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean looksUnauthenticated = authentication == null || trustResolver.isAnonymous(authentication);
         if (looksUnauthenticated) {
             return build(HttpStatus.UNAUTHORIZED, "Session expirée, veuillez vous reconnecter", null);
+        }
+
+        // Tentative refusee d'un compte du personnel sur le back-office : tracee (action sensible refusee).
+        if (authentication != null && authentication.getPrincipal() instanceof com.maplenou.backend.user.User denied
+                && denied.getRole() != null && denied.getRole().isStaff()) {
+            try {
+                auditService.log(denied.getId(), com.maplenou.backend.audit.AuditAction.ACCESS_DENIED, "REQUEST", null,
+                        request.getMethod() + " " + request.getRequestURI() + " refusé (rôle " + denied.getRole() + ")",
+                        request.getRemoteAddr());
+            } catch (Exception auditFailure) {
+                log.warn("Impossible de tracer le refus d'accès : {}", auditFailure.getMessage());
+            }
         }
         return build(HttpStatus.FORBIDDEN, "Accès refusé", null);
     }

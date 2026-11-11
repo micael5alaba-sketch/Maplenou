@@ -28,7 +28,10 @@ public record DeliveryResponse(
         Instant updatedAt,
         /** Position de la boutique (point de retrait), pour la carte d'affectation admin. */
         BigDecimal shopLatitude,
-        BigDecimal shopLongitude
+        BigDecimal shopLongitude,
+        /** Adresse de remise (ville, quartier) : partie logistique visible par l'Administrateur des livraisons. */
+        String deliveryCity,
+        String deliveryDistrict
 ) {
     public static DeliveryResponse from(Delivery d) {
         return new DeliveryResponse(
@@ -50,7 +53,11 @@ public record DeliveryResponse(
                 d.getCreatedAt(),
                 d.getUpdatedAt(),
                 d.getSubOrder().getShop().getLatitude(),
-                d.getSubOrder().getShop().getLongitude()
+                d.getSubOrder().getShop().getLongitude(),
+                d.getSubOrder().getOrder().getDeliveryAddress() != null
+                        ? d.getSubOrder().getOrder().getDeliveryAddress().getCity() : null,
+                d.getSubOrder().getOrder().getDeliveryAddress() != null
+                        ? d.getSubOrder().getOrder().getDeliveryAddress().getDistrict() : null
         );
     }
 }

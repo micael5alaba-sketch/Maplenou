@@ -196,6 +196,22 @@ public class SellerFeeService {
         return totalDeducted;
     }
 
+    /**
+     * Annule les déductions de frais faites sur un reversement REJETÉ : les frais redeviennent
+     * dus (le vendeur ne perd rien, ils seront recouvrés sur le prochain reversement).
+     */
+    @Transactional
+    public void reverseDeductions(Payout payout) {
+        for (SellerFeeDeduction deduction : deductionRepository.findByPayoutId(payout.getId())) {
+            SellerMonthlyFee fee = deduction.getMonthlyFee();
+            fee.setAmountPaid(fee.getAmountPaid().subtract(deduction.getAmount()).max(BigDecimal.ZERO));
+            fee.setStatus(fee.getAmountPaid().signum() == 0
+                    ? SellerMonthlyFeeStatus.PENDING : SellerMonthlyFeeStatus.PARTIALLY_PAID);
+            monthlyFeeRepository.save(fee);
+            deductionRepository.delete(deduction);
+        }
+    }
+
     // ----- Vendeur -----
 
     @Transactional(readOnly = true)

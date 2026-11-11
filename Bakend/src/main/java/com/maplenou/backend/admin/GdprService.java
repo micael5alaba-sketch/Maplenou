@@ -33,8 +33,8 @@ public class GdprService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Cet utilisateur est déjà anonymisé");
         }
 
-        if (target.getRole() == Role.ADMIN) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Impossible d'anonymiser un administrateur");
+        if (target.getRole() != null && target.getRole().isStaff()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Impossible d'anonymiser un compte du personnel");
         }
 
         doAnonymize(target, targetUserId);

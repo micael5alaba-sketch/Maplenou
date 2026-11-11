@@ -101,7 +101,7 @@ public class ShopController {
     // ----- Admin -----
 
     @GetMapping("/api/admin/shops")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SHOPS_READ')")
     @SecurityRequirement(name = "bearerAuth")
     public Page<ShopResponse> listAll(@RequestParam(required = false) ShopStatus status,
                                        @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
@@ -113,7 +113,7 @@ public class ShopController {
 
     /** Admin : crée directement une boutique pour un vendeur déjà approuvé (sans passer par le vendeur). */
     @PostMapping("/api/admin/shops")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SHOPS_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ShopResponse> adminCreate(@Valid @RequestBody AdminCreateShopRequest request,
                                                       @AuthenticationPrincipal User currentUser,
@@ -123,7 +123,7 @@ public class ShopController {
     }
 
     @PatchMapping("/api/admin/shops/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SHOPS_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public ShopResponse updateStatus(@PathVariable UUID id,
                                       @Valid @RequestBody UpdateShopStatusRequest request,

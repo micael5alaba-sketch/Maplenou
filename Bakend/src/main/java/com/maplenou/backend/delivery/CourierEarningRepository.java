@@ -17,8 +17,20 @@ public interface CourierEarningRepository extends JpaRepository<CourierEarning, 
     @Query("""
             SELECT COALESCE(SUM(e.amount), 0) FROM CourierEarning e
             WHERE e.agent.id = :agentId AND e.status = com.maplenou.backend.delivery.CourierEarningStatus.PENDING
+              AND e.withdrawal IS NULL
             """)
     BigDecimal sumAvailableBalanceByAgentId(@Param("agentId") UUID agentId);
+
+    /** Gains versables : PENDING et pas encore inclus dans un retrait. */
+    @Query("""
+            SELECT e FROM CourierEarning e
+            WHERE e.agent.id = :agentId AND e.status = com.maplenou.backend.delivery.CourierEarningStatus.PENDING
+              AND e.withdrawal IS NULL
+            """)
+    java.util.List<CourierEarning> findAvailableForWithdrawal(@Param("agentId") UUID agentId);
+
+    @Query("SELECT e FROM CourierEarning e WHERE e.withdrawal.id = :withdrawalId")
+    java.util.List<CourierEarning> findByWithdrawalId(@Param("withdrawalId") UUID withdrawalId);
 
     // ----- Admin -----
 

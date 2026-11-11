@@ -96,26 +96,4 @@ public class CourierEarningService {
     public Page<CourierEarningResponse> listAllForAdmin(CourierEarningStatus status, Pageable pageable) {
         return courierEarningRepository.findByOptionalStatus(status, pageable).map(CourierEarningResponse::from);
     }
-
-    /** Admin : marquer un gain comme versé (constaté manuellement, comme les payouts vendeur). */
-    @Transactional
-    public CourierEarningResponse markAsPaid(UUID id, UUID actorId, String ip) {
-        CourierEarning earning = courierEarningRepository.findByIdWithAgent(id)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Gain introuvable"));
-
-        if (earning.getStatus() == CourierEarningStatus.PAID) {
-            throw new ApiException(HttpStatus.CONFLICT, "Ce gain est déjà marqué PAID");
-        }
-
-        earning.setStatus(CourierEarningStatus.PAID);
-        earning.setPaidAt(Instant.now());
-        courierEarningRepository.save(earning);
-
-        auditService.log(actorId, AuditAction.COURIER_EARNING_MARKED_PAID,
-                "COURIER_EARNING", id,
-                "Livreur : " + earning.getAgent().getFullName() +
-                " | Montant : " + earning.getAmount() + " FCFA", ip);
-
-        return CourierEarningResponse.from(earning);
-    }
 }

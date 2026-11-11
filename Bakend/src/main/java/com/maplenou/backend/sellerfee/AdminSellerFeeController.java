@@ -27,7 +27,7 @@ public class AdminSellerFeeController {
 
     /** GET /api/admin/seller-fees/category-changes — demandes en attente (ou filtrées par statut). */
     @GetMapping("/api/admin/seller-fees/category-changes")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATEGORY_CHANGES_READ')")
     public Page<SellerFeeCategoryChangeResponse> listCategoryChangeRequests(
             @RequestParam(required = false) SellerFeeCategoryChangeStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -37,7 +37,7 @@ public class AdminSellerFeeController {
 
     /** PATCH /api/admin/seller-fees/category-changes/{id}/decide — approuver/rejeter. */
     @PatchMapping("/api/admin/seller-fees/category-changes/{id}/decide")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATEGORY_CHANGES_WRITE')")
     public SellerFeeCategoryChangeResponse decide(
             @PathVariable UUID id,
             @Valid @RequestBody DecideCategoryChangeRequest request,

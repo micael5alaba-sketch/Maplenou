@@ -55,6 +55,13 @@ public class Payout {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    /** Super Admin ayant approuvé ce retrait (un retrait n'est payable qu'une fois approuvé). */
+    @Column(name = "approved_by")
+    private UUID approvedBy;
+
+    @Column(name = "approved_at")
+    private Instant approvedAt;
+
     /** Notes admin : référence de virement, motif d'échec, etc. */
     @Column(columnDefinition = "TEXT")
     private String notes;

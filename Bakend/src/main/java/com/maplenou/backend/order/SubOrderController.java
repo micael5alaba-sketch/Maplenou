@@ -57,7 +57,7 @@ public class SubOrderController {
 
     /** Admin : toutes les sous-commandes, toutes boutiques confondues, filtrable par statut. */
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ORDERS_READ')")
     public Page<SubOrderResponse> listAllForAdmin(
             @RequestParam(required = false) SubOrderStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -66,7 +66,7 @@ public class SubOrderController {
 
     /** Admin : peut forcer n'importe quel statut. */
     @PatchMapping("/admin/{subOrderId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ORDERS_WRITE')")
     public SubOrderResponse adminUpdateStatus(
             @PathVariable UUID subOrderId,
             @Valid @RequestBody UpdateSubOrderStatusRequest request,

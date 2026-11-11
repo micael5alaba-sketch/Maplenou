@@ -25,6 +25,12 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @EntityGraph(attributePaths = {"subOrder", "subOrder.shop", "subOrder.order"})
     Page<Delivery> findByStatusOrderByCreatedAtAsc(DeliveryStatus status, Pageable pageable);
 
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT d FROM Delivery d WHERE (:status IS NULL OR d.status = :status) ORDER BY d.createdAt DESC",
+            countQuery = "SELECT COUNT(d) FROM Delivery d WHERE (:status IS NULL OR d.status = :status)")
+    Page<Delivery> findAllByOptionalStatus(
+            @org.springframework.data.repository.query.Param("status") DeliveryStatus status, Pageable pageable);
+
     @Query("""
             SELECT d FROM Delivery d
             LEFT JOIN FETCH d.subOrder so

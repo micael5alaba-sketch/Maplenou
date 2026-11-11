@@ -68,6 +68,18 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean totpEnabled = false;
 
+    // Compte du personnel cree avec un mot de passe initial transmis par le Super Admin : doit le
+    // changer a la premiere connexion (voir StaffOnboardingFilter).
+    @Column(name = "must_change_password", nullable = false)
+    @Builder.Default
+    private boolean mustChangePassword = false;
+
+    // Case cochee par le Super Admin : l'Administrateur des livraisons peut alors modifier la
+    // tarification de livraison ("Oui si attribue" dans la matrice des acces).
+    @Column(name = "delivery_pricing_granted", nullable = false)
+    @Builder.Default
+    private boolean deliveryPricingGranted = false;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;
@@ -104,11 +116,27 @@ public class User implements UserDetails {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
         }
 
+        // Permissions du back-office (matrice centralisee RolePermissions), une autorite par
+        // permission : @PreAuthorize("hasAuthority('DELIVERIES_WRITE')") etc.
+        for (com.maplenou.backend.security.Permission permission : permissions()) {
+            authorities.add(new SimpleGrantedAuthority(permission.name()));
+        }
+
         if (sellerProfile != null && sellerProfile.getStatus() == com.maplenou.backend.seller.SellerStatus.APPROVED) {
             authorities.add(new SimpleGrantedAuthority("ROLE_SELLER"));
         }
 
         return authorities;
+    }
+
+    /** Permissions effectives du compte : celles de son role, + la tarification si attribuee. */
+    public java.util.Set<com.maplenou.backend.security.Permission> permissions() {
+        java.util.Set<com.maplenou.backend.security.Permission> permissions =
+                java.util.EnumSet.copyOf(com.maplenou.backend.security.RolePermissions.forRole(role));
+        if (role == Role.DELIVERY_ADMIN && deliveryPricingGranted) {
+            permissions.add(com.maplenou.backend.security.Permission.DELIVERY_PRICING_WRITE);
+        }
+        return permissions;
     }
 
     @Override

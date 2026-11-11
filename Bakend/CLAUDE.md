@@ -242,8 +242,32 @@ périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décision
   IP/CIDR (IPv4) configurable via `ADMIN_ALLOWED_IPS`, désactivée par défaut en développement
   (vide = pas de restriction, à définir explicitement avant la mise en production). Distinct du
   2FA générique déjà en place, qui reste actif en plus.
-- Droits internes différenciés entre comptes admin eux-mêmes (ex. un admin support ne doit pas
-  pouvoir modifier les taux de commission) — pas encore fait, un seul rôle `ADMIN` pour tout.
+- **Rôles et accès du personnel (document "Rôles et accès au tableau de bord", 11/11/2026) — fait** :
+  4 rôles — `ADMIN` (= Super Admin, nom conservé pour les comptes existants), `DELIVERY_ADMIN`
+  (livraisons/livreurs), `SUPPORT_AGENT` (support, vendeurs, retours, **préparation** des retraits),
+  `AUDITOR` (lecture seule). Matrice des droits **centralisée** dans `security/Permission.java` +
+  `RolePermissions.java` (un seul endroit) ; chaque route vérifie `hasAuthority('PERMISSION')` côté
+  serveur (les menus masqués du back-office ne sont qu'un confort). Tarification de livraison pour
+  l'Admin livraisons : case `deliveryPricingGranted` cochée par le Super Admin.
+  Ne jamais remettre un `hasRole('ADMIN')` sur une route qui doit s'ouvrir à un autre rôle, ni
+  contourner une permission : ajouter/ajuster la permission dans `RolePermissions`.
+- **Comptes du personnel** (`staff/`, `/api/admin/staff`, permission `STAFF_MANAGE` = Super Admin) :
+  jamais d'inscription publique ; mot de passe initial généré (renvoyé une fois), changement
+  obligatoire à la première connexion, MFA TOTP obligatoire (codes de récupération à usage unique,
+  `MfaService`), `StaffOnboardingFilter` bloque tout sauf `/api/auth/**` + profil + changement de mot
+  de passe tant que ce n'est pas fait. Désactivation immédiate (401 + sessions révoquées), garde-fou
+  « dernier Super Admin », rôles du personnel gérés **uniquement** via cette API.
+  `STAFF_ENFORCE_MFA_SUPER_ADMIN` (défaut `false`) : à passer à `true` une fois la MFA activée sur les
+  Super Admin existants, pour ne verrouiller personne.
+- **Circuit obligatoire des retraits** (vendeurs `Payout` ET livreurs `CourierWithdrawal`), logique
+  unique dans `withdrawal/WithdrawalWorkflow` + `WithdrawalAction` : PENDING → PREPARED → SUBMITTED →
+  APPROVED → (PROCESSING) → PAID, branches NEEDS_CORRECTION / REJECTED / FAILED. Agent support : prépare,
+  renvoie, soumet — **jamais** approuve ni paie. Super Admin : approuve (**nouveau code MFA exigé**,
+  verrou après 5 échecs), rejette (justification obligatoire), paie. Un retrait n'est payable
+  que s'il est approuvé. Historique de chaque transition (`withdrawal_status_history`), approbateur et
+  horodatage conservés ; un rejet libère les sous-commandes/gains et rétablit les frais déduits.
+  L'ancien marquage direct « gain livreur payé » a été supprimé (il contournait l'approbation).
+- Tout refus d'accès d'un compte du personnel est tracé (`AuditAction.ACCESS_DENIED`).
 - Toute action admin sensible (modération, remboursement, changement de rôle, changement de statut
   vendeur/boutique) est tracée dans `AuditLog` avec auteur et horodatage — **fait**
   (`audit.AuditAction`, voir `MODELE_DONNEES.md`).

@@ -4,6 +4,7 @@ import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.auth.dto.AuthResponse;
 import com.maplenou.backend.auth.dto.MfaLoginRequest;
+import com.maplenou.backend.auth.dto.RecoveryCodesResponse;
 import com.maplenou.backend.auth.dto.TwoFactorSetupResponse;
 import com.maplenou.backend.auth.dto.VerifyTotpRequest;
 import com.maplenou.backend.common.exception.ApiException;
@@ -16,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +31,7 @@ public class TwoFactorController {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final MfaService mfaService;
 
     /**
      * Initiates 2FA setup: generates a secret and saves it to the user.
@@ -36,6 +39,7 @@ public class TwoFactorController {
      */
     @PostMapping("/setup")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
     public TwoFactorSetupResponse setup(@AuthenticationPrincipal User currentUser) {
         String secret = totpService.generateSecret();
         String otpAuthUri = totpService.generateOtpAuthUri(secret, currentUser.getPhoneNumber());
@@ -51,7 +55,8 @@ public class TwoFactorController {
      */
     @PostMapping("/activate")
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<Void> activate(@AuthenticationPrincipal User currentUser,
+    @PreAuthorize("isAuthenticated()")
+    public RecoveryCodesResponse activate(@AuthenticationPrincipal User currentUser,
                                           @Valid @RequestBody VerifyTotpRequest request) {
         if (currentUser.getTotpSecret() == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
@@ -67,7 +72,21 @@ public class TwoFactorController {
         auditService.log(currentUser.getId(), AuditAction.TWO_FA_ENABLED,
                 "USER", currentUser.getId(), "2FA enabled", null);
 
-        return ResponseEntity.ok().build();
+        // Codes de récupération à usage unique : affichés une seule fois, à conserver hors ligne.
+        return new RecoveryCodesResponse(mfaService.generateRecoveryCodes(currentUser));
+    }
+
+    /** Régénère les codes de récupération (les anciens sont invalidés). Exige un code TOTP valide. */
+    @PostMapping("/recovery-codes")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
+    public RecoveryCodesResponse regenerateRecoveryCodes(@AuthenticationPrincipal User currentUser,
+                                                          @Valid @RequestBody VerifyTotpRequest request) {
+        if (!currentUser.isTotpEnabled()
+                || !totpService.verifyCode(currentUser.getTotpSecret(), request.code())) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Code TOTP invalide ou expiré");
+        }
+        return new RecoveryCodesResponse(mfaService.generateRecoveryCodes(currentUser));
     }
 
     /**
@@ -85,6 +104,7 @@ public class TwoFactorController {
      */
     @DeleteMapping("/disable")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> disable(@AuthenticationPrincipal User currentUser,
                                          @Valid @RequestBody VerifyTotpRequest request) {
         if (!currentUser.isTotpEnabled()) {
@@ -94,9 +114,15 @@ public class TwoFactorController {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Code TOTP invalide ou expiré");
         }
 
+        // La MFA est obligatoire pour le personnel : un compte staff ne peut pas la désactiver.
+        if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "La MFA est obligatoire pour les comptes du personnel");
+        }
         currentUser.setTotpEnabled(false);
         currentUser.setTotpSecret(null);
         userRepository.save(currentUser);
+        mfaService.deleteRecoveryCodes(currentUser);
 
         auditService.log(currentUser.getId(), AuditAction.TWO_FA_DISABLED,
                 "USER", currentUser.getId(), "2FA disabled", null);

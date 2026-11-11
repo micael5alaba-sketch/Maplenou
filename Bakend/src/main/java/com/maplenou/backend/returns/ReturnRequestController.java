@@ -76,7 +76,7 @@ public class ReturnRequestController {
      * - REJECTED → SubOrder = DELIVERED + RefundStatus = DENIED
      */
     @PatchMapping("/{id}/decision")
-    @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('SELLER') or hasAuthority('RETURNS_WRITE')")
     public ReturnRequestResponse decide(
             @AuthenticationPrincipal User currentUser,
             @PathVariable UUID id,
@@ -98,7 +98,7 @@ public class ReturnRequestController {
 
     /** Admin : retours en attente de décision. */
     @GetMapping("/admin/pending")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('RETURNS_READ')")
     public Page<ReturnRequestResponse> listPending(
             @PageableDefault(size = 20) Pageable pageable) {
         return returnService.listPending(pageable);
@@ -106,7 +106,7 @@ public class ReturnRequestController {
 
     /** Admin : détail d'un retour. */
     @GetMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('RETURNS_READ')")
     public ReturnRequestResponse getById(@PathVariable UUID id) {
         return returnService.getById(id);
     }

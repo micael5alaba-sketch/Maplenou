@@ -33,7 +33,7 @@ public class DeliveryController {
 
     /** Admin : créer la livraison pour un SubOrder passé en READY_FOR_PICKUP. */
     @PostMapping("/sub-orders/{subOrderId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERIES_WRITE')")
     public ResponseEntity<DeliveryResponse> createForSubOrder(@PathVariable UUID subOrderId) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(deliveryService.createForSubOrder(subOrderId));
@@ -41,22 +41,30 @@ public class DeliveryController {
 
     /** Admin : affecter un livreur. */
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERIES_WRITE')")
     public DeliveryResponse assignAgent(@PathVariable UUID id,
                                         @Valid @RequestBody AssignAgentRequest request) {
         return deliveryService.assignAgent(id, request);
     }
 
     /** Admin : livraisons en attente d'affectation. */
+    /** Suivi des livraisons, tous statuts ou filtrées (partie logistique : adresse, statut, livreur affecté). */
+    @GetMapping
+    @PreAuthorize("hasAuthority('DELIVERIES_READ')")
+    public Page<DeliveryResponse> listAll(@RequestParam(required = false) DeliveryStatus status,
+                                          @PageableDefault(size = 20) Pageable pageable) {
+        return deliveryService.listAll(status, pageable);
+    }
+
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERIES_READ')")
     public Page<DeliveryResponse> listPending(@PageableDefault(size = 20) Pageable pageable) {
         return deliveryService.listPending(pageable);
     }
 
     /** Admin : détail d'une livraison. */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERIES_READ')")
     public DeliveryResponse getById(@PathVariable UUID id) {
         return deliveryService.getById(id);
     }

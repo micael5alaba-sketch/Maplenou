@@ -68,6 +68,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final TotpService totpService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final MfaService mfaService;
     private final RefreshTokenSessionService refreshTokenSessionService;
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailService emailService;
@@ -197,8 +198,8 @@ public class AuthService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "La 2FA n'est pas activée pour ce compte");
         }
 
-        if (!totpService.verifyCode(user.getTotpSecret(), request.code())) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "Code TOTP invalide ou expiré");
+        if (!mfaService.verify(user, request.code())) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Code invalide ou expiré");
         }
 
         // Invalider le token MFA pour éviter la réutilisation

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRouter } from "next/navigation";
 import { apiClient, ApiException, clearTokens, getAccessToken, saveTokens } from "./apiClient";
 import type { LoginResponse, UserResponse } from "./types";
+import { isStaffRole } from "./permissions";
 
 interface AuthContextValue {
   user: UserResponse | null;
@@ -12,6 +13,8 @@ interface AuthContextValue {
   login: (phoneNumber: string, password: string) => Promise<{ mfaRequired: boolean; mfaToken?: string }>;
   verifyMfa: (mfaToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Recharge le profil (permissions, MFA, mot de passe) — après la première connexion par ex. */
+  refreshUser: () => Promise<UserResponse | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -45,9 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.mfaRequired) {
       return { mfaRequired: true, mfaToken: data.mfaToken ?? undefined };
     }
-    if (data.user?.role !== "ADMIN") {
+    if (!isStaffRole(data.user?.role)) {
       clearTokens();
-      throw new ApiException(403, "Ce compte n'a pas les droits administrateur.");
+      throw new ApiException(403, "Ce compte n'a pas accès au tableau de bord Maplenou.");
     }
     applyLoginResult(data, setUser);
     return { mfaRequired: false };
@@ -55,11 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function verifyMfa(mfaToken: string, code: string) {
     const data = await apiClient.post<LoginResponse>("/api/auth/2fa/verify-login", { mfaToken, code });
-    if (data.user?.role !== "ADMIN") {
+    if (!isStaffRole(data.user?.role)) {
       clearTokens();
-      throw new ApiException(403, "Ce compte n'a pas les droits administrateur.");
+      throw new ApiException(403, "Ce compte n'a pas accès au tableau de bord Maplenou.");
     }
     applyLoginResult(data, setUser);
+  }
+
+  async function refreshUser() {
+    try {
+      const me = await apiClient.get<UserResponse>("/api/users/me");
+      setUser(me);
+      return me;
+    } catch {
+      return null;
+    }
   }
 
   async function logout() {
@@ -69,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyMfa, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyMfa, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

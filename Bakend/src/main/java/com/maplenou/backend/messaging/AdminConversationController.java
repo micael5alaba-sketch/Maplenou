@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Messagerie (Admin)")
 @RequestMapping("/api/admin/conversations")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('SUPPORT_READ')")
 public class AdminConversationController {
 
     private final MessagingService messagingService;

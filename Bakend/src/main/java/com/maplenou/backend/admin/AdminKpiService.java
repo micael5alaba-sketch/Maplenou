@@ -29,6 +29,23 @@ public class AdminKpiService {
     private final DeliveryRepository deliveryRepository;
     private final SubOrderRepository subOrderRepository;
 
+    /**
+     * Tableau de bord filtré par rôle (Vue logistique, Vue support, Lecture...) : une section
+     * dont le rôle n'a pas la permission de lecture est renvoyée à {@code null} — jamais de
+     * chiffres d'affaires pour l'Administrateur des livraisons, par exemple.
+     */
+    public DashboardKpiResponse getDashboard(KpiPeriod period, com.maplenou.backend.user.User viewer) {
+        java.util.Set<com.maplenou.backend.security.Permission> allowed = viewer.permissions();
+        DashboardKpiResponse full = getDashboard(period);
+        return new DashboardKpiResponse(
+                allowed.contains(com.maplenou.backend.security.Permission.PAYOUTS_READ) ? full.revenue() : null,
+                allowed.contains(com.maplenou.backend.security.Permission.ORDERS_READ) ? full.orders() : null,
+                allowed.contains(com.maplenou.backend.security.Permission.USERS_READ) ? full.users() : null,
+                allowed.contains(com.maplenou.backend.security.Permission.SHOPS_READ) ? full.shops() : null,
+                allowed.contains(com.maplenou.backend.security.Permission.DELIVERIES_READ) ? full.deliveries() : null
+        );
+    }
+
     public DashboardKpiResponse getDashboard(KpiPeriod period) {
         Instant periodStart = resolvePeriodStart(period);
 

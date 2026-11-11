@@ -44,7 +44,7 @@ public class SellerProfileController {
     // ----- Admin -----
 
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SELLER_APPLICATIONS_READ')")
     public Page<SellerProfileResponse> listAll(
             @RequestParam(required = false) SellerStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -52,7 +52,7 @@ public class SellerProfileController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SELLER_APPLICATIONS_WRITE')")
     public SellerProfileResponse updateStatus(@PathVariable UUID id,
                                                @Valid @RequestBody UpdateSellerStatusRequest request,
                                                @AuthenticationPrincipal User currentUser,

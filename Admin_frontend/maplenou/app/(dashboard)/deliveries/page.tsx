@@ -49,7 +49,7 @@ export default function DeliveriesPage() {
     setError(null);
     Promise.all([
       apiClient.get<Page<DeliveryResponse>>("/api/deliveries/pending", { page, size: 20 }),
-      apiClient.get<Page<AdminUserResponse>>("/api/admin/users", { role: "DELIVERY_AGENT", active: true, size: 100 }),
+      apiClient.get<Page<AdminUserResponse>>("/api/admin/delivery-agents", { active: true, size: 100 }),
       apiClient.get<Page<CourierLocationResponse>>("/api/admin/delivery-agents/locations", { size: 100 }),
     ])
       .then(([deliveries, agents, agentLocations]) => {
@@ -160,11 +160,14 @@ export default function DeliveriesPage() {
           {data.content.length === 0 ? (
             <EmptyState message="Aucune livraison en attente d'affectation." />
           ) : (
-            <Table headers={["Commande", "Boutique", "Statut", "Créée le", "Affecter"]}>
+            <Table headers={["Commande", "Boutique", "Adresse de remise", "Statut", "Créée le", "Affecter"]}>
               {data.content.map((d) => (
                 <tr key={d.id}>
                   <td className="px-4 py-3 font-medium text-foreground">#{d.orderNumber}</td>
                   <td className="px-4 py-3 text-muted">{d.shopName}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {[d.deliveryCity, d.deliveryDistrict].filter(Boolean).join(", ") || "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={d.status} />
                   </td>

@@ -25,21 +25,23 @@ import java.util.UUID;
 @Tag(name = "Pages de contenu (Admin)")
 @RequestMapping("/api/admin/pages")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminContentPageController {
 
     private final ContentPageService contentPageService;
 
+    @PreAuthorize("hasAuthority('CONTENT_READ')")
     @GetMapping
     public Page<ContentPageResponse> listAll(@PageableDefault(size = 20) Pageable pageable) {
         return contentPageService.listAll(pageable);
     }
 
+    @PreAuthorize("hasAuthority('CONTENT_READ')")
     @GetMapping("/{id}")
     public ContentPageResponse getById(@PathVariable UUID id) {
         return contentPageService.getById(id);
     }
 
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @PostMapping
     public ResponseEntity<ContentPageResponse> create(@Valid @RequestBody CreateContentPageRequest request,
                                                         @AuthenticationPrincipal User actor,
@@ -48,6 +50,7 @@ public class AdminContentPageController {
                 .body(contentPageService.create(request, actor.getId(), httpRequest.getRemoteAddr()));
     }
 
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @PutMapping("/{id}")
     public ContentPageResponse update(@PathVariable UUID id,
                                        @Valid @RequestBody UpdateContentPageRequest request,
@@ -56,6 +59,7 @@ public class AdminContentPageController {
         return contentPageService.update(id, request, actor.getId(), httpRequest.getRemoteAddr());
     }
 
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id,

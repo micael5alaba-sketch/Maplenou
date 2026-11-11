@@ -31,17 +31,28 @@ public class AdminDeliveryAgentController {
 
     private final CourierAdminService courierAdminService;
     private final CourierLocationService courierLocationService;
+    private final com.maplenou.backend.user.UserService userService;
 
     /** Dernière position connue des livreurs actifs — alimente la carte d'affectation de l'admin. */
     @GetMapping("/locations")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('COURIERS_READ')")
     public Page<CourierLocationResponse> locations(@PageableDefault(size = 100) Pageable pageable) {
         return courierLocationService.listForAdmin(pageable);
     }
 
+    /** Livreurs (comptes DELIVERY_AGENT) : liste pour l'affectation des livraisons. */
+    @GetMapping
+    @PreAuthorize("hasAuthority('COURIERS_READ')")
+    public Page<com.maplenou.backend.user.dto.AdminUserResponse> list(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean active,
+            @PageableDefault(size = 100) Pageable pageable) {
+        return userService.listUsers(com.maplenou.backend.user.Role.DELIVERY_AGENT, active, pageable)
+                .map(com.maplenou.backend.user.dto.AdminUserResponse::from);
+    }
+
     /** Création directe d'un compte livreur interne (cahier des charges §3.3, "option B"). */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('COURIERS_WRITE')")
     public ResponseEntity<UserResponse> create(@AuthenticationPrincipal User admin,
                                                 @Valid @RequestBody CreateDeliveryAgentRequest request,
                                                 HttpServletRequest httpRequest) {

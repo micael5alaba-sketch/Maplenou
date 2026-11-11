@@ -1,6 +1,7 @@
 package com.maplenou.backend.config;
 
 import com.maplenou.backend.security.JwtAuthenticationFilter;
+import com.maplenou.backend.security.StaffOnboardingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +34,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
+
+    @Value("${app.staff.enforce-mfa-super-admin:false}")
+    private boolean enforceMfaSuperAdmin;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -82,7 +86,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Premiere connexion du personnel : mot de passe + MFA obligatoires avant tout acces
+                // (instancie ici et non declare comme bean, voir StaffOnboardingFilter).
+                .addFilterAfter(new StaffOnboardingFilter(enforceMfaSuperAdmin), JwtAuthenticationFilter.class);
 
         return http.build();
     }

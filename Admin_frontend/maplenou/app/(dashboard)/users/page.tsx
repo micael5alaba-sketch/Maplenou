@@ -77,9 +77,9 @@ export default function UsersPage() {
   }
 
   async function changeRole(u: AdminUserResponse) {
-    const newRole = prompt("Nouveau rôle (ADMIN ou DELIVERY_AGENT) :", u.role ?? "");
-    if (!newRole || (newRole !== "ADMIN" && newRole !== "DELIVERY_AGENT")) {
-      if (newRole !== null) alert("Rôle invalide — seules les valeurs ADMIN ou DELIVERY_AGENT sont acceptées.");
+    const newRole = prompt("Nouveau rôle (DELIVERY_AGENT pour un livreur ; les rôles du personnel se gèrent dans la page Personnel) :", u.role ?? "");
+    if (!newRole || newRole !== "DELIVERY_AGENT") {
+      if (newRole !== null) alert("Rôle invalide — seule la valeur DELIVERY_AGENT est acceptée ici (rôles du personnel : page Personnel).");
       return;
     }
     setActingId(u.id);

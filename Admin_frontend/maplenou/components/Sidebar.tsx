@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/lib/theme";
+import { useAuth } from "@/lib/auth";
+import { ROLE_LABELS, ROUTE_PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 interface NavItem {
   href: string;
@@ -15,6 +17,8 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// Chaque page exige une permission (voir ROUTE_PERMISSIONS) : un menu non autorisé est masqué,
+// et l'API refuse de toute façon l'action côté serveur.
 const NAV_GROUPS: NavGroup[] = [
   {
     title: "Vue d'ensemble",
@@ -35,14 +39,15 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/couriers", label: "Créer un livreur" },
       { href: "/courier-documents", label: "Documents livreurs" },
       { href: "/courier-earnings", label: "Gains livreurs" },
-      { href: "/deliveries", label: "Livraisons en attente" },
+      { href: "/deliveries", label: "Livraisons" },
       { href: "/delivery-pricing", label: "Tarification livraison" },
     ],
   },
   {
     title: "Argent",
     items: [
-      { href: "/payouts", label: "Reversements vendeurs" },
+      { href: "/payouts", label: "Retraits vendeurs" },
+      { href: "/courier-withdrawals", label: "Retraits livreurs" },
       { href: "/promo-codes", label: "Codes promo" },
     ],
   },
@@ -60,6 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/support-tickets", label: "Tickets support" },
       { href: "/support-conversations", label: "Conversations support" },
       { href: "/users", label: "Utilisateurs" },
+      { href: "/staff", label: "Personnel" },
       { href: "/audit-log", label: "Journal d'audit" },
       { href: "/newsletter", label: "Newsletter" },
     ],
@@ -73,6 +79,15 @@ const NAV_GROUPS: NavGroup[] = [
 export function Sidebar({ userName, onLogout }: { userName: string; onLogout: () => void }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const required = ROUTE_PERMISSIONS[item.href];
+      return !required || hasPermission(user, required);
+    }),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <aside className="flex h-screen w-64 flex-shrink-0 flex-col border-r border-border bg-surface">
@@ -81,7 +96,7 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {NAV_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.title} className="mb-7">
             <p className="mb-2.5 px-3 text-[11px] font-bold uppercase tracking-wide text-muted">
               {group.title}
@@ -121,7 +136,7 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
           }`}
         >
           <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
-          <p className="text-xs text-muted">Administrateur — voir mon profil</p>
+          <p className="text-xs text-muted">{ROLE_LABELS[user?.role ?? ""] ?? "Personnel"} — voir mon profil</p>
         </Link>
 
         <div className="mb-2 flex gap-1 rounded-lg bg-input-fill p-1">

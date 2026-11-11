@@ -1,6 +1,12 @@
 package com.maplenou.backend.payout;
 
 import com.maplenou.backend.audit.AuditAction;
+import com.maplenou.backend.user.User;
+import com.maplenou.backend.withdrawal.WithdrawalAction;
+import com.maplenou.backend.withdrawal.WithdrawalSubjectType;
+import com.maplenou.backend.withdrawal.WithdrawalWorkflow;
+import com.maplenou.backend.withdrawal.dto.WithdrawalActionRequest;
+import com.maplenou.backend.withdrawal.dto.WithdrawalHistoryResponse;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.common.exception.ApiException;
 import com.maplenou.backend.order.SubOrder;
@@ -36,6 +42,7 @@ public class PayoutService {
     private final SubOrderRepository subOrderRepository;
     private final AuditService auditService;
     private final SellerFeeService sellerFeeService;
+    private final WithdrawalWorkflow withdrawalWorkflow;
 
     // ----- Scheduler automatique -----
 
@@ -88,71 +95,59 @@ public class PayoutService {
         return PayoutResponse.from(getOrThrow(id));
     }
 
-    /** Admin : marquer un payout comme payé. */
+    /**
+     * Circuit des retraits : applique une action (préparer, renvoyer pour correction, soumettre,
+     * approuver, rejeter, lancer le virement, payer, échec). Toutes les règles (statut de départ,
+     * permission, justification, MFA, historique, audit) sont dans {@link WithdrawalWorkflow}.
+     */
     @Transactional
-    public PayoutResponse markAsPaid(UUID payoutId, UpdatePayoutStatusRequest request,
-                                     UUID actorId, String ip) {
+    public PayoutResponse transition(UUID payoutId, WithdrawalAction action, WithdrawalActionRequest request,
+                                     User actor, String ip) {
         Payout payout = getOrThrow(payoutId);
+        PayoutStatus to = withdrawalWorkflow.apply(
+                WithdrawalSubjectType.SELLER_PAYOUT, payoutId,
+                "Boutique : " + payout.getShop().getName() + " | Montant : " + payout.getAmount() + " FCFA",
+                payout.getStatus(), payout.getApprovedAt() != null, action, actor,
+                request != null ? request.notes() : null, request != null ? request.mfaCode() : null, ip);
 
-        if (payout.getStatus() == PayoutStatus.PAID) {
-            throw new ApiException(HttpStatus.CONFLICT, "Ce payout est déjà marqué PAID");
+        payout.setStatus(to);
+        if (request != null && request.notes() != null && !request.notes().isBlank()) {
+            payout.setNotes(appendNote(payout.getNotes(), action, request.notes()));
         }
-
-        payout.setStatus(PayoutStatus.PAID);
-        payout.setPaidAt(Instant.now());
-        if (request.notes() != null) payout.setNotes(request.notes());
+        switch (action) {
+            case APPROVE -> {
+                payout.setApprovedBy(actor.getId());
+                payout.setApprovedAt(Instant.now());
+            }
+            case PAY -> payout.setPaidAt(Instant.now());
+            case REJECT -> releaseRejectedPayout(payout);
+            default -> { }
+        }
         payoutRepository.save(payout);
-
-        auditService.log(actorId, AuditAction.PAYOUT_MARKED_PAID,
-                "PAYOUT", payoutId,
-                "Boutique : " + payout.getShop().getName() +
-                " | Montant : " + payout.getAmount() + " FCFA" +
-                (request.notes() != null ? " | " + request.notes() : ""), ip);
-
         return PayoutResponse.from(payout);
     }
 
-    /** Admin : marquer un payout comme échoué (à retraiter). */
-    @Transactional
-    public PayoutResponse markAsFailed(UUID payoutId, UpdatePayoutStatusRequest request,
-                                       UUID actorId, String ip) {
-        Payout payout = getOrThrow(payoutId);
-
-        if (payout.getStatus() == PayoutStatus.PAID) {
-            throw new ApiException(HttpStatus.CONFLICT,
-                    "Impossible de marquer FAILED un payout déjà PAID");
-        }
-
-        payout.setStatus(PayoutStatus.FAILED);
-        if (request.notes() != null) payout.setNotes(request.notes());
-        payoutRepository.save(payout);
-
-        auditService.log(actorId, AuditAction.PAYOUT_MARKED_FAILED,
-                "PAYOUT", payoutId,
-                "Boutique : " + payout.getShop().getName() +
-                (request.notes() != null ? " | " + request.notes() : ""), ip);
-
-        return PayoutResponse.from(payout);
+    @Transactional(readOnly = true)
+    public List<WithdrawalHistoryResponse> history(UUID payoutId) {
+        getOrThrow(payoutId);
+        return withdrawalWorkflow.history(WithdrawalSubjectType.SELLER_PAYOUT, payoutId);
     }
 
-    /** Admin : passer un payout FAILED ou PENDING en PROCESSING. */
-    @Transactional
-    public PayoutResponse markAsProcessing(UUID payoutId, UUID actorId, String ip) {
-        Payout payout = getOrThrow(payoutId);
-
-        if (payout.getStatus() == PayoutStatus.PAID) {
-            throw new ApiException(HttpStatus.CONFLICT,
-                    "Impossible de retraiter un payout déjà PAID");
+    /**
+     * Retrait rejeté : les sous-commandes redeviennent éligibles à un prochain retrait et les frais
+     * déjà déduits sont rétablis — le solde du vendeur n'est jamais perdu par un rejet.
+     */
+    private void releaseRejectedPayout(Payout payout) {
+        for (SubOrder so : subOrderRepository.findByPayoutId(payout.getId())) {
+            so.setPayout(null);
+            subOrderRepository.save(so);
         }
+        sellerFeeService.reverseDeductions(payout);
+    }
 
-        payout.setStatus(PayoutStatus.PROCESSING);
-        payoutRepository.save(payout);
-
-        auditService.log(actorId, AuditAction.PAYOUT_PROCESSING,
-                "PAYOUT", payoutId,
-                "Boutique : " + payout.getShop().getName(), ip);
-
-        return PayoutResponse.from(payout);
+    private String appendNote(String existing, WithdrawalAction action, String note) {
+        String line = "[" + action + " " + Instant.now() + "] " + note;
+        return existing == null || existing.isBlank() ? line : existing + "\n" + line;
     }
 
     // ----- Vendeur -----
@@ -262,6 +257,8 @@ public class PayoutService {
                 .status(PayoutStatus.PENDING)
                 .build();
         payout = payoutRepository.save(payout);
+        withdrawalWorkflow.recordCreated(WithdrawalSubjectType.SELLER_PAYOUT, payout.getId(), null,
+                "Reçu (génération automatique ou demande du vendeur)");
 
         if (feesToDeduct.signum() > 0) {
             sellerFeeService.applyDeduction(shopId, feesToDeduct, payout);

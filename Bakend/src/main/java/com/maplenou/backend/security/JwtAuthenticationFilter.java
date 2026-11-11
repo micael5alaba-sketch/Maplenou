@@ -59,6 +59,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
+            // Compte désactivé (ex. membre du personnel retiré) : refus immédiat en 401, le client n'a
+            // plus de session à rafraîchir (les sessions de rafraîchissement sont révoquées).
+            if (!userDetails.isEnabled() && jwtService.isTokenValid(token, userDetails)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Compte désactivé\"}");
+                return;
+            }
             if (jwtService.isTokenValid(token, userDetails) && !jwtService.isRefreshToken(token) && !jwtService.isMfaToken(token)) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

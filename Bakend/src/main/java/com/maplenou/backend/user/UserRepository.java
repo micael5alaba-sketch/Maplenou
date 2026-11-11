@@ -23,6 +23,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // ----- Admin queries -----
 
+    @Query(value = "SELECT u FROM User u WHERE u.role IN (com.maplenou.backend.user.Role.ADMIN, "
+            + "com.maplenou.backend.user.Role.DELIVERY_ADMIN, com.maplenou.backend.user.Role.SUPPORT_AGENT, "
+            + "com.maplenou.backend.user.Role.AUDITOR) AND (:active IS NULL OR u.active = :active) ORDER BY u.createdAt DESC",
+            countQuery = "SELECT COUNT(u) FROM User u WHERE u.role IN (com.maplenou.backend.user.Role.ADMIN, "
+                    + "com.maplenou.backend.user.Role.DELIVERY_ADMIN, com.maplenou.backend.user.Role.SUPPORT_AGENT, "
+                    + "com.maplenou.backend.user.Role.AUDITOR) AND (:active IS NULL OR u.active = :active)")
+    Page<User> findStaff(@Param("active") Boolean active, Pageable pageable);
+
+    long countByRoleAndActiveTrue(Role role);
+
     @Query("SELECT u FROM User u WHERE (:role IS NULL OR u.role = :role) AND (:active IS NULL OR u.active = :active)")
     Page<User> findByFilters(@Param("role") Role role, @Param("active") Boolean active, Pageable pageable);
 }

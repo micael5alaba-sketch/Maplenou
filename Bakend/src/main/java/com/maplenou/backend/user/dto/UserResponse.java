@@ -14,7 +14,11 @@ public record UserResponse(
         String avatarUrl,
         Role role,
         boolean phoneVerified,
-        SellerStatus sellerStatus
+        SellerStatus sellerStatus,
+        /** Permissions du back-office (vide pour un acheteur/vendeur/livreur). */
+        java.util.List<String> permissions,
+        boolean mustChangePassword,
+        boolean totpEnabled
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -25,7 +29,10 @@ public record UserResponse(
                 user.getAvatarUrl(),
                 user.getRole(),
                 user.isPhoneVerified(),
-                user.getSellerProfile() != null ? user.getSellerProfile().getStatus() : null
+                user.getSellerProfile() != null ? user.getSellerProfile().getStatus() : null,
+                user.permissions().stream().map(Enum::name).sorted().toList(),
+                user.isMustChangePassword(),
+                user.isTotpEnabled()
         );
     }
 }

@@ -46,20 +46,10 @@ public class CourierEarningController {
 
     /** Admin : tous les gains livreurs, filtrables par statut. */
     @GetMapping("/api/admin/courier-earnings")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('COURIER_EARNINGS_READ')")
     public Page<CourierEarningResponse> listAllForAdmin(
             @RequestParam(required = false) CourierEarningStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
         return courierEarningService.listAllForAdmin(status, pageable);
-    }
-
-    /** Admin : confirmer qu'un gain a été versé au livreur. */
-    @PatchMapping("/api/admin/courier-earnings/{id}/paid")
-    @PreAuthorize("hasRole('ADMIN')")
-    public CourierEarningResponse markAsPaid(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal User actor,
-            HttpServletRequest request) {
-        return courierEarningService.markAsPaid(id, actor.getId(), request.getRemoteAddr());
     }
 }

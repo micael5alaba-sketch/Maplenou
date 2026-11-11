@@ -71,7 +71,7 @@ public class PromoCodeController {
 
     @Operation(summary = "Codes promo de la plateforme (admin)")
     @GetMapping("/platform")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CONTENT_READ')")
     public Page<PromoCodeResponse> listPlatformCodes(
             @PageableDefault(size = 20) Pageable pageable) {
         return promoCodeService.listPlatformCodes(pageable);

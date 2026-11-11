@@ -3,12 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import { useAuth } from "@/lib/auth";
-import type { AdminUserResponse } from "@/lib/types";
+import type { UserResponse } from "@/lib/types";
+import { ROLE_LABELS, isStaffRole } from "@/lib/permissions";
 import { Button, Card, ErrorState, LoadingState, PageHeader } from "@/components/ui";
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const [me, setMe] = useState<AdminUserResponse | null>(null);
+  const [me, setMe] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -28,7 +30,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     apiClient
-      .get<AdminUserResponse>(`/api/admin/users/${user.id}`)
+      .get<UserResponse>("/api/users/me")
       .then(setMe)
       .catch((e) => setError(e instanceof ApiException ? e.message : "Erreur de chargement."))
       .finally(() => setLoading(false));
@@ -54,12 +56,28 @@ export default function ProfilePage() {
     setActionError(null);
     setBusy(true);
     try {
-      await apiClient.post("/api/auth/2fa/activate", { code });
+      const res = await apiClient.post<{ recoveryCodes: string[] }>("/api/auth/2fa/activate", { code });
+      setRecoveryCodes(res.recoveryCodes);
       setSetupSecret(null);
       setSetupUri(null);
       setCode("");
       setActionSuccess("2FA activée sur ce compte.");
-      if (user) setMe(await apiClient.get<AdminUserResponse>(`/api/admin/users/${user.id}`));
+      if (user) setMe(await apiClient.get<UserResponse>("/api/users/me"));
+    } catch (e) {
+      setActionError(e instanceof ApiException ? e.message : "Code invalide.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function regenerateRecoveryCodes(e: FormEvent) {
+    e.preventDefault();
+    setActionError(null);
+    setBusy(true);
+    try {
+      const res = await apiClient.post<{ recoveryCodes: string[] }>("/api/auth/2fa/recovery-codes", { code });
+      setRecoveryCodes(res.recoveryCodes);
+      setCode("");
     } catch (e) {
       setActionError(e instanceof ApiException ? e.message : "Code invalide.");
     } finally {
@@ -75,7 +93,7 @@ export default function ProfilePage() {
       await apiClient.delete("/api/auth/2fa/disable", { code });
       setCode("");
       setActionSuccess("2FA désactivée sur ce compte.");
-      if (user) setMe(await apiClient.get<AdminUserResponse>(`/api/admin/users/${user.id}`));
+      if (user) setMe(await apiClient.get<UserResponse>("/api/users/me"));
     } catch (e) {
       setActionError(e instanceof ApiException ? e.message : "Code invalide.");
     } finally {
@@ -104,7 +122,7 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <PageHeader title="Mon profil" subtitle="Identité et sécurité du compte administrateur" />
+      <PageHeader title="Mon profil" subtitle="Identité et sécurité de votre compte" />
 
       <Card className="mb-6 max-w-xl">
         <h2 className="mb-3 text-sm font-semibold text-foreground">Identité</h2>
@@ -116,7 +134,7 @@ export default function ProfilePage() {
           <dt className="text-muted">Email</dt>
           <dd className="text-foreground">{user.email ?? "—"}</dd>
           <dt className="text-muted">Rôle</dt>
-          <dd className="text-foreground">{user.role ?? "—"}</dd>
+          <dd className="text-foreground">{ROLE_LABELS[user.role ?? ""] ?? "—"}</dd>
         </dl>
       </Card>
 
@@ -223,7 +241,38 @@ export default function ProfilePage() {
               </form>
             )}
 
+            {recoveryCodes && (
+              <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3">
+                <p className="mb-2 text-sm font-semibold text-foreground">
+                  Codes de récupération (usage unique) — conservez-les, ils ne seront plus affichés :
+                </p>
+                <ul className="grid grid-cols-2 gap-1 font-mono text-sm text-foreground">
+                  {recoveryCodes.map((rc) => (
+                    <li key={rc}>{rc}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {me.totpEnabled && (
+              <form onSubmit={regenerateRecoveryCodes} className="mb-4 flex items-end gap-3">
+                <div className="w-40">
+                  <label className="mb-1 block text-xs font-medium text-muted">Code à 6 chiffres</label>
+                  <input
+                    required
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    maxLength={6}
+                    className="w-full rounded-xl border border-border bg-input-fill px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <Button variant="secondary" type="submit" disabled={busy}>
+                  Régénérer les codes de récupération
+                </Button>
+              </form>
+            )}
+
+            {me.totpEnabled && !isStaffRole(me.role) && (
               <form onSubmit={disable} className="flex items-end gap-3">
                 <div className="w-40">
                   <label className="mb-1 block text-xs font-medium text-muted">Code à 6 chiffres</label>

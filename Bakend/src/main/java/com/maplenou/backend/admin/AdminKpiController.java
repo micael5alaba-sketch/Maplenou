@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/kpis")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('DASHBOARD_VIEW')")
 @RequiredArgsConstructor
 @Tag(name = "KPIs Admin")
 @SecurityRequirement(name = "bearerAuth")
@@ -23,7 +23,8 @@ public class AdminKpiController {
 
     @GetMapping
     public DashboardKpiResponse getDashboard(
-            @RequestParam(defaultValue = "LAST_30_DAYS") KpiPeriod period) {
-        return adminKpiService.getDashboard(period);
+            @RequestParam(defaultValue = "LAST_30_DAYS") KpiPeriod period,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.maplenou.backend.user.User viewer) {
+        return adminKpiService.getDashboard(period, viewer);
     }
 }

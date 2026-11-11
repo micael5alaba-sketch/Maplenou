@@ -135,14 +135,14 @@ public class MessagingService {
 
     @Transactional(readOnly = true)
     public Page<MessageResponse> listMessages(User user, UUID conversationId, Pageable pageable) {
-        Conversation conversation = getAccessibleConversation(user, conversationId);
+        Conversation conversation = getAccessibleConversation(user, conversationId, false);
         return messageRepository.findByConversationIdOrderByCreatedAtDesc(conversation.getId(), pageable)
                 .map(MessageResponse::from);
     }
 
     @Transactional
     public MessageResponse sendMessage(User sender, UUID conversationId, SendMessageRequest request) {
-        Conversation conversation = getAccessibleConversation(sender, conversationId);
+        Conversation conversation = getAccessibleConversation(sender, conversationId, true);
 
         if (conversation.getType() == ConversationType.BUYER_SELLER
                 && PersonalDataFilter.containsPersonalData(request.content())) {
@@ -171,21 +171,24 @@ public class MessagingService {
 
     @Transactional
     public void markAsRead(User user, UUID conversationId) {
-        Conversation conversation = getAccessibleConversation(user, conversationId);
+        Conversation conversation = getAccessibleConversation(user, conversationId, true);
         messageRepository.markAllAsRead(conversation.getId(), user.getId(), Instant.now());
     }
 
     // ----- Utilitaires -----
 
-    private Conversation getAccessibleConversation(User user, UUID conversationId) {
+    private Conversation getAccessibleConversation(User user, UUID conversationId, boolean write) {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Conversation introuvable"));
 
         boolean isParticipant = (conversation.getBuyer() != null && conversation.getBuyer().getId().equals(user.getId()))
                 || (conversation.getSeller() != null && conversation.getSeller().getId().equals(user.getId()))
                 || (courierIdOf(conversation) != null && courierIdOf(conversation).equals(user.getId()));
+        // Personnel sur les conversations support : lecture (Auditeur inclus) ou ecriture selon la permission.
         boolean isAdminOnSupport = conversation.getType() == ConversationType.SUPPORT
-                && user.getRole() == com.maplenou.backend.user.Role.ADMIN;
+                && user.permissions().contains(write
+                        ? com.maplenou.backend.security.Permission.SUPPORT_WRITE
+                        : com.maplenou.backend.security.Permission.SUPPORT_READ);
 
         if (!isParticipant && !isAdminOnSupport) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Accès refusé à cette conversation");

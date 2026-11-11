@@ -22,7 +22,6 @@ import com.maplenou.backend.order.dto.PlaceOrderRequest;
 import com.maplenou.backend.payout.PayoutRepository;
 import com.maplenou.backend.payout.PayoutStatus;
 import com.maplenou.backend.payout.dto.GeneratePayoutsRequest;
-import com.maplenou.backend.payout.dto.UpdatePayoutStatusRequest;
 import com.maplenou.backend.promo.PromoCodeRepository;
 import com.maplenou.backend.promo.PromoCodeUsageRepository;
 import com.maplenou.backend.promo.PromoScopeType;
@@ -422,16 +421,83 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         JsonNode myPayouts = get("/api/seller/payouts", sellerToken, 200);
         assertTrue(myPayouts.get("content").size() >= 1);
 
-        JsonNode processing = patch("/api/admin/payouts/" + payoutId + "/processing", null, adminToken, 200);
+        // ---- Circuit obligatoire des retraits (document "Rôles et accès", §8) ----
+        StaffSession support = createStaffWithMfa(adminToken, "SUPPORT_AGENT", false);
+        StaffSession approver = createStaffWithMfa(adminToken, "ADMIN", false);
+
+        // Un retrait reçu (PENDING) ne peut pas être payé, même par le Super Admin : il n'est pas approuvé
+        patch("/api/admin/payouts/" + payoutId + "/paid", null, approver.token(), 409);
+
+        // L'Agent support ne peut JAMAIS approuver ni payer (refus côté serveur, rien ne change)
+        post("/api/admin/payouts/" + payoutId + "/approve", java.util.Map.of("mfaCode", support.code()), support.token(), 403);
+        patch("/api/admin/payouts/" + payoutId + "/paid", null, support.token(), 403);
+        assertEquals("PENDING", get("/api/admin/payouts/" + payoutId, adminToken, 200).get("status").asText());
+
+        // Il prépare puis soumet
+        assertEquals("PREPARED", patch("/api/admin/payouts/" + payoutId + "/prepare", null, support.token(), 200).get("status").asText());
+        assertEquals("SUBMITTED", patch("/api/admin/payouts/" + payoutId + "/submit", null, support.token(), 200).get("status").asText());
+        // ... mais ne peut toujours pas approuver une fois soumis
+        post("/api/admin/payouts/" + payoutId + "/approve", java.util.Map.of("mfaCode", support.code()), support.token(), 403);
+
+        // Le Super Admin doit présenter un code MFA valide à l'approbation, même session ouverte
+        post("/api/admin/payouts/" + payoutId + "/approve", java.util.Map.of("notes", "ok"), approver.token(), 401);
+        post("/api/admin/payouts/" + payoutId + "/approve", java.util.Map.of("mfaCode", "000000"), approver.token(), 401);
+        assertEquals("SUBMITTED", get("/api/admin/payouts/" + payoutId, adminToken, 200).get("status").asText());
+
+        JsonNode approved = post("/api/admin/payouts/" + payoutId + "/approve",
+                java.util.Map.of("mfaCode", approver.code()), approver.token(), 200);
+        assertEquals("APPROVED", approved.get("status").asText());
+        assertEquals(approver.userId(), approved.get("approvedBy").asText());
+        assertNotNull(approved.get("approvedAt").asText());
+
+        // Exécution : lancement puis paiement
+        JsonNode processing = patch("/api/admin/payouts/" + payoutId + "/processing", null, approver.token(), 200);
         assertEquals("PROCESSING", processing.get("status").asText());
 
         JsonNode paid = patch("/api/admin/payouts/" + payoutId + "/paid",
-                new UpdatePayoutStatusRequest(PayoutStatus.PAID, "Virement Flooz effectué"), adminToken, 200);
+                java.util.Map.of("notes", "Virement Flooz effectué"), approver.token(), 200);
         assertEquals("PAID", paid.get("status").asText());
 
         // Un payout déjà PAID ne peut plus changer de statut
         patch("/api/admin/payouts/" + payoutId + "/failed",
-                new UpdatePayoutStatusRequest(PayoutStatus.FAILED, "test"), adminToken, 409);
+                java.util.Map.of("notes", "test"), approver.token(), 409);
+
+        // Historique complet : reçu, préparé, soumis, approuvé, en cours, payé
+        JsonNode history = get("/api/admin/payouts/" + payoutId + "/history", adminToken, 200);
+        assertTrue(history.size() >= 6, "historique de transitions attendu, obtenu " + history.size());
+
+        // ---- Retrait des gains du livreur : même circuit, plus de marquage direct "gain payé" ----
+        JsonNode balance = get("/api/delivery-agents/me/earnings/balance", agentToken, 200);
+        assertTrue(balance.get("availableBalance").decimalValue().signum() > 0, "le livreur doit avoir des gains");
+
+        JsonNode requested = post("/api/delivery-agents/me/withdrawals",
+                java.util.Map.of("paymentDetails", "T-Money +22890000000"), agentToken, 201);
+        String withdrawalId = requested.get("id").asText();
+        assertEquals("PENDING", requested.get("status").asText());
+        // Tous les gains sont dans ce retrait : plus rien de disponible, pas de deuxième demande
+        assertEquals(0, get("/api/delivery-agents/me/earnings/balance", agentToken, 200)
+                .get("availableBalance").decimalValue().signum());
+        post("/api/delivery-agents/me/withdrawals", java.util.Map.of("paymentDetails", "T-Money +22890000000"), agentToken, 400);
+
+        // Le livreur ne peut rien décider ; l'ancien marquage direct des gains n'existe plus
+        post("/api/admin/courier-withdrawals/" + withdrawalId + "/approve", java.util.Map.of("mfaCode", "123456"), agentToken, 403);
+        patch("/api/admin/courier-earnings/" + UUID.randomUUID() + "/paid", null, approver.token(), 404);
+
+        // Paiement impossible tant que le retrait n'est pas approuvé
+        patch("/api/admin/courier-withdrawals/" + withdrawalId + "/paid", null, approver.token(), 409);
+        patch("/api/admin/courier-withdrawals/" + withdrawalId + "/prepare", null, support.token(), 200);
+        patch("/api/admin/courier-withdrawals/" + withdrawalId + "/submit", null, support.token(), 200);
+        post("/api/admin/courier-withdrawals/" + withdrawalId + "/approve", java.util.Map.of("mfaCode", support.code()), support.token(), 403);
+        post("/api/admin/courier-withdrawals/" + withdrawalId + "/approve", java.util.Map.of("mfaCode", "000000"), approver.token(), 401);
+        assertEquals("APPROVED", post("/api/admin/courier-withdrawals/" + withdrawalId + "/approve",
+                java.util.Map.of("mfaCode", approver.code()), approver.token(), 200).get("status").asText());
+        assertEquals("PAID", patch("/api/admin/courier-withdrawals/" + withdrawalId + "/paid",
+                java.util.Map.of("notes", "Virement T-Money effectué"), approver.token(), 200).get("status").asText());
+
+        // Les gains inclus sont maintenant versés
+        for (JsonNode earning : get("/api/delivery-agents/me/earnings", agentToken, 200).get("content")) {
+            assertEquals("PAID", earning.get("status").asText());
+        }
     }
 
     @Test

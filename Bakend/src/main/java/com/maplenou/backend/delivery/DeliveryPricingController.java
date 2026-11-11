@@ -37,7 +37,7 @@ public class DeliveryPricingController {
 
     /** Admin : créer un palier. */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERY_PRICING_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<DeliveryPricingTierResponse> create(@Valid @RequestBody CreateDeliveryPricingTierRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(tierService.create(request));
@@ -45,7 +45,7 @@ public class DeliveryPricingController {
 
     /** Admin : modifier un palier existant (distance max et/ou prix). */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERY_PRICING_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public DeliveryPricingTierResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateDeliveryPricingTierRequest request) {
         return tierService.update(id, request);
@@ -53,7 +53,7 @@ public class DeliveryPricingController {
 
     /** Admin : supprimer un palier. */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DELIVERY_PRICING_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {

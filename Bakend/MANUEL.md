@@ -354,3 +354,14 @@ installe quoi que ce soit chez lui.
 | 429 `Trop de tentatives` pendant des tests répétés | Rate limit `/api/auth/**` atteint (10/min par défaut) — attendre 1 min ou augmenter `AUTH_RATE_LIMIT_PER_MINUTE` en dev |
 | Upload média échoue en 503 | `CLOUDINARY_URL` non configuré (normal tant que le compte Cloudinary réel n'est pas branché) |
 | Appel transporteur échoue en 503 | Colissimo désactivé (`COLISSIMO_ENABLED=false`, normal tant qu'aucun contrat réel) |
+
+
+## Rôles et accès du personnel (back-office)
+
+- Rôles : Super Admin (`ADMIN`), Administrateur des livraisons, Agent support et retraits, Auditeur.
+  Droits : `src/main/java/com/maplenou/backend/security/RolePermissions.java`.
+- Création des comptes : Super Admin, page « Personnel » (`/api/admin/staff`). Le mot de passe initial
+  est affiché une seule fois ; la personne le change et active la MFA à sa première connexion.
+- Retraits : voir `CLAUDE.md` §11 (circuit en 5 étapes, MFA redemandée à l'approbation).
+- Variable d'environnement `STAFF_ENFORCE_MFA_SUPER_ADMIN=true` : impose la MFA aux Super Admin dès la
+  connexion (à activer une fois leur MFA configurée).

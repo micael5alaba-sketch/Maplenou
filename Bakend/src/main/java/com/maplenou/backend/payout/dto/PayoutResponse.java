@@ -19,7 +19,9 @@ public record PayoutResponse(
         PayoutStatus status,
         Instant paidAt,
         String notes,
-        Instant createdAt
+        Instant createdAt,
+        UUID approvedBy,
+        Instant approvedAt
 ) {
     public static PayoutResponse from(Payout p) {
         return new PayoutResponse(
@@ -34,7 +36,9 @@ public record PayoutResponse(
                 p.getStatus(),
                 p.getPaidAt(),
                 p.getNotes(),
-                p.getCreatedAt()
+                p.getCreatedAt(),
+                p.getApprovedBy(),
+                p.getApprovedAt()
         );
     }
 }

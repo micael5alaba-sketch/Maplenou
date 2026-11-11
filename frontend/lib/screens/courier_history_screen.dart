@@ -4,6 +4,7 @@ import '../models/courier_history_model.dart';
 import '../services/api_client.dart';
 import '../services/courier_history_service.dart';
 import '../theme/app_color_scheme.dart';
+import '../widgets/courier_withdrawal_section.dart';
 import '../widgets/filter_pill.dart';
 import '../widgets/payment_history_row.dart';
 import '../widgets/ride_history_row.dart';
@@ -132,8 +133,9 @@ class _CourierHistoryScreenState extends State<CourierHistoryScreen> {
           for (final ride in history.completedRides) ...[RideHistoryRow(ride: ride), const SizedBox(height: 12)],
         ];
       case _HistoryTab.payments:
-        if (history.payments.isEmpty) return [_buildEmptyState(colors, 'Aucun paiement reçu.')];
         return [
+          const CourierWithdrawalSection(),
+          if (history.payments.isEmpty) _buildEmptyState(colors, 'Aucun paiement reçu.'),
           for (final payment in history.payments) ...[PaymentHistoryRow(payment: payment), const SizedBox(height: 12)],
         ];
       case _HistoryTab.cancelled:

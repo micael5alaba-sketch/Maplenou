@@ -73,21 +73,24 @@ export default function DashboardHomePage() {
 
       {data && (
         <div className="space-y-6">
+          {/* Chaque section n'est renvoyée par l'API que si le rôle y a droit (vue logistique, vue support, lecture) */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <KpiCard label="Revenu de la période" value={formatFcfa(data.revenue?.periodRevenue)} />
-            <KpiCard label="Commission totale" value={formatFcfa(data.revenue?.totalCommission)} />
-            <KpiCard label="Nouvelles commandes" value={String(data.orders?.periodNew ?? 0)} />
-            <KpiCard label="Nouveaux utilisateurs" value={String(data.users?.periodNew ?? 0)} />
+            {data.revenue && <KpiCard label="Revenu de la période" value={formatFcfa(data.revenue.periodRevenue)} />}
+            {data.revenue && <KpiCard label="Commission totale" value={formatFcfa(data.revenue.totalCommission)} />}
+            {data.orders && <KpiCard label="Nouvelles commandes" value={String(data.orders.periodNew)} />}
+            {data.users && <KpiCard label="Nouveaux utilisateurs" value={String(data.users.periodNew)} />}
           </div>
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <KpiCard label="Boutiques en attente" value={String(data.shops?.pending ?? 0)} accent />
-            <KpiCard label="Boutiques approuvées" value={String(data.shops?.approved ?? 0)} />
-            <KpiCard label="Livraisons en attente" value={String(data.deliveries?.pending ?? 0)} accent />
-            <KpiCard label="Livraisons livrées" value={String(data.deliveries?.delivered ?? 0)} />
+            {data.shops && <KpiCard label="Boutiques en attente" value={String(data.shops.pending)} accent />}
+            {data.shops && <KpiCard label="Boutiques approuvées" value={String(data.shops.approved)} />}
+            {data.deliveries && <KpiCard label="Livraisons en attente" value={String(data.deliveries.pending)} accent />}
+            {data.deliveries && <KpiCard label="Livraisons en cours" value={String(data.deliveries.inTransit)} />}
+            {data.deliveries && <KpiCard label="Livraisons livrées" value={String(data.deliveries.delivered)} />}
+            {data.deliveries && <KpiCard label="Livraisons échouées" value={String(data.deliveries.failed)} />}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-4 lg:grid-cols-3 ${data.revenue && data.shops ? "" : "hidden"}`}>
             <Card className="lg:col-span-1">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                 Revenu vs commission

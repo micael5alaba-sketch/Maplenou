@@ -11,6 +11,8 @@ import java.util.UUID;
 
 public interface SellerFeeDeductionRepository extends JpaRepository<SellerFeeDeduction, UUID> {
 
+    java.util.List<SellerFeeDeduction> findByPayoutId(UUID payoutId);
+
     @EntityGraph(attributePaths = {"monthlyFee", "payout"})
     @Query("SELECT d FROM SellerFeeDeduction d WHERE d.monthlyFee.shop.id = :shopId ORDER BY d.createdAt DESC")
     Page<SellerFeeDeduction> findByShopId(@Param("shopId") UUID shopId, Pageable pageable);

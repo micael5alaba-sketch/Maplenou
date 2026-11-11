@@ -102,6 +102,55 @@ public abstract class AbstractIntegrationTest {
         return objectMapper.readTree(responseBody);
     }
 
+
+    // ----- Comptes du personnel (rôles du back-office) -----
+
+    /** Session d'un compte du personnel apres onboarding complet (mot de passe change + MFA active). */
+    protected record StaffSession(String token, String phone, String password, String totpSecret, String userId) {
+        /** Code TOTP courant (pour la reconnexion MFA ou l'approbation d'un retrait). */
+        public String code() throws Exception {
+            return new dev.samstevens.totp.code.DefaultCodeGenerator().generate(totpSecret,
+                    new dev.samstevens.totp.time.SystemTimeProvider().getTime() / 30);
+        }
+    }
+
+    /**
+     * Crée un compte du personnel via /api/admin/staff puis déroule la première connexion
+     * complète : changement du mot de passe initial, activation de la MFA, reconnexion avec MFA.
+     */
+    protected StaffSession createStaffWithMfa(String superAdminToken, String role, boolean deliveryPricingGranted) throws Exception {
+        long rand = System.nanoTime();
+        String phone = "+22860" + String.format("%07d", rand % 10_000_000L);
+
+        JsonNode created = post("/api/admin/staff", java.util.Map.of(
+                "fullName", "Staff " + role,
+                "phoneNumber", phone,
+                "role", role,
+                "deliveryPricingGranted", deliveryPricingGranted), superAdminToken, 201);
+        String temporaryPassword = created.get("temporaryPassword").asText();
+        String userId = created.get("staff").get("id").asText();
+
+        String firstToken = login(phone, temporaryPassword);
+        String newPassword = "StaffNew1pass";
+        patch("/api/users/me/password", java.util.Map.of(
+                "currentPassword", temporaryPassword, "newPassword", newPassword), firstToken, 204);
+
+        JsonNode setup = post("/api/auth/2fa/setup", null, firstToken, 200);
+        String secret = setup.get("secret").asText();
+        String code = new dev.samstevens.totp.code.DefaultCodeGenerator().generate(secret,
+                new dev.samstevens.totp.time.SystemTimeProvider().getTime() / 30);
+        JsonNode activated = post("/api/auth/2fa/activate", java.util.Map.of("code", code), firstToken, 200);
+        org.junit.jupiter.api.Assertions.assertEquals(10, activated.get("recoveryCodes").size());
+
+        JsonNode challenge = post("/api/auth/login",
+                new LoginRequest(phone, newPassword), null, 200);
+        org.junit.jupiter.api.Assertions.assertTrue(challenge.get("mfaRequired").asBoolean(),
+                "la MFA doit etre exigee a la connexion");
+        String mfaToken = challenge.get("mfaToken").asText();
+        JsonNode full = post("/api/auth/2fa/verify-login", java.util.Map.of("mfaToken", mfaToken, "code", code), null, 200);
+        return new StaffSession(full.get("accessToken").asText(), phone, newPassword, secret, userId);
+    }
+
     // Mécanisme simple pour ajouter un en-tête personnalisé (ex: X-Webhook-Secret) au prochain appel.
     private String extraHeaderName;
     private String extraHeaderValue;

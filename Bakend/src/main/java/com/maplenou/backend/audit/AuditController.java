@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/audit")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('AUDIT_READ')")
 @RequiredArgsConstructor
 @Tag(name = "Audit (Admin)")
 @SecurityRequirement(name = "bearerAuth")

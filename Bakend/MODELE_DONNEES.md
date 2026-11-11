@@ -726,3 +726,18 @@ Méthodes métier : `isExpired()`, `isExhausted()`, `isApplicableTo(montant)`, `
 - Un compte peut être acheteur ET vendeur en même temps (`SellerProfile` présent + `status =
   APPROVED`) — l'app doit gérer l'affichage conditionnel des fonctionnalités vendeur sur le même
   compte plutôt qu'un compte séparé.
+
+
+## Rôles du personnel, MFA et circuit des retraits (11/11/2026)
+
+| Élément | Détail |
+|---|---|
+| `users.role` | + `DELIVERY_ADMIN`, `SUPPORT_AGENT`, `AUDITOR` (`ADMIN` = Super Admin) |
+| `users.must_change_password` | mot de passe initial à changer à la première connexion |
+| `users.delivery_pricing_granted` | tarification de livraison attribuée à l'Admin livraisons |
+| `mfa_recovery_codes` | codes de récupération MFA à usage unique (hash SHA-256, `used_at`) |
+| `payouts.approved_by/approved_at` | Super Admin approbateur et horodatage |
+| `courier_withdrawals` | retrait des gains d'un livreur (agent, montant, statut, coordonnées de paiement, approbateur) |
+| `courier_earnings.withdrawal_id` | retrait auquel le gain est rattaché |
+| `withdrawal_status_history` | transitions de statut (type, id, de/vers, auteur, note, date) |
+| `PayoutStatus` | PENDING, PREPARED, SUBMITTED, NEEDS_CORRECTION, APPROVED, REJECTED, PROCESSING, PAID, FAILED |

@@ -106,6 +106,12 @@ public class DeliveryService {
                 .map(DeliveryResponse::from);
     }
 
+    /** Suivi : toutes les livraisons, filtrables par statut, plus récentes d'abord. */
+    @Transactional(readOnly = true)
+    public Page<DeliveryResponse> listAll(DeliveryStatus status, Pageable pageable) {
+        return deliveryRepository.findAllByOptionalStatus(status, pageable).map(DeliveryResponse::from);
+    }
+
     /** Admin : détail d'une livraison. */
     @Transactional(readOnly = true)
     public DeliveryResponse getById(UUID id) {

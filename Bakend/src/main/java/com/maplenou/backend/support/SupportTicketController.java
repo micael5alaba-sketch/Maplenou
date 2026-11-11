@@ -44,14 +44,14 @@ public class SupportTicketController {
     // ----- Admin -----
 
     @GetMapping("/api/admin/support-tickets")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SUPPORT_READ')")
     public Page<SupportTicketResponse> listForAdmin(@RequestParam(required = false) SupportTicketStatus status,
                                                      @PageableDefault(size = 20) Pageable pageable) {
         return supportTicketService.listForAdmin(status, pageable);
     }
 
     @PatchMapping("/api/admin/support-tickets/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SUPPORT_WRITE')")
     public SupportTicketResponse resolve(@PathVariable UUID id,
                                           @Valid @RequestBody ResolveSupportTicketRequest request,
                                           @AuthenticationPrincipal User admin,

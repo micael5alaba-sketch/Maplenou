@@ -49,7 +49,7 @@ public class CategoryController {
     /** Toutes les catégories (actives et désactivées) — le catalogue public ci-dessus ne
      * montre jamais que les actives, ce qui empêcherait l'admin de réactiver quoi que ce soit. */
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CONTENT_READ')")
     @SecurityRequirement(name = "bearerAuth")
     public List<CategoryResponse> listAllForAdmin() {
         return categoryService.listAllForAdmin().stream()
@@ -61,7 +61,7 @@ public class CategoryController {
     // C'est la même annotation qu'on réutilisera pour Shop/Product avec des règles plus fines.
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CreateCategoryRequest request) {
         Category created = categoryService.create(request);
@@ -69,14 +69,14 @@ public class CategoryController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     public CategoryResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateCategoryRequest request) {
         return CategoryResponse.from(categoryService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CONTENT_WRITE')")
     @SecurityRequirement(name = "bearerAuth")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable UUID id) {

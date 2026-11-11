@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth";
 import { apiClient, ApiException } from "@/lib/apiClient";
+import { needsOnboarding } from "@/lib/permissions";
 
 type Mode = "login" | "mfa" | "forgot" | "reset" | "resetDone";
 
@@ -37,6 +38,7 @@ export default function LoginPage() {
         setMfaToken(result.mfaToken);
         setMode("mfa");
       } else {
+        // Premiere connexion du personnel : l'ecran d'onboarding prend le relais (le layout verifie aussi).
         router.push("/");
       }
     } catch (err) {
@@ -83,10 +85,10 @@ export default function LoginPage() {
   }
 
   const titles: Record<Mode, { title: string; subtitle: string }> = {
-    login: { title: "Back-office Admin", subtitle: "Réservé aux comptes administrateur Maplenou." },
+    login: { title: "Back-office Maplenou", subtitle: "Réservé au personnel Maplenou. Comptes créés par le Super Admin." },
     mfa: {
       title: "Vérification en deux étapes",
-      subtitle: "Entrez le code à 6 chiffres de votre application d'authentification.",
+      subtitle: "Entrez le code à 6 chiffres de votre application d'authentification, ou un code de récupération.",
     },
     forgot: {
       title: "Mot de passe oublié",
@@ -224,14 +226,16 @@ export default function LoginPage() {
                 </>
               ) : (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-foreground">Code à 6 chiffres</label>
+                  <label className="mb-1 block text-sm font-medium text-foreground">
+                    Code à 6 chiffres (ou code de récupération)
+                  </label>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    maxLength={6}
+                    autoComplete="one-time-code"
+                    maxLength={11}
                     required
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => setCode(e.target.value.trim())}
                     className="w-full rounded-xl border border-border bg-input-fill px-4 py-2.5 text-center text-lg tracking-widest outline-none focus:border-primary"
                   />
                 </div>

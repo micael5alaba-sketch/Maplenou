@@ -59,6 +59,11 @@ public class CourierEarning {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    /** Retrait dans lequel ce gain a été inclus (null = encore disponible pour un retrait). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "withdrawal_id")
+    private CourierWithdrawal withdrawal;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

@@ -156,8 +156,10 @@ class NewFeaturesIntegrationTest extends AbstractIntegrationTest {
         assertTrue(supportList.get("content").size() >= 1);
         get("/api/conversations/" + supportConversationId + "/messages", adminToken, 200);
 
-        // ----- Media (Cloudinary non configuré en dev -> 503 attendu, pas une 500) -----
-        post("/api/media/upload-signature", null, buyerToken, 503);
+        // ----- Media : Cloudinary non configuré -> 503 attendu (pas une 500) ; si CLOUDINARY_URL est
+        // réellement défini sur la machine (dev), la signature est émise normalement (200). -----
+        boolean cloudinaryConfigured = System.getenv("CLOUDINARY_URL") != null && !System.getenv("CLOUDINARY_URL").isBlank();
+        post("/api/media/upload-signature", null, buyerToken, cloudinaryConfigured ? 200 : 503);
 
         // ----- Shipping (Colissimo désactivé par défaut -> erreurs contrôlées, pas de crash) -----
         String fakeSubOrderId = UUID.randomUUID().toString();

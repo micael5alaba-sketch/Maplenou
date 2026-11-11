@@ -1,13 +1,22 @@
 // Types partagés — miroirs des DTOs Java du backend (voir Bakend/src/main/java/...).
 // Noms de champs identiques, choix volontaire pour que la correspondance soit évidente.
 
-export type Role = "ADMIN" | "DELIVERY_AGENT" | null;
+export type Role = "ADMIN" | "DELIVERY_AGENT" | "DELIVERY_ADMIN" | "SUPPORT_AGENT" | "AUDITOR" | null;
 export type SellerStatus = "PENDING" | "APPROVED" | "REJECTED" | null;
 export type ShopStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type CourierDocumentStatus = "PENDING" | "VALID" | "REJECTED" | "EXPIRED";
 export type CourierDocumentType = "DRIVING_LICENSE" | "ID_CARD" | "VEHICLE_INSURANCE" | "VEHICLE_REGISTRATION";
 export type CourierEarningStatus = "PENDING" | "PAID";
-export type PayoutStatus = "PENDING" | "PROCESSING" | "PAID" | "FAILED";
+export type PayoutStatus =
+  | "PENDING"
+  | "PREPARED"
+  | "SUBMITTED"
+  | "NEEDS_CORRECTION"
+  | "APPROVED"
+  | "REJECTED"
+  | "PROCESSING"
+  | "PAID"
+  | "FAILED";
 export type SellerFeeCategory = "STANDARD" | "HIGH_PRICE";
 export type SellerFeeCategoryChangeStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type ReturnDecision = "APPROVED" | "REJECTED";
@@ -22,6 +31,10 @@ export interface UserResponse {
   role: Role;
   phoneVerified: boolean;
   sellerStatus: SellerStatus;
+  /** Permissions du back-office (menus masqués selon le rôle ; l'API revérifie tout). */
+  permissions: string[];
+  mustChangePassword: boolean;
+  totpEnabled: boolean;
 }
 
 export interface LoginResponse {
@@ -113,6 +126,51 @@ export interface PayoutResponse {
   paidAt: string | null;
   notes: string | null;
   createdAt: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+}
+
+/** Retrait des gains d'un livreur (même circuit que les reversements vendeurs). */
+export interface CourierWithdrawalResponse {
+  id: string;
+  agentId: string;
+  agentName: string;
+  agentPhone: string;
+  amount: number;
+  status: PayoutStatus;
+  paymentDetails: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface WithdrawalHistoryEntry {
+  id: string;
+  fromStatus: PayoutStatus | null;
+  toStatus: PayoutStatus;
+  actorId: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface StaffResponse {
+  id: string;
+  fullName: string;
+  phoneNumber: string;
+  role: Role;
+  active: boolean;
+  totpEnabled: boolean;
+  mustChangePassword: boolean;
+  deliveryPricingGranted: boolean;
+  createdAt: string;
+}
+
+/** Compte du personnel + mot de passe initial en clair, renvoyé une seule fois. */
+export interface StaffCredentialsResponse {
+  staff: StaffResponse;
+  temporaryPassword: string;
 }
 
 export interface SellerFeeCategoryChangeResponse {
@@ -207,6 +265,8 @@ export interface DeliveryResponse {
   assignedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;
+  deliveryCity: string | null;
+  deliveryDistrict: string | null;
   /** Position de la boutique (point de retrait), null si la boutique n'est pas géolocalisée. */
   shopLatitude: number | null;
   shopLongitude: number | null;

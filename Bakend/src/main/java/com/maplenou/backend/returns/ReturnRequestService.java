@@ -181,8 +181,9 @@ public class ReturnRequestService {
 
         // Vérification d'ownership pour un vendeur :
         // il ne peut décider que sur les retours de SA boutique.
-        // Un admin (role = ADMIN) peut décider sur n'importe quel retour.
-        boolean isAdmin = decider.getRole() == com.maplenou.backend.user.Role.ADMIN;
+        // Le personnel autorisé à traiter les retours (RETURNS_WRITE : Super Admin, Agent support)
+        // peut décider sur n'importe quel retour.
+        boolean isAdmin = decider.permissions().contains(com.maplenou.backend.security.Permission.RETURNS_WRITE);
         if (!isAdmin) {
             var shop = shopRepository.findByOwnerId(decider.getId())
                     .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN,

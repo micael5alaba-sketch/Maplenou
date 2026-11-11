@@ -54,6 +54,7 @@ public class UserService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Mot de passe actuel incorrect");
         }
         currentUser.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        currentUser.setMustChangePassword(false);
         userRepository.save(currentUser);
         auditService.log(currentUser.getId(), AuditAction.PASSWORD_CHANGED,
                 "USER", currentUser.getId(), "Mot de passe changé depuis le profil", null);
@@ -69,8 +70,8 @@ public class UserService {
     @Transactional
     public User banUser(UUID targetId, UUID actorId, String ip) {
         User user = getById(targetId);
-        if (user.getRole() == Role.ADMIN) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Impossible de bannir un administrateur");
+        if (user.getRole() != null && user.getRole().isStaff()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Impossible de bannir un compte du personnel : utilisez la gestion des comptes du personnel");
         }
         user.setActive(false);
         User saved = userRepository.save(user);
@@ -92,6 +93,12 @@ public class UserService {
     @Transactional
     public User changeRole(UUID targetId, Role newRole, UUID actorId, String ip) {
         User user = getById(targetId);
+        // Les roles du personnel (et leurs comptes) ne se gerent que via /api/admin/staff : MFA
+        // obligatoire, mot de passe initial, journal dedie. Jamais par ce changement de role generique.
+        if ((newRole != null && newRole.isStaff()) || (user.getRole() != null && user.getRole().isStaff())) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Les roles du personnel se gerent uniquement depuis la gestion des comptes du personnel");
+        }
         user.setRole(newRole);
         User saved = userRepository.save(user);
         auditService.log(actorId, AuditAction.USER_ROLE_CHANGED,
