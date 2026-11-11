@@ -5,8 +5,6 @@ import com.maplenou.backend.delivery.dto.CreateDeliveryPricingTierRequest;
 import com.maplenou.backend.delivery.dto.DeliveryPricingTierResponse;
 import com.maplenou.backend.delivery.dto.UpdateDeliveryPricingTierRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,14 +19,16 @@ public class DeliveryPricingTierService {
 
     private final DeliveryPricingTierRepository tierRepository;
 
-    @Cacheable("delivery-pricing-tiers")
+    // Pas de cache Redis ici : la liste (une poignee de paliers) est lue directement en base. Le cache
+    // JSON mettait des enregistrements (records) finaux dans Redis, que le deserialiseur ne savait pas
+    // relire : le premier appel passait, TOUS les suivants renvoyaient une erreur 500 (page admin
+    // "Tarification livraison" et estimation des frais cote acheteur).
     @Transactional(readOnly = true)
     public List<DeliveryPricingTierResponse> list() {
         return tierRepository.findAllOrderedByMaxDistanceKmAscNullsLast()
                 .stream().map(DeliveryPricingTierResponse::from).toList();
     }
 
-    @CacheEvict(value = "delivery-pricing-tiers", allEntries = true)
     @Transactional
     public DeliveryPricingTierResponse create(CreateDeliveryPricingTierRequest request) {
         if (request.maxDistanceKm() == null && tierRepository.existsByMaxDistanceKmIsNull()) {
@@ -44,7 +44,6 @@ public class DeliveryPricingTierService {
         return DeliveryPricingTierResponse.from(tierRepository.save(tier));
     }
 
-    @CacheEvict(value = "delivery-pricing-tiers", allEntries = true)
     @Transactional
     public DeliveryPricingTierResponse update(UUID id, UpdateDeliveryPricingTierRequest request) {
         DeliveryPricingTier tier = tierRepository.findById(id)
@@ -61,7 +60,6 @@ public class DeliveryPricingTierService {
         return DeliveryPricingTierResponse.from(tierRepository.save(tier));
     }
 
-    @CacheEvict(value = "delivery-pricing-tiers", allEntries = true)
     @Transactional
     public void delete(UUID id) {
         if (!tierRepository.existsById(id)) {

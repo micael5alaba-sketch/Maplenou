@@ -414,4 +414,24 @@ class StaffRbacIntegrationTest extends AbstractIntegrationTest {
         assertTrue(get("/api/admin/dashboard", superToken, 200).get("finance").get("actionRequiredSellerPayouts").asInt()
                 >= supportFinance.get("actionRequiredSellerPayouts").asInt());
     }
+
+    // ----- Regression : la liste publique des paliers de livraison se relit sans erreur -----
+
+    @Test
+    @Order(17)
+    void publicPricingTiersCanBeReadRepeatedly() throws Exception {
+        // L'ancien cache Redis faisait echouer (500) tous les appels apres le premier.
+        for (int i = 0; i < 4; i++) {
+            get("/api/delivery-pricing-tiers", null, 200);
+        }
+        // Une modification est visible immediatement au tour suivant
+        JsonNode created = post("/api/delivery-pricing-tiers", Map.of("maxDistanceKm", "998.00", "price", "7.00"), superToken, 201);
+        boolean listed = false;
+        for (JsonNode tier : get("/api/delivery-pricing-tiers", null, 200)) {
+            if (tier.get("id").asText().equals(created.get("id").asText())) listed = true;
+        }
+        assertTrue(listed);
+        delete("/api/delivery-pricing-tiers/" + created.get("id").asText(), superToken, 204);
+        get("/api/delivery-pricing-tiers", null, 200);
+    }
 }
