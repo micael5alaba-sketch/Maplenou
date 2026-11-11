@@ -14,6 +14,27 @@ when to apply them, after review.*
 | `frontend/support-push-notification.patch` | `frontend/lib/services/notification_router.dart` (+ test) | Une notification du service client ouvre le ticket dans le navigateur (liens `http(s)` seulement). *A support notification opens the ticket in the browser.* |
 | `root/readme-demarrage.patch` | `README.md`, `DEMARRAGE.md` (racine) | Présente `ServiceClient/` et `Site_vitrine/` et leur démarrage. *Lists the two folders and how to start them.* |
 
+## Fusionner la branche `ci/service-client-site-vitrine-only` — *Merging this branch*
+
+Cette branche ne contient **que** `ServiceClient/`, `Site_vitrine/` et leurs 6 workflows
+(`.github/workflows/service-client-*.yml`, `site-vitrine-ci.yml`) : ni `Bakend/`, ni `frontend/`, ni `Admin_frontend/`,
+ni `DEMARRAGE.md`. Elle a sa propre histoire Git ; on la fusionne donc avec `--allow-unrelated-histories`, ce qui
+**ajoute** ces dossiers sans rien supprimer ni modifier dans le reste du dépôt.
+
+*This branch holds only the two folders and their 6 workflows, with its own Git history. Merging it with
+`--allow-unrelated-histories` adds them and leaves the rest of the repository untouched.*
+
+```bash
+git fetch origin ci/service-client-site-vitrine-only
+git switch main                      # ou la branche de test / or your test branch
+git merge --allow-unrelated-histories origin/ci/service-client-site-vitrine-only \
+  -m "Merge ServiceClient and Site_vitrine"
+git diff --stat HEAD~1 -- Bakend frontend Admin_frontend DEMARRAGE.md   # vide : rien n'a changé / empty: nothing changed
+```
+
+Pour seulement regarder sans fusionner — *to look without merging*:
+`git worktree add ../maplenou-service-client origin/ci/service-client-site-vitrine-only`.
+
 ## Sans ces correctifs — *Without these patches*
 
 - `ServiceClient` fonctionne en mode démo (`ECOSYSTEM_MODE=demo`) et la connexion par compte Maplenou
