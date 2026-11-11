@@ -264,4 +264,14 @@ class SecurityHardeningIntegrationTest extends AbstractIntegrationTest {
             }
         }
     }
+
+    @Test
+    void protectedRoutesAnswer401WithoutAValidSession() throws Exception {
+        // Sans jeton, ou avec un jeton invalide/expiré : 401 (pas 403) pour que les applications
+        // renouvellent la session au lieu de rester bloquées.
+        get("/api/conversations/unread-count", null, 401);
+        get("/api/conversations/unread-count", "jeton.invalide.ou-expire", 401);
+        get("/api/notifications", null, 401);
+        get("/api/orders", "jeton.invalide.ou-expire", 401);
+    }
 }

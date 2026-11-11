@@ -85,6 +85,13 @@ public class SecurityConfig {
                         // Panier et favoris : authentification requise (géré par les controllers)
                         .anyRequest().authenticated()
                 )
+                // Requete sans session valide (aucun jeton, jeton expire ou invalide) : 401, jamais 403.
+                // Les applications ne renouvellent la session (refresh) que sur un 401 : sans cela, un
+                // jeton d'acces expire (15 min) sur une route protegee au niveau HTTP renvoyait 403 et
+                // bloquait l'utilisateur jusqu'a une reconnexion manuelle.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        new org.springframework.security.web.authentication.HttpStatusEntryPoint(
+                                org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // Premiere connexion du personnel : mot de passe + MFA obligatoires avant tout acces
