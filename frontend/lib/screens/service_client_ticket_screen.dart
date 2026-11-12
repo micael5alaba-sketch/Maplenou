@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/service_client_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
+import '../widgets/support_ui.dart';
 
 /// Une demande : description, conversation avec l'équipe, réponse, demande de réouverture et note de satisfaction.
 class ServiceClientTicketScreen extends StatefulWidget {
@@ -129,14 +130,10 @@ class _ServiceClientTicketScreenState extends State<ServiceClientTicketScreen> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.homeBackground,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        foregroundColor: colors.textDark,
-        elevation: 0,
-        title: const Text('Ma demande', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
       body: SafeArea(
-        child: FutureBuilder<(SupportTicketDetail, List<SupportMessage>)>(
+        child: Column(children: [
+          const SupportHeader(title: 'Ma demande'),
+          Expanded(child: FutureBuilder<(SupportTicketDetail, List<SupportMessage>)>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -148,7 +145,7 @@ class _ServiceClientTicketScreenState extends State<ServiceClientTicketScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text(e is ApiException ? e.message : 'Service client indisponible.', style: TextStyle(color: colors.error)),
                   const SizedBox(height: 8),
-                  FilledButton(onPressed: _reload, child: const Text('Réessayer')),
+                  SupportPrimaryButton(label: 'Réessayer', onPressed: _reload),
                 ]),
               );
             }
@@ -162,13 +159,17 @@ class _ServiceClientTicketScreenState extends State<ServiceClientTicketScreen> {
                     Text(ticket.subject, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textDark)),
                     const SizedBox(height: 6),
                     Wrap(spacing: 8, children: [
-                      Chip(label: Text(ticket.statusLabel), visualDensity: VisualDensity.compact),
-                      Chip(label: Text(ticket.categoryName), visualDensity: VisualDensity.compact),
-                      if (ticket.orderRef != null) Chip(label: Text('Commande ${ticket.orderRef}'), visualDensity: VisualDensity.compact),
+                      SupportStatusChip(label: ticket.statusLabel, done: ticket.status == 'RESOLVED' || ticket.status == 'CLOSED'),
+                      SupportStatusChip(label: ticket.categoryName, done: true),
+                      if (ticket.orderRef != null) SupportStatusChip(label: 'Commande ${ticket.orderRef}', done: true),
                     ]),
                     const SizedBox(height: 8),
-                    Text(ticket.description, style: TextStyle(color: colors.textDark, height: 1.4)),
-                    const Divider(height: 28),
+                    // La description est déjà le premier message de la conversation : on ne la répète pas.
+                    if (messages.isEmpty || messages.first.body.trim() != ticket.description.trim()) ...[
+                      Text(ticket.description, style: TextStyle(color: colors.textDark, height: 1.4)),
+                      const Divider(height: 28),
+                    ] else
+                      const SizedBox(height: 12),
                     if (messages.isEmpty)
                       Text('Notre équipe vous répondra ici.', style: TextStyle(color: colors.textMuted)),
                     for (final m in messages) _bubble(colors, m),
@@ -185,8 +186,8 @@ class _ServiceClientTicketScreenState extends State<ServiceClientTicketScreen> {
               ),
               if (ticket.can('SEND_MESSAGE'))
                 Container(
-                  color: colors.surface,
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  decoration: BoxDecoration(color: colors.surface, border: Border(top: BorderSide(color: colors.border))),
                   child: Row(children: [
                     Expanded(
                       child: TextField(
@@ -194,42 +195,64 @@ class _ServiceClientTicketScreenState extends State<ServiceClientTicketScreen> {
                         minLines: 1,
                         maxLines: 4,
                         maxLength: 5000,
-                        decoration: const InputDecoration(hintText: 'Votre message', counterText: ''),
+                        decoration: InputDecoration(
+                          hintText: 'Écrire un message...',
+                          hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),
+                          counterText: '',
+                          filled: true,
+                          fillColor: colors.inputFill,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                        ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: _sending ? null : _send,
-                      icon: _sending
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Icon(Icons.send_rounded, color: colors.primary),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: colors.primary,
+                      child: _sending
+                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : IconButton(
+                              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                              onPressed: _send,
+                            ),
                     ),
                   ]),
                 ),
             ]);
           },
-        ),
+        )),
+        ]),
       ),
     );
   }
 
   Widget _bubble(AppColorScheme colors, SupportMessage m) {
+    final mine = !m.fromStaff;
     return Align(
-      alignment: m.fromStaff ? Alignment.centerLeft : Alignment.centerRight,
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: m.fromStaff ? colors.surface : colors.primary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+          color: mine ? colors.primary : colors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(mine ? 16 : 4),
+            bottomRight: Radius.circular(mine ? 4 : 16),
+          ),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3))],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(m.fromStaff ? 'Service client Maplenou' : 'Vous',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textMuted)),
-          const SizedBox(height: 2),
-          Text(m.body, style: TextStyle(color: colors.textDark)),
-          const SizedBox(height: 2),
-          Text(formatRelativeDate(m.createdAt), style: TextStyle(fontSize: 10, color: colors.textMuted)),
+          if (!mine)
+            Text('Service client Maplenou',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary)),
+          Text(m.body, style: TextStyle(color: mine ? Colors.white : colors.textDark, height: 1.3)),
+          const SizedBox(height: 4),
+          Text(formatRelativeDate(m.createdAt),
+              style: TextStyle(fontSize: 10, color: mine ? Colors.white.withValues(alpha: 0.75) : colors.textMuted)),
         ]),
       ),
     );

@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/service_client_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
+import '../widgets/support_ui.dart';
 import 'service_client_new_ticket_screen.dart';
 import 'service_client_notifications_screen.dart';
 import 'service_client_ticket_screen.dart';
@@ -34,26 +35,24 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.homeBackground,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        foregroundColor: colors.textDark,
-        elevation: 0,
-        title: const Text('Service client', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => _open(const ServiceClientNotificationsScreen()),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const ServiceClientNewTicketScreen()),
+        backgroundColor: colors.primary,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Nouvelle demande'),
       ),
       body: SafeArea(
-        child: FutureBuilder<List<SupportTicketSummary>>(
+        child: Column(children: [
+          SupportHeader(
+            title: 'Service client',
+            trailing: IconButton(
+              tooltip: 'Notifications',
+              icon: Icon(Icons.notifications_none_rounded, color: colors.textDark),
+              onPressed: () => _open(const ServiceClientNotificationsScreen()),
+            ),
+          ),
+          Expanded(child: FutureBuilder<List<SupportTicketSummary>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -97,11 +96,7 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
                           Expanded(child: Text(t.ticketNumber, style: TextStyle(fontSize: 12, color: colors.textMuted))),
-                          Chip(
-                            label: Text(t.statusLabel, style: const TextStyle(fontSize: 11)),
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: t.isClosedLike ? colors.inputFill : colors.primary.withValues(alpha: 0.15),
-                          ),
+                          SupportStatusChip(label: t.statusLabel, done: t.isClosedLike),
                         ]),
                         Text(t.subject, maxLines: 2, overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontWeight: FontWeight.w600, color: colors.textDark)),
@@ -115,7 +110,8 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
               ),
             );
           },
-        ),
+        )),
+        ]),
       ),
     );
   }
@@ -128,7 +124,7 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(message, textAlign: TextAlign.center, style: TextStyle(color: colors.error)),
           const SizedBox(height: 12),
-          FilledButton(onPressed: _reload, child: const Text('Réessayer')),
+          SupportPrimaryButton(label: 'Réessayer', onPressed: _reload),
         ]),
       ),
     );

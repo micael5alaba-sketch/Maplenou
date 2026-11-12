@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/service_client_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../utils/formatters.dart';
+import '../widgets/support_ui.dart';
 import 'service_client_ticket_screen.dart';
 
 /// Notifications du service client (réponse de l'équipe, demande résolue...). Un appui ouvre la demande.
@@ -35,14 +36,10 @@ class _ServiceClientNotificationsScreenState extends State<ServiceClientNotifica
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.homeBackground,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        foregroundColor: colors.textDark,
-        elevation: 0,
-        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
       body: SafeArea(
-        child: FutureBuilder<List<SupportNotificationModel>>(
+        child: Column(children: [
+          const SupportHeader(title: 'Notifications'),
+          Expanded(child: FutureBuilder<List<SupportNotificationModel>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -75,7 +72,8 @@ class _ServiceClientNotificationsScreenState extends State<ServiceClientNotifica
               },
             );
           },
-        ),
+        )),
+        ]),
       ),
     );
   }
