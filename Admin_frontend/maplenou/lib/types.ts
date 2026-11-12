@@ -544,3 +544,47 @@ export interface ResellerWithdrawalResponse {
   notes: string | null;
   createdAt: string;
 }
+
+// ----- Service client (supervision en lecture seule, voir lib/serviceClient.ts) -----
+
+export interface ServiceClientTicket {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  category: { code: string; name: string };
+  priority: string;
+  status: string;
+  requester: { id: string; name: string };
+  assignedAgent: { id: string; name: string } | null;
+  escalated: boolean;
+  slaState: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceClientPage<T> {
+  items: T[];
+  page: number;
+  size: number;
+  totalItems: number;
+}
+
+export interface ServiceClientDashboard {
+  openCount: number;
+  newCount: number;
+  unassignedCount: number;
+  inProgressCount: number;
+  waitingForCustomerCount: number;
+  resolvedTodayCount: number;
+  escalatedOpenCount: number;
+  slaBreachedOpenCount: number;
+  openByCategory: { code: string; name: string; count: number }[];
+  recent: ServiceClientTicket[];
+  satisfactionLast30Days?: { count: number; average: number | null; satisfiedPercent: number | null } | null;
+}
+
+export interface ServiceClientStaffRole {
+  phone: string;
+  role: string;
+  assignedAt: string;
+}

@@ -6,12 +6,15 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useWorkBadges } from "@/lib/workBadges";
+import { openServiceClient } from "@/lib/serviceClient";
 import { useEffect, useState } from "react";
 import { ROLE_LABELS, ROUTE_PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 interface NavItem {
   href: string;
   label: string;
+  /** Ouvre l'espace du personnel du service client dans un nouvel onglet (connexion automatique). */
+  openServiceClient?: boolean;
 }
 
 interface NavGroup {
@@ -52,6 +55,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/payouts", label: "Retraits vendeurs" },
       { href: "/courier-withdrawals", label: "Retraits livreurs" },
       { href: "/promo-codes", label: "Codes promo" },
+    ],
+  },
+  {
+    title: "Service client",
+    items: [
+      { href: "/service-client", label: "Supervision" },
+      { href: "/service-client/open", label: "Ouvrir le service client", openServiceClient: true },
     ],
   },
   {
@@ -124,6 +134,20 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
               {group.items.map((item) => {
                 const active = pathname === item.href;
                 const danger = item.href === "/maintenance";
+                if (item.openServiceClient) {
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() =>
+                        openServiceClient().catch((e) => alert(e instanceof Error ? e.message : "Service client indisponible."))
+                      }
+                      className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-foreground transition hover:bg-input-fill"
+                    >
+                      {item.label} ↗
+                    </button>
+                  );
+                }
                 return (
                   <Link
                     key={item.href}

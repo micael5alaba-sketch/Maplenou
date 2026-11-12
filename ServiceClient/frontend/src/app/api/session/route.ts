@@ -11,12 +11,13 @@ export async function GET() {
   return user ? NextResponse.json(user) : NextResponse.json({ status: 401 }, { status: 401 });
 }
 
-type Body = { userId?: unknown; phoneNumber?: unknown; password?: unknown; code?: unknown };
+type Body = { userId?: unknown; phoneNumber?: unknown; password?: unknown; code?: unknown; coreAccessToken?: unknown };
 
 /**
- * Sign-in, three forms:
+ * Sign-in, four forms:
  * - `{ phoneNumber, password }` — Maplenou account (backend checks it with the Maplenou platform);
  * - `{ code }` — 6-digit two-factor code after the previous step answered `mfaRequired`;
+ * - `{ coreAccessToken }` — the person arrives from the Maplenou back office with a valid Maplenou token (no password);
  * - `{ userId }` — demo persona (backend demo profile only).
  * The resulting support token is stored in an httpOnly cookie; the browser never sees it.
  */
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
     }
     target = "/api/v1/auth/maplenou/mfa";
     payload = { mfaToken, code: body.code };
+  } else if (typeof body.coreAccessToken === "string") {
+    target = "/api/v1/auth/maplenou/exchange";
+    payload = { coreAccessToken: body.coreAccessToken };
   } else if (typeof body.userId === "string") {
     target = "/api/v1/dev/token";
     payload = { userId: body.userId };

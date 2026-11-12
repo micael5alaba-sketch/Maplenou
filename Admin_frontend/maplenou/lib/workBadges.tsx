@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./auth";
+import { serviceClientBadge } from "./serviceClient";
 import type { RoleDashboardResponse } from "./types";
 
 /** Pastilles rouges : nombre de choses à faire par page du menu, mis à jour toutes les 30 s. */
@@ -58,6 +59,11 @@ export function WorkBadgesProvider({ children }: { children: ReactNode }) {
         const data = await apiClient.get<RoleDashboardResponse>("/api/admin/dashboard", { viewAs: viewAsRole ?? undefined });
         if (cancelled) return;
         const badges = computeBadges(data);
+        // File d'attente du service client (tickets sans agent) : Super Admin uniquement, silencieux si indisponible.
+        if (realUser?.permissions.includes("STAFF_MANAGE")) {
+          badges["/service-client"] = await serviceClientBadge();
+          if (cancelled) return;
+        }
         const total = Object.values(badges).reduce((sum, n) => sum + n, 0);
         setState({ badges, total });
 

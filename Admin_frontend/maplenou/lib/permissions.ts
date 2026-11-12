@@ -84,6 +84,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/deliveries": "DELIVERIES_READ",
   "/delivery-pricing": "DELIVERY_PRICING_READ",
   "/revenue": "REVENUE_READ",
+  "/service-client": "STAFF_MANAGE",
+  "/service-client/open": "STAFF_MANAGE",
   "/payouts": "PAYOUTS_READ",
   "/resellers": "RESELLERS_READ",
   "/reseller-withdrawals": "PAYOUTS_READ",

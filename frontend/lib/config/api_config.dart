@@ -63,13 +63,6 @@ class ApiConfig {
     return 'http://localhost:8081';
   }
 
-  /// Application web du service client : ouverte dans le navigateur quand l'API est injoignable.
-  static String get supportWebUrl {
-    const envUrl = String.fromEnvironment('SUPPORT_WEB_URL');
-    if (envUrl.isNotEmpty) return envUrl;
-    return 'https://maplenou-support-web.onrender.com';
-  }
-
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;

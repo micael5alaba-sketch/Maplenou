@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../config/api_config.dart';
 import '../models/service_client_model.dart';
 import '../services/api_client.dart';
 import '../services/service_client_service.dart';
@@ -29,10 +27,6 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
   Future<void> _open(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     if (mounted) _reload();
-  }
-
-  Future<void> _openWebFallback() async {
-    await launchUrl(Uri.parse(ApiConfig.supportWebUrl), mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -135,7 +129,6 @@ class _ServiceClientScreenState extends State<ServiceClientScreen> {
           Text(message, textAlign: TextAlign.center, style: TextStyle(color: colors.error)),
           const SizedBox(height: 12),
           FilledButton(onPressed: _reload, child: const Text('Réessayer')),
-          TextButton(onPressed: _openWebFallback, child: const Text('Ouvrir le service client dans le navigateur')),
         ]),
       ),
     );

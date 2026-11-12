@@ -429,9 +429,20 @@ Le service client (`../ServiceClient`, développé par l'équipe service client)
 - **Rôles** : le rôle « Agent support » du back-office Maplenou est agent du service client ; `ADMIN` est administrateur.
 - **Pont interne** (`supportbridge`, `/internal/v1/**`) : lecture des commandes, paiements, livraisons, vendeurs,
   remboursements + 4 actions ; actif seulement si `SUPPORT_SERVICE_TOKEN` est défini (même valeur des deux côtés).
-- **Variables de compilation Flutter** : `SUPPORT_API_URL` (défaut `https://maplenou-support-api.onrender.com`) et
-  `SUPPORT_WEB_URL` (défaut `https://maplenou-support-web.onrender.com`, ouvert si l'API est injoignable).
+- **Variable de compilation Flutter** : `SUPPORT_API_URL` (défaut `https://maplenou-support-api.onrender.com`). Le client ne
+  quitte jamais l'application : en cas d'indisponibilité, l'écran propose seulement « Réessayer ».
 - **Bascule de l'ancien module** : `SUPPORT_LEGACY_READ_ONLY=true` (Bakend) et `LEGACY_SYNC_ENABLED=true` (service
   client) une fois l'import fait ; ne jamais traiter un ticket aux deux endroits.
 - **Vérifié de bout en bout en local** avec les deux serveurs réels : échange de jeton, ticket, réponse de l'équipe,
   idempotence du message, notifications, cloisonnement entre clients, pont interne protégé par le jeton.
+
+### Back-office Maplenou et service client (Super Admin)
+
+Le service client garde **sa propre administration et ses propres rôles** (page « Agents » de son espace) ; le back-office
+Maplenou ne les reprend pas. Le Super Admin Maplenou (compte `ADMIN`, reconnu comme administrateur du service client) a :
+- le menu **Service client → Ouvrir le service client** : ouvre l'espace du personnel connecté, sans mot de passe
+  (jeton Maplenou dans le fragment `/maplenou#token=…`, jamais envoyé à un serveur, effacé de la barre d'adresse) ;
+- la page **Service client → Supervision** (lecture seule) : tickets ouverts, sans agent, délais dépassés, activité
+  récente, équipe et rôles ; et la **pastille rouge** « tickets sans agent » (toutes les 30 s).
+- Variables du back-office : `NEXT_PUBLIC_SUPPORT_API_URL`, `NEXT_PUBLIC_SUPPORT_WEB_URL`. Côté API du service client,
+  `CORS_ALLOWED_ORIGINS` doit contenir l'adresse du back-office Maplenou.
