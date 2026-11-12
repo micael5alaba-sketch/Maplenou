@@ -201,6 +201,22 @@ Pour la liste exacte des modules et de ce qui est fait/pas fait à une date donn
 périmètre, contrairement à ce `CLAUDE.md` qui décrit surtout les **décisions structurantes**
 (pourquoi, pas l'état d'avancement).
 
+### 8.bis Service client et site public (29/10/2026)
+
+- Le **service client** (tickets, SLA 24 h/24 7 j/7, agents, rapports, centre d'aide) est un service séparé dans
+  `../ServiceClient` (Spring Boot + Next.js + PostgreSQL à lui, ports 3001/8081). Il **ne touche jamais à la base
+  de Bakend** : il connecte les utilisateurs via `/api/auth/login` (+ `/api/auth/2fa/verify-login`) et lit les
+  commandes, paiements, livraisons et anciens tickets via le package `supportbridge` (`/internal/v1/**`, jeton
+  partagé `SUPPORT_SERVICE_TOKEN`). Il ne fait que lire, sauf quatre actions demandées par un agent depuis un
+  ticket (`SupportBridgeActionService` : retour pour l'acheteur, remise à disposition d'une course, message au livreur,
+  push relayé), qui passent par les services métier existants et sont tracées dans `AuditLog` (`SUPPORT_*`). Les anciens tickets `TKT-AAAA-NNNNNN` de Bakend s'importent une fois
+  dans le service client (bouton « Importer les anciens tickets »).
+- Le **site public** (`../Site_vitrine`, port 3002) ne lit que les points publics `GET /api/categories`,
+  `/api/products`, `/api/delivery-pricing-tiers`.
+- Toute modification de ces DTO (`supportbridge/SupportBridgeDtos`) doit rester compatible avec
+  `ServiceClient/backend/.../context/adapter/out/maplenou` (`HttpEcosystemGateway`, `HttpEcosystemActions`,
+  `HttpLegacyTicketSource`, vérifiés par `BakendContractTest`) et `notification/adapter/out/maplenou/BakendPushRelay`.
+
 ---
 
 ## 9. Contraintes de performance et scalabilité (à respecter dès la première ligne de code, pas en correctif)

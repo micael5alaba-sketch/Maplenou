@@ -72,6 +72,9 @@ public class SecurityConfig {
                         // permitAll générique ci-dessous (Spring Security s'arrête au premier match).
                         .requestMatchers(HttpMethod.GET, "/api/auth/firebase-token").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        // API interne du Service client : pas de JWT utilisateur, le jeton de service est vérifié
+                        // par supportbridge.SupportBridgeTokenFilter (404 tant que SUPPORT_SERVICE_TOKEN est vide)
+                        .requestMatchers("/internal/v1/**").permitAll()
                         // Lecture catalogue publique ; écriture protégée par @PreAuthorize
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/shops/**").permitAll()

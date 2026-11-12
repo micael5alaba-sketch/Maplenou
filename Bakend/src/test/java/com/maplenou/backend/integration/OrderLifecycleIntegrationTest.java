@@ -58,6 +58,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+// Jeton du pont Service client : permet de vérifier, à la fin du cycle, ce que ServiceClient lit (test @Order(13)).
+@org.springframework.test.context.TestPropertySource(properties = "app.support-bridge.token=lifecycle-bridge-token-0123456789")
 class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private UserRepository userRepository;
@@ -646,6 +648,159 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         orderRepository.deleteById(thisOrderId);
     }
 
+    /** Ce que le Service client (ServiceClient/) lit de cette commande via l'API interne /internal/v1. */
+    @Test
+    @Order(13)
+    void supportBridgeExposesTheOrderItsPaymentAndItsDelivery() throws Exception {
+        String number = get("/api/orders/" + orderId, buyerToken, 200).get("orderNumber").asText();
+        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        java.util.function.Function<String, JsonNode> internal = path -> {
+            try {
+                var res = http.send(java.net.http.HttpRequest.newBuilder(
+                                java.net.URI.create("http://localhost:" + port + path))
+                        .header("X-Maplenou-Service-Token", "lifecycle-bridge-token-0123456789").GET().build(),
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, res.statusCode(), path + " -> " + res.body());
+                return objectMapper.readTree(res.body());
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        JsonNode order = internal.apply("/internal/v1/orders/" + number);
+        assertEquals(buyerId.toString(), order.get("customerId").asText());
+        assertEquals("XOF", order.get("currency").asText());
+        JsonNode payment = internal.apply("/internal/v1/payments/" + number);
+        assertEquals(number, payment.get("orderRef").asText());
+        boolean listedForBuyer = false;
+        for (JsonNode o : internal.apply("/internal/v1/users/" + buyerId + "/orders")) {
+            listedForBuyer |= number.equals(o.get("ref").asText());
+        }
+        assertTrue(listedForBuyer, "la commande doit figurer dans les commandes de l'acheteur");
+        boolean listedForSeller = false;
+        for (JsonNode o : internal.apply("/internal/v1/users/" + sellerId + "/orders")) {
+            listedForSeller |= number.equals(o.get("ref").asText());
+        }
+        assertTrue(listedForSeller, "la commande doit figurer dans les commandes du vendeur");
+        JsonNode delivery = internal.apply("/internal/v1/deliveries/" + deliveryId);
+        assertEquals(number, delivery.get("orderRef").asText());
+        assertEquals(agentId.toString(), delivery.get("driverId").asText());
+        boolean listedForDriver = false;
+        for (JsonNode d : internal.apply("/internal/v1/drivers/" + agentId + "/deliveries")) {
+            listedForDriver |= deliveryId.toString().equals(d.get("ref").asText());
+        }
+        assertTrue(listedForDriver, "la livraison doit figurer dans les livraisons du livreur");
+    }
+
+    /**
+     * Actions que le Service client demande depuis un ticket (DEC-CS11-07) : remettre une course à disposition,
+     * ouvrir un retour pour l'acheteur, écrire au livreur, relayer une notification push.
+     */
+    @Test
+    @Order(14)
+    void supportBridgeActionsGoThroughTheBusinessRules() throws Exception {
+        post("/api/cart/items", new AddToCartRequest(variantId, 1), buyerToken, 200);
+        JsonNode order = post("/api/orders", new PlaceOrderRequest(addressId, null, null, null), buyerToken, 201);
+        order4Id = UUID.fromString(order.get("id").asText());
+        UUID subId = UUID.fromString(order.get("subOrders").get(0).get("id").asText());
+        postWithHeader("/api/webhooks/payment/confirmed",
+                new com.maplenou.backend.order.dto.PaymentWebhookRequest(order4Id.toString(), "PAY-REF-4-" + rand),
+                "X-Webhook-Secret", webhookSecret, 200);
+        for (var st : new com.maplenou.backend.order.SubOrderStatus[]{
+                com.maplenou.backend.order.SubOrderStatus.PREPARING, com.maplenou.backend.order.SubOrderStatus.READY_FOR_PICKUP}) {
+            patch("/api/sub-orders/" + subId + "/status",
+                    new com.maplenou.backend.order.dto.UpdateSubOrderStatusRequest(st), sellerToken, 200);
+        }
+        JsonNode delivery = post("/api/deliveries/sub-orders/" + subId, null, adminToken, 201);
+        delivery4Id = UUID.fromString(delivery.get("id").asText());
+        patch("/api/deliveries/" + delivery4Id + "/assign", new AssignAgentRequest(agentId), adminToken, 200);
+
+        String number = get("/api/orders/" + order4Id, buyerToken, 200).get("orderNumber").asText();
+        java.util.Map<String, Object> origin = java.util.Map.of("ticketNumber", "TKT-2026-00042", "agentName", "Afi (support)");
+
+        // la commande expose ses sous-commandes pour choisir celle du retour
+        var summary = internalCall("GET", "/internal/v1/orders/" + number, null);
+        assertEquals(200, summary.statusCode());
+        assertEquals(subId.toString(), objectMapper.readTree(summary.body()).get("subOrders").get(0).get("id").asText());
+
+        // 1. course assignée -> remise à disposition
+        var rescheduled = internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
+                with(origin, "reason", "Le livreur ne répond pas au client"));
+        assertEquals(200, rescheduled.statusCode(), rescheduled.body());
+        assertEquals("PENDING", objectMapper.readTree(rescheduled.body()).get("status").asText());
+        assertEquals(409, internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
+                with(origin, "reason", "deuxième fois")).statusCode());
+
+        // 2. retour impossible tant que ce n'est pas livré (règle de ReturnRequestService)
+        String reason = "Produit reçu cassé selon le client";
+        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
+                with(origin, "reason", reason)).statusCode());
+
+        patch("/api/deliveries/" + delivery4Id + "/assign", new AssignAgentRequest(agentId), adminToken, 200);
+        patch("/api/deliveries/" + delivery4Id + "/status",
+                new UpdateDeliveryRequest(DeliveryStatus.IN_TRANSIT, null, null, null), agentToken, 200);
+        assertEquals(409, internalCall("POST", "/internal/v1/deliveries/" + delivery4Id + "/reschedule",
+                with(origin, "reason", "en route")).statusCode());
+        patch("/api/deliveries/" + delivery4Id + "/status",
+                new UpdateDeliveryRequest(DeliveryStatus.DELIVERED, ProofType.PHOTO,
+                        "https://res.cloudinary.com/demo/image/upload/v1/proofs/p4.jpg", null), agentToken, 200);
+
+        var created = internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
+                with(with(origin, "reason", reason), "productCondition", "DAMAGED"));
+        assertEquals(201, created.statusCode(), created.body());
+        JsonNode result = objectMapper.readTree(created.body());
+        returnRequest4Id = UUID.fromString(result.get("ref").asText());
+        assertEquals("PENDING", result.get("status").asText());
+        JsonNode mine = get("/api/return-requests/my/" + returnRequest4Id, buyerToken, 200);
+        assertTrue(mine.get("reason").asText().startsWith("[Service client TKT-2026-00042] "));
+        // un seul retour : la sous-commande est désormais RETURN_REQUESTED
+        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
+                with(origin, "reason", reason)).statusCode());
+        assertEquals(400, internalCall("POST", "/internal/v1/orders/" + number + "/return-requests",
+                with(origin, "reason", "court")).statusCode());
+        assertEquals(404, internalCall("POST", "/internal/v1/orders/CMD-INCONNUE/return-requests",
+                with(origin, "reason", reason)).statusCode());
+
+        // 3. message au livreur dans sa conversation support
+        var message = internalCall("POST", "/internal/v1/drivers/" + agentId + "/support-messages",
+                with(origin, "message", "Merci de rappeler le client avant 18 h."));
+        assertEquals(201, message.statusCode(), message.body());
+        String conversationId = objectMapper.readTree(message.body()).get("ref").asText();
+        JsonNode messages = get("/api/conversations/" + conversationId + "/messages", agentToken, 200);
+        assertTrue(messages.toString().contains("ticket TKT-2026-00042"));
+        assertEquals(404, internalCall("POST", "/internal/v1/drivers/" + buyerId + "/support-messages",
+                with(origin, "message", "pas un livreur")).statusCode());
+
+        // 4. push relayé (sans Firebase en test : accepté, rien n'est envoyé)
+        assertEquals(202, internalCall("POST", "/internal/v1/users/" + buyerId + "/push",
+                java.util.Map.of("title", "Nouvelle réponse", "body", "Votre ticket TKT-2026-00042 a une réponse.",
+                        "data", java.util.Map.of("type", "AGENT_REPLIED"))).statusCode());
+        assertEquals(404, internalCall("POST", "/internal/v1/users/" + UUID.randomUUID() + "/push",
+                java.util.Map.of("title", "t", "body", "b")).statusCode());
+
+        // traçabilité
+        assertTrue(auditLogRepository.findAll().stream().anyMatch(a ->
+                a.getAction() == com.maplenou.backend.audit.AuditAction.SUPPORT_RETURN_REQUESTED
+                        && returnRequest4Id.equals(a.getEntityId())));
+    }
+
+    private static java.util.Map<String, Object> with(java.util.Map<String, Object> base, String key, Object value) {
+        java.util.Map<String, Object> m = new java.util.HashMap<>(base);
+        m.put(key, value);
+        return m;
+    }
+
+    private java.net.http.HttpResponse<String> internalCall(String method, String path, Object body) throws Exception {
+        var b = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + port + path))
+                .header("X-Maplenou-Service-Token", "lifecycle-bridge-token-0123456789")
+                .header("Content-Type", "application/json");
+        b = body == null ? b.GET() : b.method(method,
+                java.net.http.HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));
+        return java.net.http.HttpClient.newHttpClient().send(b.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    private UUID order4Id;
+    private UUID delivery4Id;
+    private UUID returnRequest4Id;
     private UUID order3Id;
     private UUID delivery3Id;
     private UUID returnRequest3Id;
@@ -657,6 +812,8 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (shopReviewId != null) shopReviewRepository.deleteById(shopReviewId); } catch (Exception ignored) { }
         try { if (returnRequestId != null) returnRequestRepository.deleteById(returnRequestId); } catch (Exception ignored) { }
         try { if (returnRequest3Id != null) returnRequestRepository.deleteById(returnRequest3Id); } catch (Exception ignored) { }
+        try { if (returnRequest4Id != null) returnRequestRepository.deleteById(returnRequest4Id); } catch (Exception ignored) { }
+        try { if (delivery4Id != null) deliveryRepository.deleteById(delivery4Id); } catch (Exception ignored) { }
         try { if (deliveryId != null) deliveryRepository.deleteById(deliveryId); } catch (Exception ignored) { }
         try { if (delivery3Id != null) deliveryRepository.deleteById(delivery3Id); } catch (Exception ignored) { }
         try {
@@ -670,6 +827,7 @@ class OrderLifecycleIntegrationTest extends AbstractIntegrationTest {
         try { if (orderId != null) orderRepository.deleteById(orderId); } catch (Exception ignored) { }
         try { if (order2Id != null) orderRepository.deleteById(order2Id); } catch (Exception ignored) { }
         try { if (order3Id != null) orderRepository.deleteById(order3Id); } catch (Exception ignored) { }
+        try { if (order4Id != null) orderRepository.deleteById(order4Id); } catch (Exception ignored) { }
         try { if (payoutId != null) payoutRepository.deleteById(payoutId); } catch (Exception ignored) { }
         try { if (promoCodeId != null) promoCodeRepository.deleteById(promoCodeId); } catch (Exception ignored) { }
         try { if (buyerId != null) cartRepository.findByUserId(buyerId).ifPresent(cartRepository::delete); } catch (Exception ignored) { }

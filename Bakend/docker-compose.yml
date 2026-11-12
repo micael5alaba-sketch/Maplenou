@@ -38,6 +38,11 @@ services:
       # Le vrai fichier doit exister sur la machine hôte (jamais dans Git, voir MANUEL.md §4) --
       # ce montage le rend visible dans le conteneur à l'emplacement lu par FirebaseConfig.
       FIREBASE_SERVICE_ACCOUNT_PATH: file:/app/firebase-service-account.json
+      # Jeton partagé avec le Service client (../ServiceClient) : lu depuis Bakend/.env ou l'environnement.
+      # Vide = API interne /internal/v1/** désactivée (MANUEL.md §5).
+      SUPPORT_SERVICE_TOKEN: ${SUPPORT_SERVICE_TOKEN:-}
+      SUPPORT_SENDER_USER_ID: ${SUPPORT_SENDER_USER_ID:-}
+      SUPPORT_LEGACY_READ_ONLY: ${SUPPORT_LEGACY_READ_ONLY:-false}
     volumes:
       - ./src/main/resources/firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:

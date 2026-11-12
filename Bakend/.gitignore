@@ -42,3 +42,5 @@ logs/
 dump.rdb
 hs_err_pid*.log
 replay_pid*.log
+# Valeurs locales de docker-compose (SUPPORT_SERVICE_TOKEN…) : jamais committées
+.env

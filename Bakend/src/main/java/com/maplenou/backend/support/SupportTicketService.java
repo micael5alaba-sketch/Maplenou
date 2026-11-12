@@ -14,6 +14,7 @@ import com.maplenou.backend.support.dto.ResolveSupportTicketRequest;
 import com.maplenou.backend.support.dto.SupportTicketResponse;
 import com.maplenou.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,14 @@ public class SupportTicketService {
     private final ConversationRepository conversationRepository;
     private final MessagingService messagingService;
     private final AuditService auditService;
+
+    /**
+     * Passage au service client (ServiceClient) : à true, les tickets se traitent uniquement là-bas (il les importe
+     * et suit leurs changements) ; la page admin de cet ancien module devient consultation seule, pour qu'un même
+     * ticket ne soit jamais traité à deux endroits. Les utilisateurs peuvent toujours en créer depuis l'app.
+     */
+    @Value("${app.support.legacy-read-only:false}")
+    private boolean legacyReadOnly;
 
     @Transactional
     public SupportTicketResponse create(User requester, CreateSupportTicketRequest request) {
@@ -102,6 +111,10 @@ public class SupportTicketService {
 
     @Transactional
     public SupportTicketResponse resolve(UUID ticketId, ResolveSupportTicketRequest request, User admin, String ip) {
+        if (legacyReadOnly) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Ce ticket est désormais traité dans le service client Maplenou (SUPPORT_LEGACY_READ_ONLY=true).");
+        }
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Ticket introuvable"));
 

@@ -116,6 +116,9 @@ Toutes les valeurs sensibles ont un **fallback de développement** codé dans
 | `CLOUDINARY_URL` | Format `cloudinary://<api_key>:<api_secret>@<cloud_name>` | placeholder non fonctionnel |
 | `COLISSIMO_ENABLED`, `COLISSIMO_CONTRACT_NUMBER`, `COLISSIMO_API_KEY` | Intégration transporteur (voir §9, non fonctionnelle tant que désactivée) | désactivé |
 | `RESELLER_LINK_BASE_URL`, `RESELLER_WEB_URL` | Programme partenaire : URL publique du backend (base des liens `/r/{code}`) et de l'appli web (cible de la redirection `/?ref=code`) | `localhost:8080`, `localhost:3000` |
+| `SUPPORT_SERVICE_TOKEN` | Jeton partagé avec le Service client (`../ServiceClient`, même valeur des deux côtés, 32 caractères aléatoires au moins) : ouvre l'API interne `/internal/v1/**` (lecture + quatre actions demandées depuis un ticket, voir §9, `supportbridge`). En local : ligne `$env:SUPPORT_SERVICE_TOKEN = "…"` dans `.env.local.ps1` | vide = API interne désactivée (404) |
+| `SUPPORT_SENDER_USER_ID` | Identifiant du compte `ADMIN` qui signe les messages du service client aux livreurs | vide = le plus ancien admin actif |
+| `SUPPORT_LEGACY_READ_ONLY` | Passage au service client : `true` = la page admin des anciens tickets support (`/api/admin/support-tickets/{id}/resolve`) répond 409, les tickets se traitent dans le Service client, qui importe les nouveaux et suit leurs changements (`LEGACY_SYNC_ENABLED=true` de son côté). Les clients créent toujours leurs tickets depuis l'app | `false` |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | Emplacement du fichier de clé Firebase (`classpath:...` = embarqué, `file:/chemin` = fichier externe monté, utilisé par Docker — voir §3) | `classpath:firebase-service-account.json` |
 
 Le compte de service Firebase doit être placé dans
@@ -273,6 +276,7 @@ Un rôle `DELIVERY_AGENT` ne peut être attribué que par un admin (`PATCH
 | `newsletter` | Capture d'emails (pas d'envoi automatique) |
 | `shipping` | Scaffold transporteur tiers (Colissimo) — voir §11 |
 | `reseller` | Programme Partenaire Revendeur : demandes, liens `/r/{code}`, clics, attribution figée par ligne de commande, commissions par unité, portefeuille (registre immuable), retraits (circuit commun), paramètres versionnés |
+| `supportbridge` | API interne pour le Service client (`../ServiceClient`) : **lecture** de la commande (avec ses sous-commandes), du paiement, de la livraison, du vendeur, du remboursement, des commandes et livraisons d'un compte, des anciens tickets support ; **quatre actions** demandées par un agent depuis un ticket, chacune par le service métier existant et tracée dans `AuditLog` (`SUPPORT_*`) : ouvrir une demande de retour pour l'acheteur (`POST /orders/{n}/return-requests`), remettre une course ASSIGNED/FAILED à disposition (`POST /deliveries/{id}/reschedule`), écrire au livreur dans sa conversation support (`POST /drivers/{id}/support-messages`), relayer une notification push (`POST /users/{id}/push`) (`/internal/v1/**`, en-tête `X-Maplenou-Service-Token`). Masquée de Swagger ; 404 tant que `SUPPORT_SERVICE_TOKEN` est vide ; ne jamais l'exposer sur Internet |
 
 ---
 
