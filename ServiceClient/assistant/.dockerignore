@@ -1,0 +1,8 @@
+# Keep the build context small: only pyproject.toml, uv.lock, app/ and tests/ are needed.
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+AGENTS.md
+CLAUDE.md
+Dockerfile

@@ -1,0 +1,4816 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Maplenou Customer Service API",
+    "description": "Ticket management for customers, sellers and delivery drivers, handled by support agents. Errors follow RFC 9457 (application/problem+json) with a stable 'code' and, when relevant, the business 'rule' (BR-xxx).",
+    "version": "0.2.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8081",
+      "description": "Generated server url"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/api/v1/support/tickets/{id}/status": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "changeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeStatus"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/reopen-requests/{requestId}": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "decideReopen",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideReopen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/priority": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "changePriority",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePriority"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/category": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "changeCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeCategory"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/assign": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Assign: empty body or agentId=null assigns to the caller; another agent requires a manager",
+        "operationId": "assign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Assign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/me/preferences": {
+      "put": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Language of the notifications the caller receives (fr or en)",
+        "operationId": "preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/canned-replies/{id}": {
+      "put": {
+        "tags": [
+          "Canned replies"
+        ],
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CannedReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Canned replies"
+        ],
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/workflow": {
+      "put": {
+        "tags": [
+          "Vocabulary"
+        ],
+        "summary": "Replace statuses and transitions (administrators); the lifecycle rules are checked",
+        "operationId": "workflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vocabulary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/staff-roles": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffRoleView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffRoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffRoleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/sla-policies/{priority}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Change the targets of one priority: first response in minutes, resolution in minutes or days",
+        "operationId": "updatePolicy",
+        "parameters": [
+          {
+            "name": "priority",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaPolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/priorities": {
+      "put": {
+        "tags": [
+          "Vocabulary"
+        ],
+        "summary": "Replace the priorities (administrators); new priorities get default SLA targets",
+        "operationId": "priorities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PriorityInput"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vocabulary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/permissions": {
+      "get": {
+        "tags": [
+          "Vocabulary"
+        ],
+        "operationId": "permissions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Vocabulary"
+        ],
+        "summary": "Replace the permission matrix (administrators); safety rules are checked",
+        "operationId": "replacePermissions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PermissionInput"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/notification-templates/{type}/{language}": {
+      "put": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "updateTemplate",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TICKET_CREATED",
+                "NEW_TICKET_IN_QUEUE",
+                "TICKET_ASSIGNED",
+                "AGENT_REPLIED",
+                "REQUESTER_REPLIED",
+                "STATUS_CHANGED",
+                "INFORMATION_REQUESTED",
+                "TICKET_RESOLVED",
+                "TICKET_CLOSED",
+                "REOPEN_REQUESTED",
+                "REOPEN_DECIDED",
+                "TICKET_ESCALATED"
+              ]
+            }
+          },
+          {
+            "name": "language",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageTemplate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/holidays/{date}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "putHoliday",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "deleteHoliday",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/categories/{code}": {
+      "put": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/agents/{id}/active": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "setActive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActiveFlag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "List / search / filter tickets (requesters only get their own)",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "assignee",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "requesterRole",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CUSTOMER",
+                "SELLER",
+                "DELIVERY_DRIVER",
+                "SUPPORT_AGENT",
+                "SUPPORT_MANAGER",
+                "ADMINISTRATOR"
+              ]
+            }
+          },
+          {
+            "name": "escalated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "slaBreached",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "open",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResultTicketSummary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Create a ticket (JSON, without attachments)",
+        "operationId": "createMultipart",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ticket": {
+                    "$ref": "#/components/schemas/CreateTicket"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": [
+                  "ticket"
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicket"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/satisfaction": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Requester: rate the answer of a resolved or closed ticket, once (1 to 5)",
+        "operationId": "rate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SatisfactionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/reopen-requests": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "requestReopen",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestReopen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReopenView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/messages": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Conversation. Support may pass visibility=PUBLIC|INTERNAL; requesters only get PUBLIC",
+        "operationId": "messages",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PUBLIC",
+                "INTERNAL"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "postMessageMultipart",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "$ref": "#/components/schemas/PostMessage"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/internal-notes": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "postNoteMultipart",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "$ref": "#/components/schemas/PostMessage"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/escalate": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "escalate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Escalate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/ai/suggestion": {
+      "post": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "Apply (true) or dismiss (false) the category/priority suggested by the assistant",
+        "operationId": "decideSuggestion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/ai/draft-reply": {
+      "post": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "A reply draft from the help centre; the agent edits it before sending",
+        "operationId": "draft",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/actions/reschedule-delivery": {
+      "post": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "Release the delivery of the ticket so that a courier can take it again",
+        "operationId": "reschedule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleDelivery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/actions/refund-request": {
+      "post": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "Ask Maplenou to open a return/refund request for the order of the ticket",
+        "operationId": "refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestRefund"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/actions/contact-driver": {
+      "post": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "Send a message to the courier of the delivery, in the Maplenou app",
+        "operationId": "contactDriver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactDriver"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/{id}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "markAllRead",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/devices": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "registerDevice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegistration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/devices/test": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "testPush",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/canned-replies": {
+      "get": {
+        "tags": [
+          "Canned replies"
+        ],
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CannedReply"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Canned replies"
+        ],
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CannedReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/legacy-import": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "importLegacyTickets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/categories": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "all",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "Add a category (administrators, DEC-CS11-06)",
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/token": {
+      "post": {
+        "tags": [
+          "Demo login"
+        ],
+        "operationId": "token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/vocabulary": {
+      "get": {
+        "tags": [
+          "Vocabulary"
+        ],
+        "summary": "Statuses (with kind and FR/EN labels), manual transitions and priorities",
+        "operationId": "get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vocabulary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/history": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/context": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Support only: requester, order, payment, delivery, seller and refund context of a ticket",
+        "operationId": "context",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketContext"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/{id}/attachments/{attachmentId}": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Download an attachment (authorized users only)",
+        "operationId": "download",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/tickets/export.csv": {
+      "get": {
+        "tags": [
+          "Support tools"
+        ],
+        "summary": "CSV export of the tickets matching the filters (managers and administrators)",
+        "operationId": "export",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          {
+            "name": "assignee",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "requesterRole",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CUSTOMER",
+                "SELLER",
+                "DELIVERY_DRIVER",
+                "SUPPORT_AGENT",
+                "SUPPORT_MANAGER",
+                "ADMINISTRATOR"
+              ]
+            }
+          },
+          {
+            "name": "escalated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "slaBreached",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "open",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/reports/summary": {
+      "get": {
+        "tags": [
+          "Dashboard & reports"
+        ],
+        "operationId": "report",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResultNotificationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "unreadCount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/push-status": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "pushStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/me": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Actor"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/me/references": {
+      "get": {
+        "tags": [
+          "Ecosystem context"
+        ],
+        "operationId": "myReferences",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyReferences"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard & reports"
+        ],
+        "operationId": "dashboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/categories": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "list_4",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/ai/status": {
+      "get": {
+        "tags": [
+          "Support tools"
+        ],
+        "operationId": "aiStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/agents": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "assignable",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/sla-settings": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "slaSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/sla-policies": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "policies",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SlaPolicy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/notification-templates": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "templates",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageTemplate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/holidays": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "listHolidays",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/agents": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "allStaff",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/users": {
+      "get": {
+        "tags": [
+          "Demo login"
+        ],
+        "operationId": "users",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Actor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/notifications/devices/{token}": {
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "unregisterDevice",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/support/admin/staff-roles/{phone}": {
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "phone",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChangeStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "maxLength": 25,
+            "minLength": 0
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AiSuggestionView": {
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": "string"
+          },
+          "priorityCode": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "DISMISSED"
+            ]
+          }
+        }
+      },
+      "CategoryView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "descriptionEn": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ExternalActionView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "REFUND_REQUEST",
+              "DELIVERY_RESCHEDULE",
+              "DRIVER_MESSAGE"
+            ]
+          },
+          "targetRef": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "resultRef": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "requestedBy": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PersonView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          }
+        }
+      },
+      "References": {
+        "type": "object",
+        "properties": {
+          "orderRef": {
+            "type": "string"
+          },
+          "paymentRef": {
+            "type": "string"
+          },
+          "deliveryRef": {
+            "type": "string"
+          },
+          "sellerRef": {
+            "type": "string"
+          },
+          "refundRef": {
+            "type": "string"
+          },
+          "all": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReopenView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decisionNote": {
+            "type": "string"
+          }
+        }
+      },
+      "SatisfactionView": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "ratedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SlaClock": {
+        "type": "object",
+        "properties": {
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ON_TRACK",
+              "APPROACHING",
+              "BREACHED",
+              "MET",
+              "PAUSED"
+            ]
+          }
+        }
+      },
+      "SlaPeriodView": {
+        "type": "object",
+        "properties": {
+          "periodNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endReason": {
+            "type": "string"
+          },
+          "pausedMinutes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SlaView": {
+        "type": "object",
+        "properties": {
+          "firstResponse": {
+            "$ref": "#/components/schemas/SlaClock"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/SlaClock"
+          },
+          "overall": {
+            "type": "string",
+            "enum": [
+              "ON_TRACK",
+              "APPROACHING",
+              "BREACHED",
+              "MET",
+              "PAUSED"
+            ]
+          },
+          "pausedSince": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlaPeriodView"
+            }
+          }
+        }
+      },
+      "TicketDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketNumber": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryView"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusKind": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "WAITING_REQUESTER",
+              "ON_HOLD",
+              "RESOLVED",
+              "CLOSED"
+            ]
+          },
+          "requester": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "assignedAgent": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "requesterReportedUrgent": {
+            "type": "boolean"
+          },
+          "escalated": {
+            "type": "boolean"
+          },
+          "escalatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "references": {
+            "$ref": "#/components/schemas/References"
+          },
+          "sla": {
+            "$ref": "#/components/schemas/SlaView"
+          },
+          "pendingReopenRequest": {
+            "$ref": "#/components/schemas/ReopenView"
+          },
+          "lastReopenDecision": {
+            "$ref": "#/components/schemas/ReopenView"
+          },
+          "allowedActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SEND_MESSAGE",
+                "ADD_INTERNAL_NOTE",
+                "VIEW_INTERNAL",
+                "VIEW_CONTEXT",
+                "VIEW_SLA",
+                "ASSIGN_SELF",
+                "REASSIGN",
+                "CHANGE_STATUS",
+                "RESOLVE",
+                "CLOSE",
+                "CHANGE_PRIORITY",
+                "SET_CRITICAL",
+                "CHANGE_CATEGORY",
+                "ESCALATE",
+                "REQUEST_REOPEN",
+                "DECIDE_REOPEN",
+                "RATE",
+                "USE_AI_ASSIST",
+                "REQUEST_REFUND",
+                "RESCHEDULE_DELIVERY",
+                "CONTACT_DRIVER"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "allowedStatusTargets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "legacyNumber": {
+            "type": "string"
+          },
+          "satisfaction": {
+            "$ref": "#/components/schemas/SatisfactionView"
+          },
+          "aiSuggestion": {
+            "$ref": "#/components/schemas/AiSuggestionView"
+          },
+          "externalActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalActionView"
+            }
+          }
+        }
+      },
+      "DecideReopen": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          },
+          "targetStatus": {
+            "type": "string",
+            "maxLength": 25,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "ChangePriority": {
+        "type": "object",
+        "properties": {
+          "priority": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 0
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "priority"
+        ]
+      },
+      "ChangeCategory": {
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "categoryCode"
+        ]
+      },
+      "Assign": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "pattern": "^(fr|en)$"
+          }
+        }
+      },
+      "ReplyInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 0
+          },
+          "language": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(fr|en)$"
+          },
+          "categoryCode": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 0
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "body",
+          "language",
+          "title"
+        ]
+      },
+      "CannedReply": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "updatedBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StatusInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 25,
+            "minLength": 0
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "WAITING_REQUESTER",
+              "ON_HOLD",
+              "RESOLVED",
+              "CLOSED"
+            ]
+          },
+          "labelFr": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 0
+          },
+          "labelEn": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 0
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 999,
+            "minimum": 0
+          },
+          "slaPaused": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "labelFr"
+        ]
+      },
+      "TransitionInput": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "WorkflowInput": {
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusInput"
+            },
+            "maxItems": 30,
+            "minItems": 6
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransitionInput"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "statuses",
+          "transitions"
+        ]
+      },
+      "PriorityDefinition": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "labelFr": {
+            "type": "string"
+          },
+          "labelEn": {
+            "type": "string"
+          },
+          "requesterSelectable": {
+            "type": "boolean"
+          },
+          "defaultPriority": {
+            "type": "boolean"
+          },
+          "system": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StatusDefinition": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "WAITING_REQUESTER",
+              "ON_HOLD",
+              "RESOLVED",
+              "CLOSED"
+            ]
+          },
+          "labelFr": {
+            "type": "string"
+          },
+          "labelEn": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slaPaused": {
+            "type": "boolean"
+          },
+          "system": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "open": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Transition": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "Vocabulary": {
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusDefinition"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transition"
+            }
+          },
+          "priorities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriorityDefinition"
+            }
+          }
+        }
+      },
+      "StaffRoleUpdate": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          }
+        },
+        "required": [
+          "phone",
+          "role"
+        ]
+      },
+      "StaffRoleView": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "assignedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PolicyUpdate": {
+        "type": "object",
+        "properties": {
+          "firstResponseMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 43200,
+            "minimum": 1
+          },
+          "resolutionMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 129600,
+            "minimum": 1
+          },
+          "resolutionDays": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 90,
+            "minimum": 1
+          }
+        }
+      },
+      "SlaPolicy": {
+        "type": "object",
+        "properties": {
+          "priorityCode": {
+            "type": "string"
+          },
+          "firstResponseMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resolutionMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resolutionDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PriorityInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 0
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 99,
+            "minimum": 1
+          },
+          "labelFr": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 0
+          },
+          "labelEn": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 0
+          },
+          "requesterSelectable": {
+            "type": "boolean"
+          },
+          "defaultPriority": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "labelFr"
+        ]
+      },
+      "PermissionInput": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SEND_MESSAGE",
+              "ADD_INTERNAL_NOTE",
+              "VIEW_INTERNAL",
+              "VIEW_CONTEXT",
+              "VIEW_SLA",
+              "ASSIGN_SELF",
+              "REASSIGN",
+              "CHANGE_STATUS",
+              "RESOLVE",
+              "CLOSE",
+              "CHANGE_PRIORITY",
+              "SET_CRITICAL",
+              "CHANGE_CATEGORY",
+              "ESCALATE",
+              "REQUEST_REOPEN",
+              "DECIDE_REOPEN",
+              "RATE",
+              "USE_AI_ASSIST",
+              "REQUEST_REFUND",
+              "RESCHEDULE_DELIVERY",
+              "CONTACT_DRIVER"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "ASSIGNED",
+              "UNASSIGNED",
+              "ANY"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "role",
+          "scope"
+        ]
+      },
+      "PermissionRule": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SEND_MESSAGE",
+              "ADD_INTERNAL_NOTE",
+              "VIEW_INTERNAL",
+              "VIEW_CONTEXT",
+              "VIEW_SLA",
+              "ASSIGN_SELF",
+              "REASSIGN",
+              "CHANGE_STATUS",
+              "RESOLVE",
+              "CLOSE",
+              "CHANGE_PRIORITY",
+              "SET_CRITICAL",
+              "CHANGE_CATEGORY",
+              "ESCALATE",
+              "REQUEST_REOPEN",
+              "DECIDE_REOPEN",
+              "RATE",
+              "USE_AI_ASSIST",
+              "REQUEST_REFUND",
+              "RESCHEDULE_DELIVERY",
+              "CONTACT_DRIVER"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "ASSIGNED",
+              "UNASSIGNED",
+              "ANY"
+            ]
+          }
+        }
+      },
+      "PermissionsView": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionRule"
+            }
+          },
+          "defaults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionRule"
+            }
+          }
+        }
+      },
+      "TemplateUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 0
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "body",
+          "title"
+        ]
+      },
+      "MessageTemplate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TICKET_CREATED",
+              "NEW_TICKET_IN_QUEUE",
+              "TICKET_ASSIGNED",
+              "AGENT_REPLIED",
+              "REQUESTER_REPLIED",
+              "STATUS_CHANGED",
+              "INFORMATION_REQUESTED",
+              "TICKET_RESOLVED",
+              "TICKET_CLOSED",
+              "REOPEN_REQUESTED",
+              "REOPEN_DECIDED",
+              "TICKET_ESCALATED"
+            ]
+          },
+          "language": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      },
+      "HolidayUpdate": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "HolidayView": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "CategoryUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "nameEn": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "descriptionEn": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ActiveFlag": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AgentView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "openTickets": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CreateTicket": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 0
+          },
+          "categoryCode": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 0
+          },
+          "priority": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 0
+          },
+          "urgent": {
+            "type": "boolean"
+          },
+          "orderRef": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "^[A-Za-z0-9-]*$"
+          },
+          "deliveryRef": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "^[A-Za-z0-9-]*$"
+          }
+        },
+        "required": [
+          "categoryCode",
+          "description",
+          "subject"
+        ]
+      },
+      "Rate": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        }
+      },
+      "RequestReopen": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "PostMessage": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 0
+          },
+          "clientMessageId": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0,
+            "pattern": "^[A-Za-z0-9_-]*$"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "AttachmentView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MessageView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "INTERNAL"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentView"
+            }
+          }
+        }
+      },
+      "Escalate": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "AiDecision": {
+        "type": "object",
+        "properties": {
+          "apply": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "apply"
+        ]
+      },
+      "DraftRequest": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "pattern": "^(fr|en)?$"
+          }
+        }
+      },
+      "DraftView": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RescheduleDelivery": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "RequestRefund": {
+        "type": "object",
+        "properties": {
+          "subOrderId": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 0
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 900,
+            "minLength": 10
+          },
+          "productCondition": {
+            "type": "string",
+            "pattern": "^(NEW|GOOD|DAMAGED)?$"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ContactDriver": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "DeviceRegistration": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "ANDROID",
+              "IOS",
+              "WEB"
+            ]
+          }
+        },
+        "required": [
+          "platform",
+          "token"
+        ]
+      },
+      "PushTestResult": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "devices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invalidRemoved": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalInSource": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CategoryCreate": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "nameEn": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "descriptionEn": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "TokenRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "Actor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "system": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Actor"
+          }
+        }
+      },
+      "PageResultTicketSummary": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketSummary"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalItems": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "TicketSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketNumber": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryView"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusKind": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "WAITING_REQUESTER",
+              "ON_HOLD",
+              "RESOLVED",
+              "CLOSED"
+            ]
+          },
+          "requester": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "assignedAgent": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "escalated": {
+            "type": "boolean"
+          },
+          "slaState": {
+            "type": "string",
+            "enum": [
+              "ON_TRACK",
+              "APPROACHING",
+              "BREACHED",
+              "MET",
+              "PAUSED"
+            ]
+          },
+          "orderRef": {
+            "type": "string"
+          },
+          "deliveryRef": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HistoryView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "STATUS_CHANGED",
+              "PRIORITY_CHANGED",
+              "CATEGORY_CHANGED",
+              "ASSIGNED",
+              "REASSIGNED",
+              "MESSAGE_ADDED",
+              "INTERNAL_NOTE_ADDED",
+              "ATTACHMENT_ADDED",
+              "ESCALATED",
+              "REOPEN_REQUESTED",
+              "REOPEN_APPROVED",
+              "REOPEN_REJECTED",
+              "SLA_RECALCULATED",
+              "SLA_PAUSED",
+              "SLA_RESUMED",
+              "AUTO_CLOSED",
+              "RATED",
+              "AI_SUGGESTION_APPLIED",
+              "EXTERNAL_ACTION",
+              "LEGACY_UPDATED"
+            ]
+          },
+          "actor": {
+            "$ref": "#/components/schemas/PersonView"
+          },
+          "oldValue": {
+            "type": "string"
+          },
+          "newValue": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeliverySummary": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "orderRef": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "driverId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "driverName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "pickedUpAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUpdateAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "timeSlot": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderSummary": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "sellerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sellerRef": {
+            "type": "string"
+          },
+          "sellerName": {
+            "type": "string"
+          },
+          "orderedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "paymentRef": {
+            "type": "string"
+          },
+          "deliveryRef": {
+            "type": "string"
+          },
+          "refundRef": {
+            "type": "string"
+          },
+          "subOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubOrderSummary"
+            }
+          }
+        }
+      },
+      "PaymentSummary": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "orderRef": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "commissionAmount": {
+            "type": "number"
+          },
+          "payoutStatus": {
+            "type": "string"
+          },
+          "payoutAmount": {
+            "type": "number"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RefundSummary": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "orderRef": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RequesterProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "SELLER",
+              "DELIVERY_DRIVER",
+              "SUPPORT_AGENT",
+              "SUPPORT_MANAGER",
+              "ADMINISTRATOR"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "knownSince": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ticketCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SectionDeliverySummary": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeliverySummary"
+          }
+        }
+      },
+      "SectionOrderSummary": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OrderSummary"
+          }
+        }
+      },
+      "SectionPaymentSummary": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PaymentSummary"
+          }
+        }
+      },
+      "SectionRefundSummary": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RefundSummary"
+          }
+        }
+      },
+      "SectionSellerSummary": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SellerSummary"
+          }
+        }
+      },
+      "SellerSummary": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "sellerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shopName": {
+            "type": "string"
+          },
+          "ownerName": {
+            "type": "string"
+          },
+          "accountStatus": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "SubOrderSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "shopName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "number"
+          }
+        }
+      },
+      "TicketContext": {
+        "type": "object",
+        "properties": {
+          "requester": {
+            "$ref": "#/components/schemas/RequesterProfile"
+          },
+          "order": {
+            "$ref": "#/components/schemas/SectionOrderSummary"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/SectionPaymentSummary"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/SectionDeliverySummary"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/SectionSellerSummary"
+          },
+          "refund": {
+            "$ref": "#/components/schemas/SectionRefundSummary"
+          }
+        }
+      },
+      "CategoryCount": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "created": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stillOpen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "avgFirstResponseBusinessMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "avgResolutionBusinessMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "firstResponseSlaMetPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "resolutionSlaMetPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            }
+          },
+          "createdPerDay": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "satisfaction": {
+            "$ref": "#/components/schemas/Satisfaction"
+          }
+        }
+      },
+      "Satisfaction": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "average": {
+            "type": "number",
+            "format": "double"
+          },
+          "satisfiedPercent": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "NotificationView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TICKET_CREATED",
+              "NEW_TICKET_IN_QUEUE",
+              "TICKET_ASSIGNED",
+              "AGENT_REPLIED",
+              "REQUESTER_REPLIED",
+              "STATUS_CHANGED",
+              "INFORMATION_REQUESTED",
+              "TICKET_RESOLVED",
+              "TICKET_CLOSED",
+              "REOPEN_REQUESTED",
+              "REOPEN_DECIDED",
+              "TICKET_ESCALATED"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "ticketNumber": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageResultNotificationView": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationView"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalItems": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PushStatus": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "devices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mobileRelay": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MyReferences": {
+        "type": "object",
+        "properties": {
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderSummary"
+            }
+          },
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeliverySummary"
+            }
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "openCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "newCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unassignedCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inProgressCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "waitingForCustomerCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resolvedTodayCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "escalatedOpenCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slaBreachedOpenCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "myOpenCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "openByPriority": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "openByCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            }
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketSummary"
+            }
+          },
+          "satisfactionLast30Days": {
+            "$ref": "#/components/schemas/Satisfaction"
+          }
+        }
+      },
+      "AiStatus": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CalendarSettings": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "zone": {
+            "type": "string"
+          },
+          "opening": {
+            "type": "string",
+            "format": "time-local"
+          },
+          "closing": {
+            "type": "string",
+            "format": "time-local"
+          },
+          "minutesPerDay": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

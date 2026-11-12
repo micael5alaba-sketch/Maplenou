@@ -1,0 +1,12 @@
+# Build context of documentation/Dockerfile (the only image built from the repository root).
+# Allow-list: everything is excluded except what the documentation build needs.
+*
+!pyproject.toml
+!uv.lock
+!zensical.toml
+!docs/
+!documentation/
+docs/assets/maplenou/
+documentation/*/*/site/
+documentation/*/*/docs/assets/maplenou/
+**/__pycache__/

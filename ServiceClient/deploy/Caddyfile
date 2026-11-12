@@ -1,0 +1,42 @@
+# Public entry point (docker compose --profile docs --profile public up -d --build --wait).
+# Caddy gets and renews the HTTPS certificates itself (Let's Encrypt): the three domains must point to this
+# server and ports 80/443 must be open. Domains and e-mail come from .env (SUPPORT_DOMAIN, HELP_DOMAIN,
+# SITE_DOMAIN, ACME_EMAIL). Only these three sites are published; everything else stays in the Docker network.
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Customer-service web app (requesters and support staff). Its server (BFF) talks to the API internally.
+{$SUPPORT_DOMAIN} {
+	import common
+	reverse_proxy frontend:3000
+}
+
+# Public help centre: the user guide and its assistant. Internal guides and AI endpoints are never served.
+{$HELP_DOMAIN} {
+	import common
+	@internal path /api/assistant/internal/* /staff/* /developer/*
+	respond @internal 404
+	redir / /user/fr/ 302
+	reverse_proxy docs:80
+}
+
+# Public website of the marketplace (../Site_vitrine)
+{$SITE_DOMAIN} {
+	import common
+	reverse_proxy site:3000
+}

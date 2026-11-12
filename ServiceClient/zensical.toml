@@ -1,0 +1,171 @@
+# Developer documentation (English) — Zensical project at the repository root so it can use docs/.
+# Replaces mkdocs.yml. Build all sites: python documentation/build.py ; preview this one: zensical serve
+[project]
+site_name = "Maplenou — Developer documentation"
+site_description = "Maplenou — Developer documentation"
+docs_dir = "docs"
+site_dir = "site/developer/en"
+copyright = "&copy; Maplenou"
+extra_css = [
+  "assets/maplenou/stylesheets/maplenou.css",
+  "assets/maplenou/assistant/assistant.css",
+]
+extra_javascript = [
+  "assets/maplenou/config.js",
+  "assets/maplenou/javascripts/language-switch.js",
+  "assets/maplenou/assistant/assistant.js",
+]
+nav = [
+  { "Home" = "index.md" },
+  { "Developer guide" = [
+    { "Getting started" = "guide/getting-started.md" },
+    { "Repository tour" = "guide/repository.md" },
+    { "Architecture" = "guide/architecture.md" },
+    { "Backend" = "guide/backend.md" },
+    { "Backend processing and manual tests" = "guide/backend-processing.md" },
+    { "Test the API (Swagger, Postman)" = "guide/api-testing.md" },
+    { "Firebase push notifications" = "guide/firebase.md" },
+    { "Maplenou platform integration" = "guide/maplenou-integration.md" },
+    { "Frontend" = "guide/frontend.md" },
+    { "Documentation sites" = "guide/documentation.md" },
+    { "Documentation assistant" = "guide/assistant.md" },
+    { "Testing" = "guide/testing.md" },
+    { "Caching and disk space" = "guide/caching.md" },
+    { "Operations" = "guide/operations.md" },
+    { "Deployment (domains, HTTPS)" = "guide/deployment.md" },
+    { "Deployment on Render" = "guide/render.md" },
+    { "Contributing" = "guide/contributing.md" },
+    { "AI agents" = "guide/ai-agents.md" },
+  ] },
+  { "Project" = [
+    { "Continuity" = "project/PROJECT-CONTINUITY.md" },
+    { "Development Matrix" = "project/DEVELOPMENT-MATRIX.md" },
+    { "Project Plan" = "project/PROJECT-PLAN.md" },
+  ] },
+  { "Requirements (CS-01)" = [
+    { "Functional Requirements" = "requirements/functional-requirements.md" },
+    { "Business Rules" = "requirements/business-rules.md" },
+    { "Business Decisions" = "requirements/business-decisions.md" },
+    { "Acceptance Criteria" = "requirements/acceptance-criteria.md" },
+    { "Authorization Matrix" = "requirements/authorization-matrix.md" },
+    { "Traceability" = "requirements/requirements-traceability.md" },
+    { "Glossary" = "requirements/requirements-glossary.md" },
+  ] },
+  { "UX/UI (CS-02)" = [
+    { "Overview" = "ux-ui/README.md" },
+    { "User Journeys" = "ux-ui/user-journeys.md" },
+    { "Information Architecture" = "ux-ui/information-architecture.md" },
+    { "Screen Inventory" = "ux-ui/screen-inventory.md" },
+    { "Screen Behavior" = "ux-ui/screen-behavior.md" },
+    { "Wireframes" = "ux-ui/wireframes.md" },
+    { "Design System" = "ux-ui/design-system.md" },
+    { "Component Inventory" = "ux-ui/component-inventory.md" },
+    { "Responsive Design" = "ux-ui/responsive-design.md" },
+    { "Mockups and screens" = "ux-ui/screens.md" },
+    { "CS-02.1 Journeys" = "ux-ui/CS-02.1-acceptance-criteria.md" },
+    { "CS-02.2 Information Architecture" = "ux-ui/CS-02.2-acceptance-criteria.md" },
+    { "CS-02.3 Screen Inventory" = "ux-ui/CS-02.3-acceptance-criteria.md" },
+    { "CS-02.4 Screen Behavior" = "ux-ui/CS-02.4-acceptance-criteria.md" },
+    { "CS-02.5 Wireframes" = "ux-ui/CS-02.5-acceptance-criteria.md" },
+    { "CS-02.6 Design System" = "ux-ui/CS-02.6-acceptance-criteria.md" },
+  ] },
+  { "Architecture (CS-03+)" = [
+    { "Overview" = "architecture/README.md" },
+    { "Reference architecture" = "architecture/reference-architecture.md" },
+    { "Decisions" = "architecture/decisions.md" },
+    { "Database Model" = "architecture/database-model.md" },
+    { "API Specification" = "architecture/api-specification.md" },
+    { "Ecosystem Integration" = "architecture/ecosystem-integration.md" },
+    { "Notifications" = "architecture/notifications.md" },
+    { "Security Review" = "architecture/security.md" },
+    { "Complexity Review" = "architecture/complexity-review.md" },
+  ] },
+  { "Diagrams" = [
+    { "Ticket State" = "diagrams/uml/ticket-state.md" },
+    { "Ticket Sequence" = "diagrams/uml/ticket-sequence.md" },
+    { "Ticket Domain" = "diagrams/uml/ticket-domain-class.md" },
+  ] },
+  { "Validation" = [
+    { "CS-01 Final" = "validation/CS-01-FINAL-VALIDATION.md" },
+    { "CS-02 Final" = "validation/CS-02-FINAL-VALIDATION.md" },
+    { "CS-03" = "validation/CS-03-VALIDATION.md" },
+    { "CS-04" = "validation/CS-04-VALIDATION.md" },
+    { "CS-05" = "validation/CS-05-VALIDATION.md" },
+    { "CS-06" = "validation/CS-06-VALIDATION.md" },
+    { "CS-07" = "validation/CS-07-VALIDATION.md" },
+    { "CS-08" = "validation/CS-08-VALIDATION.md" },
+    { "CS-09 Final" = "validation/CS-09-FINAL-VALIDATION.md" },
+    { "CS-10" = "validation/CS-10-VALIDATION.md" },
+    { "CS-11" = "validation/CS-11-VALIDATION.md" },
+  ] },
+  { "Governance" = [
+    { "References" = "governance/REFERENCES.md" },
+    { "Reproduction Guide" = "governance/REPRODUCTION.md" },
+    { "Upgrade Plan" = "governance/UPGRADE-PLAN.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"
+features = [
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.indexes",
+  "navigation.top",
+  "navigation.path",
+  "toc.follow",
+  "search.highlight",
+  "content.code.copy",
+]
+
+# Light / dark / follow the system (same three choices as the web app)
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.extra]
+# Language selector; language-switch.js keeps the reader on the same page
+alternate = [
+  { name = "Français", link = "/developer/fr/", lang = "fr" },
+  { name = "English", link = "/developer/en/", lang = "en" },
+]
+
+[project.markdown_extensions.abbr]
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.footnotes]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.tables]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.highlight]
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.keys]
+[project.markdown_extensions.pymdownx.mark]
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]

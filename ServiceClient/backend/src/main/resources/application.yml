@@ -1,0 +1,148 @@
+spring:
+  application:
+    name: maplenou-support
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/maplenou_support}
+    username: ${DATABASE_USERNAME:maplenou}
+    password: ${DATABASE_PASSWORD:maplenou}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      # DEC-003: 10 MB per file, 5 files per message (+ JSON part headroom)
+      max-file-size: 10MB
+      max-request-size: 52MB
+  # Production: verify tokens issued by the Maplenou identity provider instead of a shared secret
+  # security.oauth2.resourceserver.jwt.issuer-uri: https://auth.maplenou.example
+
+server:
+  # 8081 on the computer (Bakend uses 8080); the Docker image sets SERVER_PORT=8080 inside the container
+  port: ${SERVER_PORT:8081}
+  # "native" only behind a trusted reverse proxy (Caddy of the public profile, the Next.js BFF): the client
+  # address then comes from X-Forwarded-For for rate limiting and logs. "none" otherwise (header ignored).
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+  # gzip JSON responses larger than 1 KB (less data for the end user's network)
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json
+    min-response-size: 1KB
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # health is public; prometheus answers only with METRICS_TOKEN (404 without one) — SecurityConfig
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: maplenou-support
+
+# JSON logs (requestId, userId in each line): set LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs (Docker: LOG_FORMAT in .env)
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+maplenou:
+  cache:
+    reference-ttl: ${REFERENCE_CACHE_TTL:PT10M}   # in-memory snapshots: categories, vocabulary, SLA calendar, templates
+    max-entries: 500
+  security:
+    # HS256 secret for local/demo tokens. Leave empty in production and set the issuer-uri above.
+    jwt-secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:maplenou-support-dev}
+    token-ttl: 8h
+    dev-login-enabled: ${DEV_LOGIN_ENABLED:false}
+  sla:
+    # always = 24/7, weekends and public holidays count (owner decision 2026-10-29, DEC-CS10-16);
+    # business-hours = Monday–Friday between opening and closing, minus the holidays of "Calendrier SLA"
+    mode: ${SLA_MODE:always}
+    zone: Africa/Lome
+    opening: "08:00"
+    closing: "18:00"
+  tickets:
+    # resolved tickets with no reopening request are closed after this time (DEC-CS11-04); 0 = never
+    auto-close-after: ${SUPPORT_AUTO_CLOSE_AFTER:P7D}
+    auto-close-check: ${SUPPORT_AUTO_CLOSE_CHECK:PT15M}
+  legacy:
+    # former Maplenou support module (Bakend V46): import new tickets and note status changes periodically while
+    # the Flutter app still uses it (DEC-CS12-02); needs MAPLENOU_CORE_URL + SUPPORT_SERVICE_TOKEN
+    sync-enabled: ${LEGACY_SYNC_ENABLED:false}
+    sync-interval: ${LEGACY_SYNC_INTERVAL:PT15M}
+  attachments:
+    storage-dir: ${ATTACHMENTS_DIR:./data/attachments}
+    max-file-bytes: 10485760        # 10 MB (BR-041)
+    max-files-per-message: 5        # BR-042
+    max-ticket-bytes: 52428800      # 50 MB (BR-043)
+    storage: ${ATTACHMENT_STORAGE:local}          # local | cloudinary (authenticated delivery)
+    cloudinary-url: ${CLOUDINARY_URL:}            # cloudinary://<api_key>:<api_secret>@<cloud_name>
+    cloudinary-folder: ${CLOUDINARY_FOLDER:maplenou-support}
+    antivirus: ${ANTIVIRUS:none}                  # none | clamav
+    clamav-host: ${CLAMAV_HOST:clamav}
+    clamav-port: ${CLAMAV_PORT:3310}
+    fail-closed: ${ANTIVIRUS_FAIL_CLOSED:true}    # refuse uploads while the antivirus cannot be reached
+  notifications:
+    dispatcher-enabled: true
+    dispatch-interval: 5s
+    max-attempts: 5
+    # Path to a Firebase service-account JSON; when empty, push is logged instead of sent.
+    firebase-credentials-file: ${FIREBASE_CREDENTIALS_FILE:}
+    # also push requesters' notifications to the Maplenou mobile apps through Bakend (needs SUPPORT_SERVICE_TOKEN)
+    mobile-relay: ${MAPLENOU_PUSH_RELAY:false}
+    # public address of the web app: pushes carry url=<app-url>/?ticket=<id> (opened by the mobile app)
+    app-url: ${SUPPORT_APP_URL:http://localhost:3001}
+  # Maplenou core platform (Bakend). Sign-in with a Maplenou account and, with ecosystem.mode=http, real orders.
+  core:
+    base-url: ${MAPLENOU_CORE_URL:http://localhost:8080}
+    login-enabled: ${MAPLENOU_LOGIN_ENABLED:false}
+    timeout: 5s
+  ecosystem:
+    mode: ${ECOSYSTEM_MODE:demo}    # demo | http (the core's internal API /internal/v1/**)
+    base-url: ${MAPLENOU_CORE_URL:http://localhost:8080}
+    # shared with Bakend (app.support-bridge.token): same SUPPORT_SERVICE_TOKEN on both sides
+    service-token: ${SUPPORT_SERVICE_TOKEN:}
+    timeout: 3s
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3001}
+  outbox:
+    poll-interval: 5s
+    max-attempts: 10
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    per-minute: ${RATE_LIMIT_PER_MINUTE:300}
+    writes-per-minute: ${RATE_LIMIT_WRITES_PER_MINUTE:60}
+  # AI help inside tickets (DEC-CS11-08): the documentation assistant service, internal address + shared token
+  assistant:
+    enabled: ${AI_ASSIST_ENABLED:false}
+    url: ${ASSISTANT_INTERNAL_URL:http://assistant:8000}
+    token: ${ASSISTANT_INTERNAL_TOKEN:}
+    timeout: 60s
+  # Prometheus scraping token (Authorization: Bearer …); empty = /actuator/prometheus is not served
+  metrics-token: ${METRICS_TOKEN:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: demo
+maplenou:
+  security:
+    jwt-secret: ${JWT_SECRET:demo-only-secret-change-me-0123456789abcdef}
+    dev-login-enabled: true

@@ -1,0 +1,163 @@
+import { defineMessages } from "../define";
+
+/** A1 — Help & Support entry point (requester home). */
+export const helpHome = defineMessages({
+  fr: {
+    titleDefault: "Aide et assistance",
+    subtitleDefault: "Comment pouvons-nous vous aider aujourd'hui ?",
+    titleSeller: "Support vendeur",
+    subtitleSeller: "Commandes, paiements, commissions et reversements.",
+    titleDriver: "Support livraison",
+    subtitleDriver: "Signalez un incident de livraison : client absent, adresse erronée, colis endommagé…",
+    greeting: "Bonjour {name} 👋",
+    reportIncident: "Signaler un incident",
+    createTicket: "Créer un ticket",
+    myTickets: "Mes tickets",
+    openRequests: "Demandes en cours ({count})",
+    seeAll: "Tout voir",
+    categories: "Catégories",
+  },
+  en: {
+    titleDefault: "Help and support",
+    subtitleDefault: "How can we help you today?",
+    titleSeller: "Seller support",
+    subtitleSeller: "Orders, payments, commissions and payouts.",
+    titleDriver: "Delivery support",
+    subtitleDriver: "Report a delivery incident: customer absent, wrong address, damaged parcel…",
+    greeting: "Hello {name} 👋",
+    reportIncident: "Report an incident",
+    createTicket: "Create a ticket",
+    myTickets: "My tickets",
+    openRequests: "Open requests ({count})",
+    seeAll: "See all",
+    categories: "Categories",
+  },
+});
+
+/** A2 — My tickets. */
+export const myTickets = defineMessages({
+  fr: {
+    title: "Mes tickets",
+    newTicket: "+ Nouveau",
+    filterLabel: "Filtrer mes tickets",
+    filterAll: "Tous",
+    filterOpen: "Ouverts",
+    filterClosed: "Résolus et fermés",
+    emptyAll: "Vous n'avez encore aucun ticket",
+    emptyFiltered: "Aucun ticket dans ce filtre",
+    createTicket: "Créer un ticket",
+    loading: "Chargement…",
+    seeMore: "Voir plus",
+  },
+  en: {
+    title: "My tickets",
+    newTicket: "+ New",
+    filterLabel: "Filter my tickets",
+    filterAll: "All",
+    filterOpen: "Open",
+    filterClosed: "Resolved and closed",
+    emptyAll: "You don't have any tickets yet",
+    emptyFiltered: "No tickets match this filter",
+    createTicket: "Create a ticket",
+    loading: "Loading…",
+    seeMore: "See more",
+  },
+});
+
+/** A4 — Requester ticket detail and reopening request. */
+export const requesterTicket = defineMessages({
+  fr: {
+    backToTickets: "‹ Mes tickets",
+    createdOn: "Créé le {date}",
+    status: "Statut",
+    priority: "Priorité",
+    category: "Catégorie",
+    linkedOrder: "Commande liée",
+    delivery: "Livraison",
+    handledBy: "Pris en charge par",
+    awaitingAssignment: "En attente d'attribution",
+    actionRequiredTitle: "Action requise",
+    actionRequiredBody:
+      "Le support attend des informations de votre part. Répondez ci-dessous pour que le traitement reprenne.",
+    closedTitle: "Ce ticket est fermé",
+    closedBody: "Un ticket fermé ne peut plus être rouvert. Si le problème persiste, créez un nouveau ticket.",
+    newTicket: "Nouveau ticket",
+    conversation: "Conversation",
+    replyPlaceholder: "Apportez les informations demandées…",
+    tracking: "Suivi du ticket",
+    // reopening
+    reopenPendingTitle: "Demande de réouverture en cours d'examen",
+    reopenPendingBody: "Envoyée le {date}. Le support vous répondra rapidement.",
+    reopenSent: "Demande de réouverture envoyée.",
+    reopenFailed: "Envoi impossible.",
+    resolvedTitle: "Votre ticket est résolu",
+    resolvedBody: "Si le problème n'est pas réglé, vous pouvez demander sa réouverture.",
+    previousRejected: "Votre précédente demande a été refusée.",
+    previousRejectedWithNote: "Votre précédente demande a été refusée : « {note} »",
+    requestReopen: "Demander la réouverture",
+    reopenReason: "Pourquoi le problème n'est-il pas résolu ?",
+    sending: "Envoi…",
+    sendRequest: "Envoyer la demande",
+    cancel: "Annuler",
+  },
+  en: {
+    backToTickets: "‹ My tickets",
+    createdOn: "Created on {date}",
+    status: "Status",
+    priority: "Priority",
+    category: "Category",
+    linkedOrder: "Linked order",
+    delivery: "Delivery",
+    handledBy: "Handled by",
+    awaitingAssignment: "Awaiting assignment",
+    actionRequiredTitle: "Action required",
+    actionRequiredBody: "Support is waiting for information from you. Reply below so we can continue.",
+    closedTitle: "This ticket is closed",
+    closedBody: "A closed ticket can no longer be reopened. If the problem persists, create a new ticket.",
+    newTicket: "New ticket",
+    conversation: "Conversation",
+    replyPlaceholder: "Provide the requested information…",
+    tracking: "Ticket history",
+    reopenPendingTitle: "Reopening request under review",
+    reopenPendingBody: "Sent on {date}. Support will get back to you shortly.",
+    reopenSent: "Reopening request sent.",
+    reopenFailed: "Could not send.",
+    resolvedTitle: "Your ticket is resolved",
+    resolvedBody: "If the problem has not been fixed, you can ask for it to be reopened.",
+    previousRejected: "Your previous request was refused.",
+    previousRejectedWithNote: "Your previous request was refused: “{note}”",
+    requestReopen: "Request reopening",
+    reopenReason: "Why is the problem not resolved?",
+    sending: "Sending…",
+    sendRequest: "Send request",
+    cancel: "Cancel",
+  },
+});
+
+/** C2 — Account. */
+export const account = defineMessages({
+  fr: {
+    title: "Mon compte",
+    name: "Nom",
+    profile: "Profil",
+    email: "E-mail",
+    phone: "Téléphone",
+    source: "Ces informations proviennent de votre compte Maplenou.",
+    logout: "Se déconnecter",
+  },
+  en: {
+    title: "My account",
+    name: "Name",
+    profile: "Profile",
+    email: "Email",
+    phone: "Phone",
+    source: "This information comes from your Maplenou account.",
+    logout: "Sign out",
+  },
+});
+
+/** C1 — Notifications page (requester). */
+export const requesterNotifications = defineMessages({
+  fr: { title: "Notifications" },
+  en: { title: "Notifications" },
+});
