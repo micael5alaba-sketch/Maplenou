@@ -21,6 +21,13 @@ public interface CoreAccounts {
 
     CoreLogin verifyMfa(String mfaToken, String code, String clientIp);
 
+    /**
+     * The account behind an access token the core already issued (the Maplenou mobile app is already signed in:
+     * the person does not type the password a second time). Errors: INVALID_CORE_TOKEN, ACCOUNT_DISABLED,
+     * CORE_UNAVAILABLE.
+     */
+    CoreUser profile(String accessToken);
+
     /** Ends the core session opened by the sign-in: the support service keeps its own token only. Best effort. */
     void logout(String refreshToken, String accessToken);
 }

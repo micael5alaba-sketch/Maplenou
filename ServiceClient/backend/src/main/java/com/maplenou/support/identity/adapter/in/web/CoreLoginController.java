@@ -33,6 +33,9 @@ public class CoreLoginController {
                              @NotBlank @Pattern(regexp = "^[0-9]{6}$") String code) {
     }
 
+    public record ExchangeRequest(@NotBlank @Size(max = 4096) String coreAccessToken) {
+    }
+
     /** {@code mfaRequired=true}: send the 6-digit code with the {@code mfaToken} to {@code /mfa}. */
     public record LoginResponse(boolean mfaRequired, String mfaToken, String accessToken, Instant expiresAt,
                                 Actor user) {
@@ -49,6 +52,12 @@ public class CoreLoginController {
     @PostMapping("/api/v1/auth/maplenou/mfa")
     public LoginResponse mfa(@Valid @RequestBody MfaRequest body, HttpServletRequest request) {
         return LoginResponse.of(logins.verifyMfa(body.mfaToken(), body.code(), clientIp(request)));
+    }
+
+    /** The Maplenou mobile app trades its own access token for a support token (no second password prompt). */
+    @PostMapping("/api/v1/auth/maplenou/exchange")
+    public LoginResponse exchange(@Valid @RequestBody ExchangeRequest body, HttpServletRequest request) {
+        return LoginResponse.of(logins.exchange(body.coreAccessToken(), clientIp(request)));
     }
 
     /** The web app (Next.js) forwards the visitor's address; the core decides whether to trust it. */

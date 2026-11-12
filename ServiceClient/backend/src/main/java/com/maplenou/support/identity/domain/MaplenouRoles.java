@@ -19,6 +19,10 @@ public final class MaplenouRoles {
         if ("ADMIN".equals(coreRole)) {
             return Role.ADMINISTRATOR;
         }
+        if ("SUPPORT_AGENT".equals(coreRole)) {
+            // Role "Agent support et retraits" of the Maplenou back-office staff (Bakend RolePermissions).
+            return Role.SUPPORT_AGENT;
+        }
         if ("DELIVERY_AGENT".equals(coreRole)) {
             return Role.DELIVERY_DRIVER;
         }

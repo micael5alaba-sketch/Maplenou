@@ -29,6 +29,26 @@ public class CoreAccountClient implements CoreAccounts {
     }
 
     @Override
+    public CoreUser profile(String accessToken) {
+        try {
+            CoreUser user = client.get().uri("/api/users/me").header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(CoreUser.class);
+            if (user == null) {
+                throw unavailable();
+            }
+            return user;
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403) {
+                throw new SupportException(SupportException.Kind.FORBIDDEN, "ACCOUNT_DISABLED",
+                        "Ce compte Maplenou est désactivé.", null);
+            }
+            throw SupportException.unauthenticated("INVALID_CORE_TOKEN", "Session Maplenou invalide ou expirée.", null);
+        } catch (RestClientException e) {
+            throw unavailable();
+        }
+    }
+
+    @Override
     public void logout(String refreshToken, String accessToken) {
         if (refreshToken == null) {
             return;

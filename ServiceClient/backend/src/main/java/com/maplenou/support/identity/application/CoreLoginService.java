@@ -65,9 +65,23 @@ public class CoreLoginService {
         return complete(core.verifyMfa(mfaToken, code, clientIp));
     }
 
+    /**
+     * Sign-in for the Maplenou mobile app, which already holds a valid core access token: the core confirms who the
+     * token belongs to ({@code GET /api/users/me}) and this service issues its own token. No password is involved
+     * and the core session is left open, because it belongs to the app. Throttled per client address.
+     */
+    @Transactional(readOnly = true)
+    public LoginOutcome exchange(String coreAccessToken, String clientIp) {
+        throttle("exchange:" + (clientIp == null ? "unknown" : clientIp));
+        return issueFor(core.profile(coreAccessToken));
+    }
+
     private LoginOutcome complete(CoreAccounts.CoreLogin result) {
-        CoreAccounts.CoreUser u = result.user();
         core.logout(result.refreshToken(), result.accessToken());
+        return issueFor(result.user());
+    }
+
+    private LoginOutcome issueFor(CoreAccounts.CoreUser u) {
         if (u == null || u.id() == null) {
             throw SupportException.upstream("CORE_UNAVAILABLE", "Réponse inattendue du service de connexion Maplenou.");
         }

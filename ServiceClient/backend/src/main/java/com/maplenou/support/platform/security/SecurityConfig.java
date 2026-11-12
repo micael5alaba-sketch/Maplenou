@@ -71,7 +71,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/dev/users").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/dev/token").permitAll()
                         // sign-in with a Maplenou account (only exists when MAPLENOU_LOGIN_ENABLED=true)
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/maplenou/login", "/api/v1/auth/maplenou/mfa").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/maplenou/login", "/api/v1/auth/maplenou/mfa",
+                                "/api/v1/auth/maplenou/exchange").permitAll()
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

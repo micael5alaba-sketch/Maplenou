@@ -19,6 +19,8 @@ final class FakeMaplenouCore {
     static final String BUYER_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c01";
     static final String SELLER_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c02";
     static final String AGENT_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c03";
+    static final String STAFF_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c05";
+    static final String DISABLED_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c06";
     static final String MFA_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c04";
 
     static final HttpServer SERVER;
@@ -54,6 +56,18 @@ final class FakeMaplenouCore {
                 send(ex, 401, "{\"status\":401}");
             }
         });
+        SERVER.createContext("/api/users/me", ex -> {
+            String auth = String.valueOf(ex.getRequestHeaders().getFirst("Authorization"));
+            if (auth.equals("Bearer core-access-" + BUYER_ID)) {
+                send(ex, 200, user(BUYER_ID, "Afi Mensah", "+22890000001", null, null));
+            } else if (auth.equals("Bearer core-access-" + STAFF_ID)) {
+                send(ex, 200, user(STAFF_ID, "Esi Agent Support", "+22890000005", "\"SUPPORT_AGENT\"", null));
+            } else if (auth.equals("Bearer core-access-" + DISABLED_ID)) {
+                send(ex, 403, "{\"status\":403}");
+            } else {
+                send(ex, 401, "{\"status\":401}");
+            }
+        });
         SERVER.createContext("/api/auth/logout", ex -> {
             LOGOUTS.add(read(ex));
             send(ex, 204, "");
@@ -71,6 +85,11 @@ final class FakeMaplenouCore {
 
     static String baseUrl() {
         return "http://127.0.0.1:" + SERVER.getAddress().getPort();
+    }
+
+    private static String user(String id, String name, String phone, String role, String sellerStatus) {
+        return "{\"id\":\"" + id + "\",\"fullName\":\"" + name + "\",\"phoneNumber\":\"" + phone
+                + "\",\"email\":null,\"role\":" + role + ",\"phoneVerified\":true,\"sellerStatus\":" + sellerStatus + "}";
     }
 
     private static String login(String id, String name, String phone, String role, String sellerStatus) {

@@ -55,6 +55,40 @@ class MaplenouIntegrationIT extends IntegrationTest {
                 .andExpect(jsonPath("$.requester.id").value(FakeMaplenouCore.BUYER_ID));
     }
 
+    private ResultActions exchange(String coreToken) throws Exception {
+        return mvc.perform(post("/api/v1/auth/maplenou/exchange").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"coreAccessToken\":\"" + coreToken + "\"}"));
+    }
+
+    @Test
+    void theMobileAppTradesItsMaplenouTokenForASupportToken() throws Exception {
+        int logoutsBefore = FakeMaplenouCore.LOGOUTS.size();
+        var res = exchange("core-access-" + FakeMaplenouCore.BUYER_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(FakeMaplenouCore.BUYER_ID))
+                .andExpect(jsonPath("$.user.role").value("CUSTOMER"));
+        String token = json(res, "$.accessToken");
+        assertThat(token).doesNotStartWith("core-access");
+        // the Maplenou session belongs to the app: it is NOT closed
+        assertThat(FakeMaplenouCore.LOGOUTS).hasSize(logoutsBefore);
+        mvc.perform(post("/api/v1/support/tickets").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(ticketJson("DELIVERY", "HIGH")))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void theExchangeRefusesUnknownOrDisabledTokensAndMapsStaffRoles() throws Exception {
+        exchange("n-importe-quoi").andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CORE_TOKEN"));
+        exchange("core-access-" + FakeMaplenouCore.DISABLED_ID).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"));
+        // the "Agent support" role of the Maplenou back-office is a support agent here
+        exchange("core-access-" + FakeMaplenouCore.STAFF_ID).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("SUPPORT_AGENT"));
+        mvc.perform(post("/api/v1/auth/maplenou/exchange").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void approvedSellersAreSellersAndWrongPasswordsAreRefused() throws Exception {
         login("+22890000002", "Passw0rd!").andExpect(status().isOk()).andExpect(jsonPath("$.user.role").value("SELLER"));
