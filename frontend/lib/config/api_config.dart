@@ -48,6 +48,28 @@ class ApiConfig {
   /// local contre un backend local).
   static const String _productionBaseUrl = 'https://maplenou-backend.onrender.com';
 
+  /// Service client (`ServiceClient/`, Spring Boot) : port 8081 en local, service Render en production
+  /// (`ServiceClient/render.yaml`). Remplaçable à la compilation par `--dart-define=SUPPORT_API_URL=...`.
+  static const String _supportProductionUrl = 'https://maplenou-support-api.onrender.com';
+
+  static String get supportBaseUrl {
+    const envUrl = String.fromEnvironment('SUPPORT_API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (kIsWeb) return _supportProductionUrl;
+    // En développement sur téléphone : `adb reverse tcp:8081 tcp:8081`, comme pour le backend.
+    if (Platform.isAndroid && _useUsbReverseTunnel) return 'http://localhost:8081';
+    if (Platform.isAndroid && !_useAndroidEmulator) return 'http://$_devMachineLanIp:8081';
+    if (Platform.isAndroid) return 'http://10.0.2.2:8081';
+    return 'http://localhost:8081';
+  }
+
+  /// Application web du service client : ouverte dans le navigateur quand l'API est injoignable.
+  static String get supportWebUrl {
+    const envUrl = String.fromEnvironment('SUPPORT_WEB_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    return 'https://maplenou-support-web.onrender.com';
+  }
+
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;

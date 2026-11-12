@@ -1,3 +1,4 @@
+import 'service_client_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_color_scheme.dart';
@@ -60,6 +61,18 @@ class HelpCenterScreen extends StatelessWidget {
                   Expanded(child: Text("Centre d'aide", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark))),
                   const SizedBox(width: 48),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: ListTile(
+                tileColor: colors.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Icon(Icons.support_agent_rounded, color: colors.primary),
+                title: Text('Contacter le service client', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
+                subtitle: const Text('Suivre mes demandes ou en ouvrir une nouvelle'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ServiceClientScreen())),
               ),
             ),
             Expanded(

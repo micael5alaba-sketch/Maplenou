@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/user_model.dart';
 import 'api_client.dart';
+import 'service_client_service.dart';
 import 'firebase_auth_bridge.dart';
 import 'push_notification_service.dart';
 import 'token_storage.dart';
@@ -96,6 +97,7 @@ class AuthService {
         // Le logout local doit réussir même si l'appel réseau échoue.
       }
     }
+    ServiceClientService().reset();
     await tokenStorage.clear();
     await FirebaseAuthBridge().signOut();
   }

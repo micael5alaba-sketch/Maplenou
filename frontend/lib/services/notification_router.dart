@@ -7,6 +7,7 @@ import '../screens/order_detail_screen.dart';
 import '../screens/order_tracking_screen.dart';
 import '../screens/orders_management_screen.dart';
 import '../screens/reseller_screen.dart';
+import '../screens/service_client_ticket_screen.dart';
 import '../screens/seller_conversation_screen.dart';
 import '../screens/seller_dashboard_screen.dart';
 import '../screens/shop_detail_screen.dart';
@@ -24,6 +25,7 @@ enum NotificationTargetKind {
   sellerDashboard,
   shop,
   reseller,
+  supportTicket,
 }
 
 class NotificationTarget {
@@ -48,6 +50,12 @@ NotificationTarget? resolveNotificationTarget(Map<String, dynamic> data) {
   String? text(String key) {
     final value = data[key];
     return value is String && value.isNotEmpty ? value : null;
+  }
+
+  // Notification du Service client (ServiceClient/) : la charge utile porte source=support et ticketId.
+  if (text('source') == 'support') {
+    final ticketId = text('ticketId');
+    return ticketId == null ? null : NotificationTarget(NotificationTargetKind.supportTicket, ticketId);
   }
 
   switch (text('type')) {
@@ -115,6 +123,7 @@ Widget? _screenFor(NotificationTarget target) {
     NotificationTargetKind.sellerDashboard => const SellerDashboardScreen(),
     NotificationTargetKind.shop => ShopDetailScreen(shopSlug: id!),
     NotificationTargetKind.reseller => const ResellerScreen(),
+    NotificationTargetKind.supportTicket => ServiceClientTicketScreen(ticketId: id!),
   };
 }
 

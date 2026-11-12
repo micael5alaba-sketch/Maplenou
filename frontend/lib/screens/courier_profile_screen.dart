@@ -15,7 +15,7 @@ import 'courier_documents_screen.dart';
 import 'courier_history_screen.dart';
 import 'courier_messages_screen.dart';
 import 'courier_settings_screen.dart';
-import 'courier_support_ticket_screen.dart';
+import 'service_client_screen.dart';
 import 'login_screen.dart';
 
 /// "Profil" tab of the courier space: identity, quick stats, balance, and
@@ -151,7 +151,7 @@ class _CourierProfileScreenState extends State<CourierProfileScreen> {
             () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSettingsScreen()))),
         const SizedBox(height: 10),
         _buildMenuRow(context, colors, Icons.help_outline_rounded, 'Aide & Support',
-            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CourierSupportTicketScreen()))),
+            () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ServiceClientScreen()))),
         const SizedBox(height: 28),
         LogoutButton(onPressed: _handleLogout),
       ],

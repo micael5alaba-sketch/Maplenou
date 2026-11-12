@@ -10,13 +10,13 @@ import '../services/api_client.dart';
 import '../services/buyer_courier_tracking_service.dart';
 import '../services/conversation_service.dart';
 import '../services/order_tracking_service.dart';
-import '../services/support_ticket_service.dart';
 import '../theme/app_color_scheme.dart';
 import '../widgets/courier_rating_dialog.dart';
 import '../widgets/live_tracking_map.dart';
 import 'courier_conversation_screen.dart';
 import 'order_receipt_screen.dart';
 import 'seller_conversation_screen.dart';
+import 'service_client_new_ticket_screen.dart';
 
 /// "Suivi de commande" — statut réel de la sous-commande, adresse de
 /// livraison réelle, nom du livreur une fois assigné, et sa position GPS en
@@ -113,71 +113,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  /// Ouvre une demande du Service client déjà liée à cette commande (le support voit la commande, le paiement
+  /// et la livraison). L'ancien module de tickets de Bakend est en lecture seule.
   Future<void> _reportProblem(OrderTrackingModel tracking) async {
-    final descriptionController = TextEditingController();
-    final colors = context.colors;
-
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Signaler un problème', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textDark)),
-                  const SizedBox(height: 4),
-                  Text('Commande #${tracking.orderNumber}', style: TextStyle(fontSize: 12, color: colors.textMuted)),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: descriptionController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Décris le problème',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.of(sheetContext).pop(true),
-                      child: const Text('Envoyer'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (confirmed != true || descriptionController.text.trim().isEmpty || !mounted) return;
-    try {
-      await SupportTicketService().submitTicket(
-        category: 'Problème de commande',
-        subject: 'Commande #${tracking.orderNumber}',
-        description: descriptionController.text.trim(),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Signalement envoyé — notre support va te répondre.')));
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.message)));
-    }
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ServiceClientNewTicketScreen(orderRef: tracking.orderNumber),
+    ));
   }
 
   Future<void> _contactSupport() async {

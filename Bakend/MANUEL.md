@@ -411,3 +411,27 @@ installe quoi que ce soit chez lui.
 - **Statistiques partenaire** : `GET /api/reseller/stats?period=7|30|90` ou `from`/`to`.
 - **Hors périmètre / à décider** : paiement automatique des retraits partenaires (virement manuel confirmé par
   le Super Admin pour l'instant), liens profonds natifs mobile (le lien ouvre l'appli web).
+
+
+## Service client dans l'application mobile (option 3)
+
+Le service client (`../ServiceClient`, développé par l'équipe service client) est branché à l'application Flutter :
+
+- **Connexion sans second mot de passe** : l'application, déjà connectée à Maplenou, échange son jeton contre un
+  jeton du service client (`POST /api/v1/auth/maplenou/exchange`, côté `ServiceClient`). Le jeton n'est gardé qu'en
+  mémoire. La session Maplenou reste ouverte (elle appartient à l'application).
+- **Écrans Flutter** : `service_client_screen.dart` (mes demandes), `service_client_new_ticket_screen.dart`
+  (nouvelle demande, numéro de commande pré-rempli depuis le suivi de commande), `service_client_ticket_screen.dart`
+  (conversation, réouverture, note), `service_client_notifications_screen.dart`. Accès : Centre d'aide, « Signaler un
+  problème » d'une commande, « Aide & Support » du livreur.
+- **Envoi idempotent** : chaque message porte un `clientMessageId` conservé tant que l'envoi n'a pas réussi.
+- **Notifications** : une notification dont la charge utile contient `source=support` et `ticketId` ouvre la demande.
+- **Rôles** : le rôle « Agent support » du back-office Maplenou est agent du service client ; `ADMIN` est administrateur.
+- **Pont interne** (`supportbridge`, `/internal/v1/**`) : lecture des commandes, paiements, livraisons, vendeurs,
+  remboursements + 4 actions ; actif seulement si `SUPPORT_SERVICE_TOKEN` est défini (même valeur des deux côtés).
+- **Variables de compilation Flutter** : `SUPPORT_API_URL` (défaut `https://maplenou-support-api.onrender.com`) et
+  `SUPPORT_WEB_URL` (défaut `https://maplenou-support-web.onrender.com`, ouvert si l'API est injoignable).
+- **Bascule de l'ancien module** : `SUPPORT_LEGACY_READ_ONLY=true` (Bakend) et `LEGACY_SYNC_ENABLED=true` (service
+  client) une fois l'import fait ; ne jamais traiter un ticket aux deux endroits.
+- **Vérifié de bout en bout en local** avec les deux serveurs réels : échange de jeton, ticket, réponse de l'équipe,
+  idempotence du message, notifications, cloisonnement entre clients, pont interne protégé par le jeton.
