@@ -3,7 +3,6 @@ package com.maplenou.backend.reseller;
 import com.maplenou.backend.audit.AuditAction;
 import com.maplenou.backend.audit.AuditService;
 import com.maplenou.backend.common.exception.ApiException;
-import com.maplenou.backend.notification.NotificationService;
 import com.maplenou.backend.reseller.dto.ResellerDtos.*;
 import com.maplenou.backend.user.Role;
 import com.maplenou.backend.user.User;
@@ -35,7 +34,6 @@ public class ResellerService {
     private final ResellerClickRepository clickRepository;
     private final ResellerSettingsService settingsService;
     private final AuditService auditService;
-    private final NotificationService notificationService;
 
     // ----- Partenaire -----
 
@@ -179,7 +177,6 @@ public class ResellerService {
                 .oldValue(from.name()).newValue(to.name()).reason(reason).build());
         auditService.log(actor.getId(), action, "RESELLER_PROFILE", p.getId(),
                 from + " → " + to + (reason != null ? " | " + reason.trim() : ""), ip);
-        notificationService.resellerEvent(p.getUser().getId(), title, body, "RESELLER_STATUS", p.getId());
         return toResponse(p);
     }
 

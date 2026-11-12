@@ -55,6 +55,14 @@ class ResellerService {
         .toList();
   }
 
+  /// Statistiques : [days] = 7, 30 ou 90, ou une période personnalisée [from]/[to].
+  Future<ResellerStatsModel> getStats({int? days, DateTime? from, DateTime? to}) async {
+    String day(DateTime d) => d.toIso8601String().substring(0, 10);
+    final query = days != null ? {'period': '$days'} : {'from': day(from!), 'to': day(to!)};
+    final data = await _client.get('/api/reseller/stats', query: query) as Map<String, dynamic>;
+    return ResellerStatsModel.fromJson(data);
+  }
+
   Future<ResellerWalletModel> getWallet() async {
     final data = await _client.get('/api/reseller/wallet') as Map<String, dynamic>;
     return ResellerWalletModel.fromJson(data);

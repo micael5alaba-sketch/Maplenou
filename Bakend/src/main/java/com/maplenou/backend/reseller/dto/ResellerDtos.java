@@ -54,7 +54,7 @@ public final class ResellerDtos {
     // ----- Catalogue et liens -----
 
     public record CatalogItem(UUID productId, String name, String shopName, String imageUrl, long unitPrice,
-                              BigDecimal commissionRate, long partnerShare, String linkCode, String linkUrl) {
+                              long partnerShare, String linkCode, String linkUrl, long clicks, long unitsSold) {
     }
 
     public record CreateLinkRequest(@NotNull UUID productId) {
@@ -76,6 +76,25 @@ public final class ResellerDtos {
                                      long unitPrice, BigDecimal commissionRate, long maplenouCommission,
                                      long partnerShare, long maplenouShare, int settingsVersion,
                                      ResellerCommissionStatus status, Instant createdAt, Instant creditedAt) {
+    }
+
+    /**
+     * Vue PARTENAIRE d'une commission : prix retenu, commission Maplenou, part de 25 %, statut, date de credit.
+     * Jamais le taux (5 % / 3 %) ni de donnees client (guide partenaire 10.3).
+     */
+    public record PartnerCommissionResponse(UUID id, String productName, int unitIndex, long unitPrice,
+                                            long maplenouCommission, long partnerShare, ResellerCommissionStatus status,
+                                            Instant createdAt, Instant creditedAt) {
+    }
+
+    /** Conditions visibles par le partenaire : sans les taux de commission Maplenou. */
+    public record PartnerSettingsResponse(BigDecimal shareRate, long minUnitPrice, int attributionDays,
+                                          long minWithdrawal, BigDecimal withdrawalFeeRate, boolean programActive) {
+    }
+
+    /** Statistiques sur une periode : clics comptes, ventes attribuees, unites vendues, taux de conversion (%). */
+    public record StatsResponse(Instant from, Instant to, long clicks, long attributedSales, long unitsSold,
+                                BigDecimal conversionRate) {
     }
 
     public record WalletResponse(long available, long reserved, long pending, long totalEarned, long totalPaid,

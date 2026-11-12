@@ -171,8 +171,6 @@ class _ApplyViewState extends State<_ApplyView> {
         ),
         const SizedBox(height: 16),
         _Bullet('Produits éligibles : prix final d\'au moins ${formatFcfa(s.minUnitPrice)}.'),
-        _Bullet('Commission Maplenou de ${_pct(s.rateLow)} jusqu\'à ${formatFcfa(s.tierThreshold)}, '
-            'puis ${_pct(s.rateHigh)} au-dessus.'),
         _Bullet('Votre gain est calculé par unité, sur le prix réellement payé après réduction.'),
         _Bullet('Le dernier clic valide l\'emporte, pendant ${s.attributionDays} jours.'),
         _Bullet('Votre gain est crédité uniquement après la livraison. Aucun gain sur vos propres achats.'),
@@ -322,6 +320,9 @@ class _CatalogTabState extends State<_CatalogTab> with AutomaticKeepAliveClientM
                           style: TextStyle(fontSize: 12, color: colors.textMuted)),
                       Text('Vous gagnez ${formatFcfa(item.partnerShare)} par unité',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary)),
+                      if (item.linkUrl != null)
+                        Text('${item.clicks} clics · ${item.unitsSold} vendus',
+                            style: TextStyle(fontSize: 11, color: colors.textMuted)),
                     ]),
                   ),
                   IconButton(icon: const Icon(Icons.copy_rounded), tooltip: 'Copier le lien', onPressed: () => _copy(item)),
@@ -336,9 +337,72 @@ class _CatalogTabState extends State<_CatalogTab> with AutomaticKeepAliveClientM
   }
 }
 
-class _CommissionsTab extends StatelessWidget {
+class _CommissionsTab extends StatefulWidget {
   final ResellerService service;
   const _CommissionsTab({required this.service});
+
+  @override
+  State<_CommissionsTab> createState() => _CommissionsTabState();
+}
+
+class _CommissionsTabState extends State<_CommissionsTab> {
+  ResellerService get service => widget.service;
+  int _days = 30;
+  DateTimeRange? _custom;
+  late Future<ResellerStatsModel> _stats = _loadStats();
+
+  Future<ResellerStatsModel> _loadStats() => _custom != null
+      ? service.getStats(from: _custom!.start, to: _custom!.end)
+      : service.getStats(days: _days);
+
+  Future<void> _pickCustom() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now,
+    );
+    if (range == null) return;
+    setState(() {
+      _custom = range;
+      _stats = _loadStats();
+    });
+  }
+
+  Widget _statsCard(AppColorScheme colors) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Wrap(spacing: 8, children: [
+          for (final d in [7, 30, 90])
+            ChoiceChip(
+              label: Text('$d j'),
+              selected: _custom == null && _days == d,
+              onSelected: (_) => setState(() {
+                _custom = null;
+                _days = d;
+                _stats = _loadStats();
+              }),
+            ),
+          ChoiceChip(label: const Text('Personnalisé'), selected: _custom != null, onSelected: (_) => _pickCustom()),
+        ]),
+        const SizedBox(height: 10),
+        FutureBuilder<ResellerStatsModel>(
+          future: _stats,
+          builder: (context, snap) {
+            if (!snap.hasData) return const SizedBox(height: 40, child: Center(child: CircularProgressIndicator()));
+            final st = snap.data!;
+            return Text(
+              '${st.clicks} clics · ${st.attributedSales} ventes attribuées · ${st.unitsSold} produits vendus · '
+              'conversion ${st.conversionRate.toStringAsFixed(1)} %',
+              style: TextStyle(color: colors.textDark, fontSize: 13),
+            );
+          },
+        ),
+      ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -353,15 +417,22 @@ class _CommissionsTab extends StatelessWidget {
           return Center(child: Text('${snapshot.error}', style: TextStyle(color: colors.error)));
         }
         final items = snapshot.data ?? const [];
-        if (items.isEmpty) {
-          return Center(child: Text('Aucune vente pour le moment.', style: TextStyle(color: colors.textMuted)));
-        }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: items.length,
+          itemCount: items.length + 1,
           separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
-            final c = items[i];
+            if (i == 0) {
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _statsCard(colors),
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: Center(child: Text('Aucune vente pour le moment.', style: TextStyle(color: colors.textMuted))),
+                  ),
+              ]);
+            }
+            final c = items[i - 1];
             return ListTile(
               tileColor: colors.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

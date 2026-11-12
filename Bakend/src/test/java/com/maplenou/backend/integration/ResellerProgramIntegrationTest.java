@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * paramètres versionnés et droits.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@org.springframework.test.context.TestPropertySource(properties = "app.rate-limit.reseller-click.max-per-minute=100000")
 class ResellerProgramIntegrationTest extends AbstractIntegrationTest {
 
     @Value("${app.webhook.secret}")
@@ -211,7 +212,8 @@ class ResellerProgramIntegrationTest extends AbstractIntegrationTest {
             assertEquals(10500, c.get("unitPrice").asLong());
             assertEquals(315, c.get("maplenouCommission").asLong());
             assertEquals(79, c.get("partnerShare").asLong());
-            assertEquals(236, c.get("maplenouShare").asLong());
+            assertFalse(c.has("commissionRate"), "le taux de commission Maplenou n est jamais montre au partenaire");
+            assertFalse(c.has("maplenouShare"));
         }
         JsonNode wallet = get("/api/reseller/wallet", partnerToken, 200);
         assertEquals(0, wallet.get("available").asLong());
@@ -266,10 +268,15 @@ class ResellerProgramIntegrationTest extends AbstractIntegrationTest {
                 Map.entry("reason", "Test de versionnement")), superToken, 200);
         assertEquals(version + 1, updated.get("version").asInt());
         // Les commissions existantes gardent leur version et leurs montants
-        for (JsonNode c : get("/api/reseller/commissions", partnerToken, 200).get("content")) {
-            assertEquals(79, c.get("partnerShare").asLong());
-            assertEquals(version, c.get("settingsVersion").asInt());
+        int checked = 0;
+        for (JsonNode c : get("/api/admin/resellers/commissions?size=100", superToken, 200).get("content")) {
+            if (partnerProfileId().equals(c.get("partnerId").asText())) {
+                assertEquals(79, c.get("partnerShare").asLong());
+                assertEquals(version, c.get("settingsVersion").asInt());
+                checked++;
+            }
         }
+        assertEquals(2, checked);
         // Retour aux valeurs d'origine (nouvelle version), l'historique conserve tout
         put("/api/admin/resellers/settings", Map.ofEntries(
                 Map.entry("shareRate", 0.25), Map.entry("minUnitPrice", 2500), Map.entry("tierThreshold", 10000),
@@ -324,6 +331,9 @@ class ResellerProgramIntegrationTest extends AbstractIntegrationTest {
         assertEquals(3000, get("/api/reseller/wallet", partnerToken, 200).get("reserved").asLong());
         JsonNode paid = patch("/api/admin/resellers/withdrawals/" + wid + "/paid", Map.of("notes", "MOOV-REF-" + rand), approver.token(), 200);
         assertEquals("PAID", paid.get("status").asText());
+        // scenario 22 : reference de paiement et frais enregistres
+        assertEquals("MOOV-REF-" + rand, paid.get("paymentReference").asText());
+        assertEquals(90, paid.get("feeAmount").asLong());
         JsonNode after = get("/api/reseller/wallet", partnerToken, 200);
         assertEquals(0, after.get("reserved").asLong());
         assertEquals(2158, after.get("available").asLong());

@@ -52,6 +52,7 @@ public class ResellerLinkService {
 
     private final ResellerReferralLinkRepository linkRepository;
     private final ResellerClickRepository clickRepository;
+    private final ResellerCommissionRepository commissionRepository;
     private final ResellerProductEligibilityRepository eligibilityRepository;
     private final ResellerAuditLogRepository auditRepository;
     private final ResellerSettingsService settingsService;
@@ -102,9 +103,11 @@ public class ResellerLinkService {
                     Optional<ResellerReferralLink> link = linkRepository.findByPartnerIdAndProductId(partner.getId(), p.getId());
                     return new CatalogItem(p.getId(), p.getName(), p.getShop().getName(),
                             p.getImages().isEmpty() ? null : p.getImages().get(0).getUrl(), price,
-                            calc.rate(), calc.partnerShare(),
+                            calc.partnerShare(),
                             link.map(ResellerReferralLink::getCode).orElse(null),
-                            link.map(l -> urlFor(l.getCode())).orElse(null));
+                            link.map(l -> urlFor(l.getCode())).orElse(null),
+                            link.map(l -> clickRepository.countByLinkIdAndCountedTrue(l.getId())).orElse(0L),
+                            commissionRepository.countUnitsByPartnerAndProduct(partner.getId(), p.getId()));
                 })
                 .toList();
         return new PageImpl<>(items, pageable, items.size() + pageable.getOffset()

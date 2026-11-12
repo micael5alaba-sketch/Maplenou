@@ -396,6 +396,14 @@ installe quoi que ce soit chez lui.
 - **Paramètres** versionnés (`reseller_settings`, `PUT /api/admin/resellers/settings`, permission
   `RESELLERS_SETTINGS` = Super Admin, motif obligatoire) : les commandes déjà créées gardent leur version.
 - **Revenus plateforme** : les parts partenaires créditées sont déduites du revenu net (`RevenueService`).
-- **Tests** : `ResellerCommissionCalculatorTest` (exemples du guide) et `ResellerProgramIntegrationTest`.
+- **Tests** : `ResellerCommissionCalculatorTest` (exemples du guide), `ResellerProgramIntegrationTest` (parcours complet),
+  `ResellerScenariosIntegrationTest` (les 34 scénarios d'acceptation du document, section 23, + notifications et
+  performance par produit), `ResellerIdempotencyIntegrationTest` (double envoi, requêtes simultanées, plafond de clics),
+  `ResellerAccessControlIntegrationTest` (401 sans session, cloisonnement entre partenaires, droits par rôle du
+  personnel, paramètres invalides, aucune donnée client exposée).
+- **Règles du guide à ne pas contredire** : un retour après crédit ne reprend PAS la commission ; le taux Maplenou
+  (5 % / 3 %) n'est jamais montré au partenaire (DTO `PartnerCommissionResponse`, `PartnerSettingsResponse`) ;
+  notifications partenaire = vente attribuée, commission créditée, retrait approuvé/payé/rejeté, rien d'autre.
+- **Statistiques partenaire** : `GET /api/reseller/stats?period=7|30|90` ou `from`/`to`.
 - **Hors périmètre / à décider** : paiement automatique des retraits partenaires (virement manuel confirmé par
   le Super Admin pour l'instant), liens profonds natifs mobile (le lien ouvre l'appli web).

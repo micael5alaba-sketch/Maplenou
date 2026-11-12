@@ -20,9 +20,6 @@ class ResellerProfileModel {
 class ResellerSettingsModel {
   final double shareRate;
   final int minUnitPrice;
-  final int tierThreshold;
-  final double rateLow;
-  final double rateHigh;
   final int attributionDays;
   final int minWithdrawal;
   final double withdrawalFeeRate;
@@ -31,9 +28,6 @@ class ResellerSettingsModel {
   const ResellerSettingsModel({
     required this.shareRate,
     required this.minUnitPrice,
-    required this.tierThreshold,
-    required this.rateLow,
-    required this.rateHigh,
     required this.attributionDays,
     required this.minWithdrawal,
     required this.withdrawalFeeRate,
@@ -43,9 +37,6 @@ class ResellerSettingsModel {
   factory ResellerSettingsModel.fromJson(Map<String, dynamic> json) => ResellerSettingsModel(
         shareRate: (json['shareRate'] as num).toDouble(),
         minUnitPrice: (json['minUnitPrice'] as num).toInt(),
-        tierThreshold: (json['tierThreshold'] as num).toInt(),
-        rateLow: (json['rateLow'] as num).toDouble(),
-        rateHigh: (json['rateHigh'] as num).toDouble(),
         attributionDays: (json['attributionDays'] as num).toInt(),
         minWithdrawal: (json['minWithdrawal'] as num).toInt(),
         withdrawalFeeRate: (json['withdrawalFeeRate'] as num).toDouble(),
@@ -61,6 +52,8 @@ class ResellerCatalogItem {
   final int unitPrice;
   final int partnerShare;
   final String? linkUrl;
+  final int clicks;
+  final int unitsSold;
 
   const ResellerCatalogItem({
     required this.productId,
@@ -70,6 +63,8 @@ class ResellerCatalogItem {
     required this.unitPrice,
     required this.partnerShare,
     required this.linkUrl,
+    this.clicks = 0,
+    this.unitsSold = 0,
   });
 
   factory ResellerCatalogItem.fromJson(Map<String, dynamic> json) => ResellerCatalogItem(
@@ -80,6 +75,8 @@ class ResellerCatalogItem {
         unitPrice: (json['unitPrice'] as num).toInt(),
         partnerShare: (json['partnerShare'] as num).toInt(),
         linkUrl: json['linkUrl'] as String?,
+        clicks: (json['clicks'] as num?)?.toInt() ?? 0,
+        unitsSold: (json['unitsSold'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -184,4 +181,26 @@ class ResellerWithdrawalModel {
         'FAILED' => 'Échec du virement',
         _ => status,
       };
+}
+
+/// Statistiques du partenaire sur une période (`GET /api/reseller/stats`).
+class ResellerStatsModel {
+  final int clicks;
+  final int attributedSales;
+  final int unitsSold;
+  final double conversionRate;
+
+  const ResellerStatsModel({
+    required this.clicks,
+    required this.attributedSales,
+    required this.unitsSold,
+    required this.conversionRate,
+  });
+
+  factory ResellerStatsModel.fromJson(Map<String, dynamic> json) => ResellerStatsModel(
+        clicks: (json['clicks'] as num).toInt(),
+        attributedSales: (json['attributedSales'] as num).toInt(),
+        unitsSold: (json['unitsSold'] as num).toInt(),
+        conversionRate: (json['conversionRate'] as num).toDouble(),
+      );
 }

@@ -5,6 +5,8 @@ import com.maplenou.backend.order.Order;
 import com.maplenou.backend.order.SubOrder;
 import com.maplenou.backend.order.SubOrderItem;
 import com.maplenou.backend.reseller.dto.ResellerDtos.CommissionResponse;
+import com.maplenou.backend.reseller.dto.ResellerDtos.PartnerCommissionResponse;
+import com.maplenou.backend.reseller.dto.ResellerDtos.StatsResponse;
 import com.maplenou.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -106,6 +108,9 @@ public class ResellerAttributionService {
                         .orderItemId(item.getId()).partnerId(partner.getId()).productId(productId)
                         .clickId(cand.click().getId()).buyerId(buyer.getId())
                         .clickedAt(cand.click().getClickedAt()).expiresAt(cand.click().getExpiresAt()).build());
+                notificationService.resellerEvent(partner.getUser().getId(), "Vente attribuée à votre lien",
+                        "Un client a commandé " + item.getSnapshotProductName() + " grâce à votre lien.",
+                        "RESELLER_COMMISSION", attribution.getId());
                 for (int unit = 1; unit <= item.getQuantity(); unit++) {
                     commissionRepository.save(ResellerCommission.builder()
                             .orderItemId(item.getId()).unitIndex((short) unit).attributionId(attribution.getId())
@@ -161,28 +166,6 @@ public class ResellerAttributionService {
         cancelPending(itemIds);
     }
 
-    /**
-     * Retour approuvé : les commissions déjà créditées sont reprises par une écriture de régularisation
-     * négative (le registre n'est jamais modifié), celles en attente sont annulées.
-     */
-    @Transactional
-    public void onSubOrderReturned(SubOrder subOrder) {
-        List<UUID> itemIds = subOrder.getItems().stream().map(SubOrderItem::getId).toList();
-        if (itemIds.isEmpty()) return;
-        for (ResellerCommission c : commissionRepository.findByOrderItemIdIn(itemIds)) {
-            if (c.getStatus() == ResellerCommissionStatus.CREDITED) {
-                walletService.append(c.getPartnerId(), WalletTxType.ADJUSTMENT, -c.getPartnerShare(),
-                        -c.getPartnerShare(), 0, 0, c.getId(), null, "Retour produit : " + c.getProductName(), null,
-                        "commission-return:" + c.getId());
-                c.setStatus(ResellerCommissionStatus.CANCELLED);
-                commissionRepository.save(c);
-            } else if (c.getStatus() == ResellerCommissionStatus.PENDING) {
-                c.setStatus(ResellerCommissionStatus.CANCELLED);
-                commissionRepository.save(c);
-            }
-        }
-    }
-
     @Transactional
     public void onSubOrderCancelled(SubOrder subOrder) {
         cancelPending(subOrder.getItems().stream().map(SubOrderItem::getId).toList());
@@ -206,6 +189,25 @@ public class ResellerAttributionService {
     @Transactional(readOnly = true)
     public Page<CommissionResponse> allCommissions(Pageable pageable) {
         return commissionRepository.findAllByOrderByCreatedAtDesc(pageable).map(ResellerAttributionService::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PartnerCommissionResponse> myCommissionsView(UUID partnerId, Pageable pageable) {
+        return commissionRepository.findByPartnerIdOrderByCreatedAtDesc(partnerId, pageable)
+                .map(c -> new PartnerCommissionResponse(c.getId(), c.getProductName(), c.getUnitIndex(), c.getUnitPrice(),
+                        c.getMaplenouCommission(), c.getPartnerShare(), c.getStatus(), c.getCreatedAt(), c.getCreditedAt()));
+    }
+
+    /** Statistiques du partenaire sur [from, to[ : jamais de donnees d'un autre partenaire ni du client. */
+    @Transactional(readOnly = true)
+    public StatsResponse stats(UUID partnerId, Instant from, Instant to) {
+        long clicks = clickRepository.countByPartnerIdAndCountedTrueAndClickedAtBetween(partnerId, from, to);
+        Object[] row = commissionRepository.salesAndUnits(partnerId, from, to).get(0);
+        long sales = ((Number) row[0]).longValue();
+        long units = ((Number) row[1]).longValue();
+        BigDecimal conversion = clicks == 0 ? BigDecimal.ZERO
+                : BigDecimal.valueOf(sales * 100).divide(BigDecimal.valueOf(clicks), 2, RoundingMode.HALF_UP);
+        return new StatsResponse(from, to, clicks, sales, units, conversion);
     }
 
     static CommissionResponse toResponse(ResellerCommission c) {

@@ -37,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 // ce qui dépasserait la limite de production (10/min) sans changer le comportement testé.
 @TestPropertySource(properties = {
         "app.rate-limit.auth.max-per-minute=100000",
+        // La suite entiere envoie bien plus de 1000 requetes par minute depuis la meme IP (limite globale de production).
+        "app.rate-limit.global.max-per-minute=1000000",
         // Les parcours existants creent et affectent les livraisons a la main : l'affectation automatique
         // est reactivee uniquement par DeliveryDispatchIntegrationTest.
         "app.dispatch.enabled=false"

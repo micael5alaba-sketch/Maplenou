@@ -51,8 +51,10 @@ public class ResellerController {
 
     /** Conditions financières en vigueur (taux, seuils) — affichées dans l'appli. */
     @GetMapping("/api/reseller/settings")
-    public SettingsResponse settings() {
-        return settingsService.getCurrent();
+    public PartnerSettingsResponse settings() {
+        SettingsResponse s = settingsService.getCurrent();
+        return new PartnerSettingsResponse(s.shareRate(), s.minUnitPrice(), s.attributionDays(), s.minWithdrawal(),
+                s.withdrawalFeeRate(), s.programActive());
     }
 
     // ----- Partenaire connecté -----
@@ -86,9 +88,33 @@ public class ResellerController {
     }
 
     @GetMapping("/api/reseller/commissions")
-    public Page<CommissionResponse> commissions(@AuthenticationPrincipal User user,
-                                                @PageableDefault(size = 20) Pageable pageable) {
-        return attributionService.myCommissions(resellerService.requireProfile(user).getId(), pageable);
+    public Page<PartnerCommissionResponse> commissions(@AuthenticationPrincipal User user,
+                                                       @PageableDefault(size = 20) Pageable pageable) {
+        return attributionService.myCommissionsView(resellerService.requireProfile(user).getId(), pageable);
+    }
+
+    /** Statistiques : period = 7, 30 ou 90 (jours), ou personnalisee avec from/to (dates, bornes incluses). */
+    @GetMapping("/api/reseller/stats")
+    public StatsResponse stats(@AuthenticationPrincipal User user,
+                               @RequestParam(required = false) Integer period,
+                               @RequestParam(required = false) java.time.LocalDate from,
+                               @RequestParam(required = false) java.time.LocalDate to) {
+        java.time.Instant end;
+        java.time.Instant start;
+        if (from != null && to != null) {
+            if (to.isBefore(from) || from.plusDays(366).isBefore(to)) {
+                throw new com.maplenou.backend.common.exception.ApiException(HttpStatus.BAD_REQUEST, "Période invalide");
+            }
+            start = from.atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+            end = to.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+        } else if (period != null && (period == 7 || period == 30 || period == 90)) {
+            end = java.time.Instant.now();
+            start = end.minus(java.time.Duration.ofDays(period));
+        } else {
+            throw new com.maplenou.backend.common.exception.ApiException(HttpStatus.BAD_REQUEST,
+                    "Précisez period=7, 30 ou 90, ou une période personnalisée (from et to)");
+        }
+        return attributionService.stats(resellerService.requireProfile(user).getId(), start, end);
     }
 
     @GetMapping("/api/reseller/wallet")

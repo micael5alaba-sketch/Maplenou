@@ -135,6 +135,9 @@ public class ResellerWithdrawalService {
             case APPROVE -> {
                 w.setApprovedBy(actor.getId());
                 w.setApprovedAt(Instant.now());
+                notificationService.resellerEvent(w.getPartner().getUser().getId(), "Retrait approuvé",
+                        "Votre demande de retrait de " + w.getAmount() + " FCFA a été approuvée.",
+                        "RESELLER_WITHDRAWAL", w.getId());
             }
             case PAY -> {
                 w.setPaidAt(Instant.now());

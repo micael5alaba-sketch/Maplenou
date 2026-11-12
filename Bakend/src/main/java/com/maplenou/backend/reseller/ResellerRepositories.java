@@ -61,6 +61,10 @@ interface ResellerClickRepository extends JpaRepository<ResellerClick, UUID> {
     boolean existsByLinkIdAndVisitorHashAndCountedTrueAndClickedAtAfter(UUID linkId, String visitorHash, Instant after);
 
     long countByPartnerIdAndCountedTrue(UUID partnerId);
+
+    long countByLinkIdAndCountedTrue(UUID linkId);
+
+    long countByPartnerIdAndCountedTrueAndClickedAtBetween(UUID partnerId, Instant from, Instant to);
 }
 
 interface ResellerAttributionRepository extends JpaRepository<ResellerAttribution, UUID> {
@@ -83,6 +87,17 @@ interface ResellerCommissionRepository extends JpaRepository<ResellerCommission,
     long sumShareByStatus(@Param("status") ResellerCommissionStatus status);
 
     long countByPartnerIdAndStatus(UUID partnerId, ResellerCommissionStatus status);
+
+    /** Unites vendues (hors annulees) par un partenaire pour un produit : performance de chaque produit. */
+    @Query("select count(c) from ResellerCommission c where c.partnerId = :partnerId "
+            + "and c.status <> com.maplenou.backend.reseller.ResellerCommissionStatus.CANCELLED "
+            + "and c.attributionId in (select a.id from ResellerAttribution a where a.productId = :productId)")
+    long countUnitsByPartnerAndProduct(@Param("partnerId") UUID partnerId, @Param("productId") UUID productId);
+
+    @Query("select count(distinct c.orderItemId), count(c) from ResellerCommission c where c.partnerId = :partnerId "
+            + "and c.status <> com.maplenou.backend.reseller.ResellerCommissionStatus.CANCELLED "
+            + "and c.createdAt >= :from and c.createdAt < :to")
+    List<Object[]> salesAndUnits(@Param("partnerId") UUID partnerId, @Param("from") Instant from, @Param("to") Instant to);
 }
 
 interface ResellerWalletTransactionRepository extends JpaRepository<ResellerWalletTransaction, UUID> {
