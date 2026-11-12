@@ -78,11 +78,11 @@ services:
         value: "true"
       - key: LEGACY_SYNC_ENABLED
         value: "false"
-      # attachments: the free disk is wiped at each restart -> private files on Cloudinary
+      # attachments: "local" at first (nothing to configure; the free disk is wiped at each restart, so photos sent in
+      # tickets do not last). For a lasting setup: ATTACHMENT_STORAGE=cloudinary + CLOUDINARY_URL
+      # (cloudinary://<api_key>:<api_secret>@<cloud_name>) in the Render dashboard.
       - key: ATTACHMENT_STORAGE
-        value: cloudinary
-      - key: CLOUDINARY_URL             # cloudinary://<api_key>:<api_secret>@<cloud_name>
-        sync: false
+        value: local
       - key: CLOUDINARY_FOLDER
         value: maplenou-support
       - key: ANTIVIRUS
@@ -131,7 +131,7 @@ services:
       - key: FIREBASE_WEB_APP_ID
         value: 1:833530565751:web:4bb53f36ab5571a2ac2272
       - key: FIREBASE_WEB_VAPID_KEY     # Firebase console > Cloud Messaging > Web Push certificates (public key)
-        sync: false
+        value: ""                       # empty = browser push off; fill it in the Render dashboard to turn it on
 
   # ------------------------------------------------------------------ public help centre (user guide only)
   - type: web
@@ -185,7 +185,7 @@ services:
       - key: OLLAMA_URL
         value: https://ollama.com
       - key: OLLAMA_API_KEY             # ollama.com > Settings > Keys
-        sync: false
+        value: ""                       # empty = the help assistant does not answer; fill it in the dashboard to turn it on
       - key: ASSISTANT_CHAT_MODEL
         value: gpt-oss:20b
       - key: ASSISTANT_EMBED_MODEL
