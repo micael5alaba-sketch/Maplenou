@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiException } from "@/lib/apiClient";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { serviceClient } from "@/lib/serviceClient";
 import type { Page, Role, StaffCredentialsResponse, StaffResponse } from "@/lib/types";
 import {
   Button,
@@ -17,6 +18,20 @@ import {
   formatDate,
 } from "@/components/ui";
 
+/** Rôles du service client (équipe service client). Vide = pas d'accès, sauf rôle automatique (voir autoRole). */
+const SUPPORT_ROLE_LABELS: Record<string, string> = {
+  SUPPORT_AGENT: "Agent",
+  SUPPORT_MANAGER: "Responsable",
+  ADMINISTRATOR: "Administrateur",
+};
+
+/** Rôle que le service client donne tout seul à un compte du back-office Maplenou (sans attribution). */
+function autoSupportRole(role: string | null): string {
+  if (role === "SUPPORT_AGENT") return "SUPPORT_AGENT";
+  if (role === "ADMIN") return "ADMINISTRATOR";
+  return "";
+}
+
 const ASSIGNABLE_ROLES: Exclude<Role, null | "DELIVERY_AGENT">[] = ["DELIVERY_ADMIN", "SUPPORT_AGENT", "AUDITOR", "ADMIN"];
 
 /**
@@ -29,6 +44,8 @@ export default function StaffPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
+  /** Rôles attribués dans le service client, par numéro (undefined = service client injoignable). */
+  const [supportRoles, setSupportRoles] = useState<Record<string, string> | undefined>(undefined);
 
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -50,6 +67,27 @@ export default function StaffPage() {
   }
 
   useEffect(load, [page]);
+
+  function loadSupportRoles() {
+    serviceClient
+      .staffRoles()
+      .then((list) => setSupportRoles(Object.fromEntries(list.map((r) => [r.phone, r.role]))))
+      .catch(() => setSupportRoles(undefined));
+  }
+
+  useEffect(loadSupportRoles, []);
+
+  function changeSupportRole(s: StaffResponse, newRole: string) {
+    const label = newRole ? SUPPORT_ROLE_LABELS[newRole] : "aucun rôle attribué";
+    if (!confirm(`Rôle de ${s.fullName} dans le service client : ${label}. Il s'applique à sa prochaine connexion. Continuer ?`)) {
+      return;
+    }
+    return act(s.id, async () => {
+      if (newRole) await serviceClient.setStaffRole(s.phoneNumber, newRole);
+      else await serviceClient.removeStaffRole(s.phoneNumber);
+      loadSupportRoles();
+    });
+  }
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -211,7 +249,7 @@ export default function StaffPage() {
           {data.content.length === 0 ? (
             <EmptyState message="Aucun compte du personnel." />
           ) : (
-            <Table headers={["Nom", "Email", "Téléphone", "Rôle", "Statut", "MFA", "Tarification", "Créé le", "Actions"]}>
+            <Table headers={["Nom", "Email", "Téléphone", "Rôle", "Statut", "MFA", "Service client", "Tarification", "Créé le", "Actions"]}>
               {data.content.map((s) => (
                 <tr key={s.id}>
                   <td className="px-4 py-3 font-medium text-foreground">{s.fullName}</td>
@@ -236,6 +274,29 @@ export default function StaffPage() {
                     {s.mustChangePassword && <span className="ml-2 text-xs text-muted">1ʳᵉ connexion en attente</span>}
                   </td>
                   <td className="px-4 py-3 text-muted">{s.totpEnabled ? "Activée" : "À configurer"}</td>
+                  <td className="px-4 py-3">
+                    {supportRoles === undefined ? (
+                      <span className="text-xs text-muted" title="Service client injoignable pour le moment">
+                        indisponible
+                      </span>
+                    ) : (
+                      <select
+                        value={supportRoles[s.phoneNumber] ?? ""}
+                        disabled={actingId === s.id}
+                        onChange={(e) => changeSupportRole(s, e.target.value)}
+                        className="rounded-lg border border-border bg-input-fill px-2 py-1 text-xs"
+                      >
+                        <option value="">
+                          {autoSupportRole(s.role) ? `${SUPPORT_ROLE_LABELS[autoSupportRole(s.role)]} (automatique)` : "Aucun accès"}
+                        </option>
+                        {Object.entries(SUPPORT_ROLE_LABELS).map(([code, label]) => (
+                          <option key={code} value={code}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {s.role === "DELIVERY_ADMIN" ? (
                       <Button variant="secondary" onClick={() => togglePricing(s)} disabled={actingId === s.id}>

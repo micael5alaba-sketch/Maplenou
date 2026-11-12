@@ -60,11 +60,36 @@ async function supportGet<T>(path: string, query?: Record<string, string | numbe
   return call(false);
 }
 
+/** Écriture (rôles du personnel du service client) : même jeton, mêmes erreurs que la lecture. */
+async function supportSend(method: "PUT" | "DELETE", path: string, body?: unknown): Promise<void> {
+  const call = async (retried: boolean): Promise<void> => {
+    const res = await fetch(`${SUPPORT_API_URL}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${await supportToken()}`, "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }).catch(() => null);
+    if (!res) throw new ApiException(0, "Le service client ne répond pas.");
+    if (res.status === 401 && !retried) {
+      cached = null;
+      return call(true);
+    }
+    if (!res.ok) {
+      const problem = (await res.json().catch(() => ({}))) as { detail?: string };
+      throw new ApiException(res.status, problem.detail ?? `Erreur du service client (${res.status}).`);
+    }
+  };
+  return call(false);
+}
+
 export const serviceClient = {
   dashboard: () => supportGet<ServiceClientDashboard>("/api/v1/support/dashboard"),
   tickets: (query: Record<string, string | number | boolean>) =>
     supportGet<ServiceClientPage<ServiceClientTicket>>("/api/v1/support/tickets", query),
   staffRoles: () => supportGet<ServiceClientStaffRole[]>("/api/v1/support/admin/staff-roles"),
+  /** Donne (ou change) le rôle d'une personne dans le service client, par numéro de téléphone. */
+  setStaffRole: (phone: string, role: string) => supportSend("PUT", "/api/v1/support/admin/staff-roles", { phone, role }),
+  /** Retire le rôle donné par numéro ; la personne retrouve le rôle automatique de son compte Maplenou. */
+  removeStaffRole: (phone: string) => supportSend("DELETE", `/api/v1/support/admin/staff-roles/${encodeURIComponent(phone)}`),
 };
 
 /**

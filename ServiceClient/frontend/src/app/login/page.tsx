@@ -12,7 +12,7 @@ import { login } from "@/lib/i18n/messages/login";
 
 type LoginError = keyof typeof login.fr;
 const ACCOUNT_ERRORS = ["INVALID_CREDENTIALS", "INVALID_PHONE", "INVALID_MFA_CODE", "MFA_EXPIRED", "TOO_MANY_ATTEMPTS",
-  "ACCOUNT_DISABLED", "CORE_UNAVAILABLE"] as const;
+  "ACCOUNT_DISABLED", "CORE_UNAVAILABLE", "ONBOARDING_REQUIRED"] as const;
 
 /**
  * Sign-in. `AUTH_MODE=maplenou`: phone number + password of the Maplenou account (and the 2FA code when the

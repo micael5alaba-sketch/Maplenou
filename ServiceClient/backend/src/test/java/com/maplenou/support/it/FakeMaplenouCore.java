@@ -21,6 +21,10 @@ final class FakeMaplenouCore {
     static final String AGENT_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c03";
     static final String STAFF_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c05";
     static final String DISABLED_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c06";
+    static final String NEW_STAFF_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c07";
+    static final String NO_MFA_STAFF_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c08";
+    static final String READY_STAFF_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c09";
+    static final String SUPER_ADMIN_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c0a";
     static final String MFA_ID = "7d0e7c3e-2b7f-4a3b-9a55-1e2f3a4b5c04";
 
     static final HttpServer SERVER;
@@ -42,6 +46,14 @@ final class FakeMaplenouCore {
                 send(ex, 200, login(SELLER_ID, "Kossi Boutique", "+22890000002", null, "\"APPROVED\""));
             } else if (body.contains("\"+22890000003\"") && body.contains("\"Passw0rd!\"")) {
                 send(ex, 200, login(AGENT_ID, "Esi Support", "+22890000003", null, null));
+            } else if (body.contains("\"+22890000010\"") && body.contains("\"Passw0rd!\"")) {
+                send(ex, 200, login(NEW_STAFF_ID, "Nouvel Agent", "+22890000010", "\"SUPPORT_AGENT\"", null, true, false));
+            } else if (body.contains("\"+22890000011\"") && body.contains("\"Passw0rd!\"")) {
+                send(ex, 200, login(NO_MFA_STAFF_ID, "Agent Sans MFA", "+22890000011", "\"SUPPORT_AGENT\"", null, false, false));
+            } else if (body.contains("\"+22890000012\"") && body.contains("\"Passw0rd!\"")) {
+                send(ex, 200, login(READY_STAFF_ID, "Agent Pret", "+22890000012", "\"SUPPORT_AGENT\"", null, false, true));
+            } else if (body.contains("\"+22890000013\"") && body.contains("\"Passw0rd!\"")) {
+                send(ex, 200, login(SUPER_ADMIN_ID, "Super Admin Sans MFA", "+22890000013", "\"ADMIN\"", null, false, false));
             } else if (body.contains("\"+22890000004\"")) {
                 send(ex, 200, "{\"mfaRequired\":true,\"mfaToken\":\"mfa-pending-token\"}");
             } else {
@@ -62,6 +74,14 @@ final class FakeMaplenouCore {
                 send(ex, 200, user(BUYER_ID, "Afi Mensah", "+22890000001", null, null));
             } else if (auth.equals("Bearer core-access-" + STAFF_ID)) {
                 send(ex, 200, user(STAFF_ID, "Esi Agent Support", "+22890000005", "\"SUPPORT_AGENT\"", null));
+            } else if (auth.equals("Bearer core-access-" + NEW_STAFF_ID)) {
+                send(ex, 200, userFlags(NEW_STAFF_ID, "Nouvel Agent", "+22890000010", "\"SUPPORT_AGENT\"", true, false));
+            } else if (auth.equals("Bearer core-access-" + NO_MFA_STAFF_ID)) {
+                send(ex, 200, userFlags(NO_MFA_STAFF_ID, "Agent Sans MFA", "+22890000011", "\"SUPPORT_AGENT\"", false, false));
+            } else if (auth.equals("Bearer core-access-" + READY_STAFF_ID)) {
+                send(ex, 200, userFlags(READY_STAFF_ID, "Agent Pret", "+22890000012", "\"SUPPORT_AGENT\"", false, true));
+            } else if (auth.equals("Bearer core-access-" + SUPER_ADMIN_ID)) {
+                send(ex, 200, userFlags(SUPER_ADMIN_ID, "Super Admin Sans MFA", "+22890000013", "\"ADMIN\"", false, false));
             } else if (auth.equals("Bearer core-access-" + DISABLED_ID)) {
                 send(ex, 403, "{\"status\":403}");
             } else {
@@ -92,9 +112,24 @@ final class FakeMaplenouCore {
                 + "\",\"email\":null,\"role\":" + role + ",\"phoneVerified\":true,\"sellerStatus\":" + sellerStatus + "}";
     }
 
+    private static String userFlags(String id, String name, String phone, String role, boolean mustChange, boolean totp) {
+        return "{\"id\":\"" + id + "\",\"fullName\":\"" + name + "\",\"phoneNumber\":\"" + phone
+                + "\",\"email\":null,\"role\":" + role + ",\"phoneVerified\":true,\"sellerStatus\":null"
+                + ",\"mustChangePassword\":" + mustChange + ",\"totpEnabled\":" + totp + "}";
+    }
+
     private static String login(String id, String name, String phone, String role, String sellerStatus) {
+        return login(id, name, phone, role, sellerStatus, null, null);
+    }
+
+    /** {@code mustChangePassword} / {@code totpEnabled} null = field absent (older core). */
+    private static String login(String id, String name, String phone, String role, String sellerStatus,
+                                Boolean mustChangePassword, Boolean totpEnabled) {
+        String flags = (mustChangePassword == null ? "" : ",\"mustChangePassword\":" + mustChangePassword)
+                + (totpEnabled == null ? "" : ",\"totpEnabled\":" + totpEnabled);
         String user = "{\"id\":\"" + id + "\",\"fullName\":\"" + name + "\",\"phoneNumber\":\"" + phone
-                + "\",\"email\":null,\"role\":" + role + ",\"phoneVerified\":true,\"sellerStatus\":" + sellerStatus + "}";
+                + "\",\"email\":null,\"role\":" + role + ",\"phoneVerified\":true,\"sellerStatus\":" + sellerStatus
+                + flags + "}";
         return "{\"mfaRequired\":false,\"accessToken\":\"core-access-" + id + "\",\"refreshToken\":\"core-refresh-" + id
                 + "\",\"user\":" + user + "}";
     }

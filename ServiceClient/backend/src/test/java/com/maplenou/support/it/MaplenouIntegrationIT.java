@@ -90,6 +90,34 @@ class MaplenouIntegrationIT extends IntegrationTest {
     }
 
     @Test
+    void aStaffAccountMustFinishItsFirstSignInInTheMaplenouBackOfficeFirst() throws Exception {
+        // temporary password not changed yet -> refused, with a clear code
+        login("+22890000010", "Passw0rd!").andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+        // password changed but two-factor not set up -> refused
+        login("+22890000011", "Passw0rd!").andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+        // everything set up -> support agent
+        login("+22890000012", "Passw0rd!").andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("SUPPORT_AGENT"));
+        // the Super Admin is not forced to set up two-factor (same rule as the Maplenou back office)
+        login("+22890000013", "Passw0rd!").andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("ADMINISTRATOR"));
+    }
+
+    @Test
+    void theSameRuleAppliesToTheTokenExchange() throws Exception {
+        exchange("core-access-" + FakeMaplenouCore.NEW_STAFF_ID).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+        exchange("core-access-" + FakeMaplenouCore.NO_MFA_STAFF_ID).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+        exchange("core-access-" + FakeMaplenouCore.READY_STAFF_ID).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("SUPPORT_AGENT"));
+        exchange("core-access-" + FakeMaplenouCore.SUPER_ADMIN_ID).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("ADMINISTRATOR"));
+    }
+
+    @Test
     void approvedSellersAreSellersAndWrongPasswordsAreRefused() throws Exception {
         login("+22890000002", "Passw0rd!").andExpect(status().isOk()).andExpect(jsonPath("$.user.role").value("SELLER"));
         login("+22890000002", "mauvais").andExpect(status().isUnauthorized())

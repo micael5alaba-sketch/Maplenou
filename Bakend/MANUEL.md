@@ -446,3 +446,16 @@ Maplenou ne les reprend pas. Le Super Admin Maplenou (compte `ADMIN`, reconnu co
   récente, équipe et rôles ; et la **pastille rouge** « tickets sans agent » (toutes les 30 s).
 - Variables du back-office : `NEXT_PUBLIC_SUPPORT_API_URL`, `NEXT_PUBLIC_SUPPORT_WEB_URL`. Côté API du service client,
   `CORS_ALLOWED_ORIGINS` doit contenir l'adresse du back-office Maplenou.
+
+### Agents et administrateurs du service client, créés depuis le back-office Maplenou
+
+- **Création** : back-office Maplenou → Personnel → créer un compte (rôle « Agent support et retraits ») : mot de passe
+  provisoire comme pour les autres rôles. Un compte « Agent support » est agent du service client automatiquement.
+- **Rôle dans le service client** : colonne « Service client » de la page Personnel (Agent, Responsable, Administrateur,
+  ou le rôle automatique). Appliqué par numéro de téléphone (`PUT /api/v1/support/admin/staff-roles`) ; effectif à la
+  prochaine connexion de la personne. L'administration propre du service client (page « Agents » de son espace) reste.
+- **Connexion de l'agent** : `https://maplenou-support-web.onrender.com` avec son **numéro de téléphone** et son mot de
+  passe (pas l'email).
+- **Première connexion obligatoire d'abord** : le service client refuse (`ONBOARDING_REQUIRED`) un compte du personnel
+  qui n'a pas changé son mot de passe provisoire ou, hors Super Admin, activé la MFA — même règle que le back-office
+  Maplenou (`StaffOnboardingFilter`). L'agent termine donc sa première connexion dans le back-office Maplenou.

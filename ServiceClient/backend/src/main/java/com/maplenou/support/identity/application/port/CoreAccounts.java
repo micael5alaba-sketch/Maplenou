@@ -10,7 +10,8 @@ import java.util.UUID;
 public interface CoreAccounts {
 
     /** Subset of Bakend {@code UserResponse}. */
-    record CoreUser(UUID id, String fullName, String phoneNumber, String email, String role, String sellerStatus) {
+    record CoreUser(UUID id, String fullName, String phoneNumber, String email, String role, String sellerStatus,
+                    Boolean mustChangePassword, Boolean totpEnabled) {
     }
 
     /** Bakend {@code LoginResponse} / {@code AuthResponse}. */

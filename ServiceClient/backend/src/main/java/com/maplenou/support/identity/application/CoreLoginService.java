@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -91,10 +92,32 @@ public class CoreLoginService {
             throw new SupportException(SupportException.Kind.FORBIDDEN, "ACCOUNT_DISABLED",
                     "Ce compte support est désactivé.", null);
         });
+        requireFirstSignInDone(u);
         String name = u.fullName() == null || u.fullName().isBlank() ? "Utilisateur" : u.fullName().trim();
         Actor user = new Actor(u.id(), role, name, u.email(), u.phoneNumber());
         AccessTokenIssuer.IssuedToken token = issuer.issue(user);
         return new LoginOutcome(false, null, token.accessToken(), token.expiresAt(), user);
+    }
+
+    /** Maplenou back-office roles whose first sign-in (password change, two-factor setup) is enforced by the core. */
+    private static final Set<String> CORE_STAFF_ROLES = Set.of("ADMIN", "DELIVERY_ADMIN", "SUPPORT_AGENT", "AUDITOR");
+
+    /**
+     * A Maplenou staff account created by the Super Admin has a temporary password and must set up two-factor
+     * authentication before any use (same rule as the Maplenou back office: the Super Admin is only asked to change
+     * the password). The core blocks its own API until then; this service must not become a way around it.
+     */
+    private static void requireFirstSignInDone(CoreAccounts.CoreUser u) {
+        if (u.role() == null || !CORE_STAFF_ROLES.contains(u.role())) {
+            return;
+        }
+        boolean mustChangePassword = Boolean.TRUE.equals(u.mustChangePassword());
+        boolean mfaMissing = !"ADMIN".equals(u.role()) && Boolean.FALSE.equals(u.totpEnabled());
+        if (mustChangePassword || mfaMissing) {
+            throw new SupportException(SupportException.Kind.FORBIDDEN, "ONBOARDING_REQUIRED",
+                    "Terminez d'abord votre première connexion dans le back-office Maplenou "
+                            + "(nouveau mot de passe et vérification en deux étapes).", null);
+        }
     }
 
     private void throttle(String key) {

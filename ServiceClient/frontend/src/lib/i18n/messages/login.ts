@@ -32,6 +32,8 @@ export const login = defineMessages({
     MFA_EXPIRED: "La vérification a expiré. Recommencez la connexion.",
     TOO_MANY_ATTEMPTS: "Trop de tentatives. Réessayez dans quelques minutes.",
     ACCOUNT_DISABLED: "Ce compte est désactivé. Contactez le support Maplenou.",
+    ONBOARDING_REQUIRED:
+      "Terminez d'abord votre première connexion dans le back-office Maplenou (nouveau mot de passe et vérification en deux étapes).",
     CORE_UNAVAILABLE: "Le service de connexion Maplenou est momentanément indisponible. Réessayez.",
   },
   en: {
@@ -64,6 +66,8 @@ export const login = defineMessages({
     MFA_EXPIRED: "The verification expired. Please sign in again.",
     TOO_MANY_ATTEMPTS: "Too many attempts. Try again in a few minutes.",
     ACCOUNT_DISABLED: "This account is disabled. Contact Maplenou support.",
+    ONBOARDING_REQUIRED:
+      "Finish your first sign-in in the Maplenou back office first (new password and two-step verification).",
     CORE_UNAVAILABLE: "The Maplenou sign-in service is temporarily unavailable. Please try again.",
   },
 });
