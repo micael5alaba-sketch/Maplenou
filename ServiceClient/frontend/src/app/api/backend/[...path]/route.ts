@@ -5,10 +5,12 @@ export const dynamic = "force-dynamic";
 
 // x-forwarded-for: set by the public profile's Caddy; the API trusts it only from the Docker network
 const FORWARDED_REQUEST_HEADERS = ["content-type", "accept", "if-match", "if-none-match", "x-forwarded-for"];
+// content-length is deliberately NOT forwarded: fetch() decompresses the API's gzip body, so the length announced by
+// the API (the compressed size, e.g. 206 bytes) no longer matches the bytes sent to the browser, which then received a
+// truncated JSON ("Connexion impossible" on every screen). The body is streamed without a declared length instead.
 const FORWARDED_RESPONSE_HEADERS = [
   "content-type",
   "content-disposition",
-  "content-length",
   "cache-control",
   "x-content-type-options",
   "location",
