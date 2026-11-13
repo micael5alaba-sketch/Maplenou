@@ -6,6 +6,7 @@ import { isSupportRole } from "@/lib/labels";
 import type { User } from "@/lib/types";
 import { Alert, Avatar, Loading } from "@/components/ui";
 import { Preferences } from "@/components/Preferences";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useLabels, useMessages } from "@/lib/i18n/client";
 import { common } from "@/lib/i18n/messages/common";
 import { login } from "@/lib/i18n/messages/login";
@@ -35,9 +36,7 @@ function Header() {
   return (
     <div className="row-between">
       <div className="row">
-        <span className="logo">
-          <span className="logo-mark" aria-hidden="true">M</span> {c.appName}
-        </span>
+        <BrandLogo height={36} alt={c.appName} />
         <span className="muted">{c.serviceName}</span>
       </div>
       <Preferences variant="inline" />

@@ -11,6 +11,7 @@ import { shell } from "@/lib/i18n/messages/shell";
 import { Preferences } from "./Preferences";
 import { VocabularyProvider } from "@/lib/vocabulary";
 import { logout, useSession } from "./session";
+import { BrandLogo } from "./BrandLogo";
 
 /** Requester layout: mobile-first, bottom navigation (CS-02 information architecture). */
 /** The administrators' vocabulary (statuses, priorities) is loaded once for every screen of the shell. */
@@ -43,8 +44,8 @@ function RequesterShellLayout({ children }: { children: ReactNode }) {
       </a>
       <header className="req-header">
         <div className="req-header-inner">
-          <Link href="/aide" className="logo">
-            <span className="logo-mark" aria-hidden="true">M</span> {c.appName}
+          <Link href="/aide" className="brand-inline" aria-label={`${c.appName} — ${c.serviceName}`}>
+            <BrandLogo height={30} alt={c.appName} />
           </Link>
           <span className="muted small grow">
             <span className="hide-narrow">{c.serviceName}</span>
