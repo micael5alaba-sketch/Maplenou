@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
@@ -54,8 +55,31 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-7xl px-6 py-8">
           {forbidden ? (
             <div className="rounded-2xl bg-surface p-8 text-center ring-1 ring-border">
-              <h1 className="mb-2 text-xl font-bold text-foreground">Accès refusé</h1>
-              <p className="text-sm text-muted">Votre rôle n&apos;a pas accès à cette page.</p>
+              <h1 className="mb-2 text-xl font-bold text-foreground">
+                {viewAsRole ? "Cette page n'existe pas pour ce rôle" : "Accès refusé"}
+              </h1>
+              {viewAsRole ? (
+                <p className="mx-auto mb-5 max-w-lg text-sm text-muted">
+                  Vous êtes en <strong>aperçu</strong> du rôle « {ROLE_LABELS[viewAsRole]} » : l&apos;aperçu montre uniquement ce que ce
+                  rôle peut voir, et cette page ne fait pas partie de ses accès. Vous, en tant que Super Admin, avez accès à tout : quittez
+                  l&apos;aperçu pour retrouver toutes les pages.
+                </p>
+              ) : (
+                <p className="mb-5 text-sm text-muted">Votre rôle n&apos;a pas accès à cette page.</p>
+              )}
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link href="/" className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-input-fill">
+                  Retour au tableau de bord
+                </Link>
+                {viewAsRole && (
+                  <button
+                    onClick={() => setViewAsRole(null)}
+                    className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                  >
+                    Quitter l&apos;aperçu
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             children

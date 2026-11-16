@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useWorkBadges } from "@/lib/workBadges";
@@ -100,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function Sidebar({ userName, onLogout }: { userName: string; onLogout: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { user, realUser, viewAsRole, setViewAsRole } = useAuth();
   const { badges, total } = useWorkBadges();
@@ -210,7 +211,11 @@ export function Sidebar({ userName, onLogout }: { userName: string; onLogout: ()
             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">Voir en tant que</label>
             <select
               value={viewAsRole ?? ""}
-              onChange={(e) => void setViewAsRole((e.target.value || null) as typeof viewAsRole)}
+              onChange={(e) => {
+                // Chaque rôle a ses propres pages : on repart toujours de son tableau de bord, jamais d'une page
+                // (ex. Personnel, Service client) que ce rôle n'a pas le droit de voir.
+                void setViewAsRole((e.target.value || null) as typeof viewAsRole).then(() => router.push("/"));
+              }}
               className="w-full rounded-lg border border-border bg-input-fill px-2 py-1.5 text-xs text-foreground"
             >
               <option value="">Mon tableau de bord (Super Admin)</option>
