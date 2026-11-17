@@ -76,9 +76,20 @@ public class AuthService {
     private final ClientIpResolver clientIpResolver;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    /** Retrouve un compte quelle que soit la forme du numéro (avec ou sans indicatif). */
+    private java.util.Optional<User> findByAnyPhoneForm(String input) {
+        for (String candidate : PhoneNumbers.candidates(input)) {
+            java.util.Optional<User> found = userRepository.findByPhoneNumber(candidate);
+            if (found.isPresent()) {
+                return found;
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
     @Transactional
     public AuthResponse register(RegisterRequest request, HttpServletRequest httpRequest) {
-        if (userRepository.existsByPhoneNumber(request.phoneNumber())) {
+        if (findByAnyPhoneForm(request.phoneNumber()).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "Ce numéro de téléphone est déjà utilisé");
         }
 
@@ -123,7 +134,9 @@ public class AuthService {
         String identifier = request.phoneNumber().trim();
         String phone = identifier.contains("@")
                 ? userRepository.findStaffByEmail(identifier).map(User::getPhoneNumber).orElse(identifier)
-                : identifier;
+                // Numéro enregistré avec ou sans indicatif (+228/+229) selon la version de l'application :
+                // on retrouve le compte quelle que soit la forme, puis on s'authentifie avec sa forme réelle.
+                : findByAnyPhoneForm(identifier).map(User::getPhoneNumber).orElse(identifier);
 
         String ipLockKey = "login_lock:" + phone + ":" + ip;
         String ipFailKey = "login_fail:" + phone + ":" + ip;
@@ -275,6 +288,7 @@ public class AuthService {
      */
     public void forgotPassword(String phoneNumber, HttpServletRequest httpRequest) {
         String ip = clientIpResolver.resolve(httpRequest);
+        phoneNumber = findByAnyPhoneForm(phoneNumber).map(User::getPhoneNumber).orElse(phoneNumber);
 
         if (isOverRequestLimit("forgot_pwd_req:" + phoneNumber, MAX_FORGOT_PASSWORD_PER_NUMBER, FORGOT_PASSWORD_WINDOW_MINUTES)
                 || isOverRequestLimit("forgot_pwd_req_ip:" + ip, MAX_FORGOT_PASSWORD_PER_IP, FORGOT_PASSWORD_WINDOW_MINUTES)) {
@@ -323,7 +337,8 @@ public class AuthService {
      */
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String phoneNumber = request.phoneNumber();
+        String phoneNumber = findByAnyPhoneForm(request.phoneNumber()).map(User::getPhoneNumber)
+                .orElse(request.phoneNumber());
         String codeKey = "password_reset:" + phoneNumber;
         String attemptsKey = "password_reset_attempts:" + phoneNumber;
 

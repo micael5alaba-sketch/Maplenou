@@ -62,6 +62,22 @@ class AuthAndUserIntegrationTest extends AbstractIntegrationTest {
         post("/api/auth/refresh", new RefreshRequest(refreshToken), null, 401);
     }
 
+    /** Compte enregistré sans indicatif (anciennes versions de l'app) : la connexion avec indicatif doit marcher. */
+    @Test
+    void loginFindsAccountWhateverPhoneFormat() throws Exception {
+        String national = "93" + String.format("%06d", rand % 1_000_000L);
+        JsonNode registered = post("/api/auth/register",
+                new RegisterRequest("Ancien Format", national, "Passw0rd!", null), null, 201);
+        createdUserIds.add(UUID.fromString(registered.get("user").get("id").asText()));
+
+        post("/api/auth/login", new LoginRequest(national, "Passw0rd!"), null, 200);
+        post("/api/auth/login", new LoginRequest("+228" + national, "Passw0rd!"), null, 200);
+        post("/api/auth/login", new LoginRequest("+228 " + national.substring(0, 2) + " " + national.substring(2), "Passw0rd!"), null, 200);
+        post("/api/auth/login", new LoginRequest("+228" + national, "Mauvais1x"), null, 401);
+        // Le même numéro sous une autre forme ne crée pas un second compte
+        post("/api/auth/register", new RegisterRequest("Doublon", "+228" + national, "Passw0rd!", null), null, 409);
+    }
+
     @Test
     void twoFactorSetupActivateLoginChallengeAndDisable() throws Exception {
         String phone = "+22893" + String.format("%07d", rand % 10_000_000L);
