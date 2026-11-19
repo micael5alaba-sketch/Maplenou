@@ -8,7 +8,9 @@
 #   maplenou-support-help       public user guide (FR/EN)    https://maplenou-support-help.onrender.com
 #   maplenou-support-assistant  documentation assistant      https://maplenou-support-assistant.onrender.com
 #
-# Bakend (core API), the Flutter app and Site_vitrine keep their own hosting: this file deploys nothing else.
+#   maplenou-site               public website (Site_vitrine) https://maplenou-site.onrender.com
+#
+# Bakend (core API) and the Flutter app keep their own hosting: this file deploys nothing else.
 # Free plan: every service sleeps after 15 minutes without traffic (about one minute to wake up), the free database
 # expires 30 days after creation, files on disk are lost at each restart (attachments go to Cloudinary). Free web
 # services cannot receive private-network traffic, so the services call each other through their public HTTPS
@@ -134,6 +136,32 @@ services:
         value: ""                       # empty = browser push off; fill it in the Render dashboard to turn it on
 
   # ------------------------------------------------------------------ public help centre (user guide only)
+  # ------------------------------------------------------------------ Public website (Site_vitrine)
+  - type: web
+    name: maplenou-site
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Site_vitrine/Dockerfile
+    dockerContext: ./Site_vitrine
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: ["Site_vitrine/**", "ServiceClient/render.yaml"]
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: SITE_PUBLIC_URL
+        value: https://maplenou-site.onrender.com
+      - key: MAPLENOU_API_URL
+        value: https://maplenou-backend.onrender.com
+      - key: APP_URL
+        value: https://maplenou-web.onrender.com
+      - key: SERVICE_CLIENT_URL
+        value: https://maplenou-support-web.onrender.com
+      - key: HELP_CENTER_URL
+        value: https://maplenou-support-help.onrender.com/user/fr/
+
   - type: web
     name: maplenou-support-help
     runtime: docker
