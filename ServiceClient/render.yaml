@@ -59,8 +59,10 @@ services:
         generateValue: true
       - key: ASSISTANT_INTERNAL_TOKEN   # shared with the assistant below (fromService envVarKey)
         generateValue: true
+      # the Maplenou web app and back-office call this API directly (customer service screens): keep them listed here,
+      # otherwise a Blueprint sync puts the browser block back
       - key: CORS_ALLOWED_ORIGINS
-        value: https://maplenou-support-web.onrender.com
+        value: https://maplenou-support-web.onrender.com,https://maplenou-web.onrender.com,https://maplenou-admin.onrender.com
       - key: SUPPORT_APP_URL
         value: https://maplenou-support-web.onrender.com
       - key: FORWARD_HEADERS_STRATEGY
